@@ -16,6 +16,8 @@ type HomeScreenProps = {
   onCallFamily?: () => void;
   onCognitiveScore?: () => void;
   onProfile?: () => void;
+  onGames?: () => void;
+  onMemory?: () => void;
 };
 
 const COLORS = {
@@ -47,6 +49,8 @@ export default function HomeScreen({
   onCallFamily,
   onCognitiveScore,
   onProfile,
+  onGames,
+  onMemory,
 }: HomeScreenProps) {
   const [activeTab, setActiveTab] = useState('Home');
 
@@ -256,7 +260,10 @@ export default function HomeScreen({
               styles.gamesCard,
               pressed && styles.cardPressed,
             ]}
-            onPress={() => handleCardPress('My Games')}
+            onPress={() => {
+              console.log('GAMES PRESSED');
+              onGames?.();
+            }}
           >
             <View style={styles.gamesLeft}>
 
@@ -414,66 +421,91 @@ export default function HomeScreen({
 
         <View style={styles.bottomNav}>
 
-  {/* Home */}
-  <Pressable style={styles.navItem}>
-    <MaterialIcons name="home" size={24} color="#00450D" />
-    <Text style={styles.navText}>Profile</Text>
-  </Pressable>
+          {/* Home */}
+          <Pressable
+            style={styles.navItem}
+            onPress={() => {
+              setActiveTab('Home');
+            }}
+          >
+            <MaterialIcons name="home" size={24} color="#00450D" />
+            <Text style={styles.navText}>Home</Text>
+          </Pressable>
 
-  {/* Games */}
-  <Pressable style={styles.navItem}>
-    <MaterialIcons name="sports-esports" size={24} color="#41493E" />
-    <Text style={styles.navText}>Profile</Text>
-  </Pressable>
+          {/* Games */}
+          <Pressable
+            style={styles.navItem}
+            onPress={() => {
+              console.log('GAMES PRESSED');
+              onGames?.();
+            }}
+          >
+            <MaterialIcons
+              name="sports-esports"
+              size={24}
+              color="#41493E"
+            />
+            <Text style={styles.navText}>Games</Text>
+          </Pressable>
 
-  {/* Remind */}
-  <Pressable
-    style={styles.navItem}
-    onPress={onSchedule}
-  >
-    <MaterialIcons name="notifications" size={24} color="#41493E" />
-    <Text style={styles.navText}>Remind</Text>
-  </Pressable>
+          {/* Remind */}
+          <Pressable
+            style={styles.navItem}
+            onPress={onSchedule}
+          >
+            <MaterialIcons name="notifications" size={24} color="#41493E" />
+            <Text style={styles.navText}>Remind</Text>
+          </Pressable>
 
-  {/* Memory */}
-  <Pressable style={styles.navItem}>
-    <MaterialIcons name="photo-library" size={24} color="#41493E" />
-    <Text style={styles.navText}>Memory</Text>
-  </Pressable>
+          {/* Memory */}
+          <Pressable
+            style={styles.navItem}
+            onPress={() => {
+              console.log('MEMORY PRESSED');
+              onMemory?.();
+            }}
+          >
+            <MaterialIcons
+              name="auto-stories"
+              size={24}
+              color="#41493E"
+            />
+            <Text style={styles.navText}>Memory</Text>
+          </Pressable>
 
-  {/* Profile */}
-  <Pressable
-  style={[
-    styles.navItem,
-    activeTab === 'Profile' && styles.activeNavItem,
-  ]}
-  onPress={() => {
-    console.log('PROFILE PRESSED');
-    setActiveTab('Profile');
-    onProfile?.();
-  }}
->
-  <MaterialIcons
-    name="person"
-    size={24}
-    color={
-      activeTab === 'Profile'
-        ? COLORS.primary
-        : COLORS.onSurfaceVariant
-    }
-  />
+          {/* Profile */}
+          <Pressable
+            style={[
+              styles.navItem,
+              activeTab === 'Profile' && styles.activeNavItem,
+            ]}
+            onPress={() => {
+              console.log('PROFILE PRESSED');
+              setActiveTab('Profile');
+              onProfile?.();
+            }}
+          >
+            <MaterialIcons
+              name="person"
+              size={24}
+              color={
+                activeTab === 'Profile'
+                  ? COLORS.primary
+                  : COLORS.onSurfaceVariant
+              }
+            />
 
-  <Text
-    style={[
-      styles.navText,
-      activeTab === 'Profile' && styles.activeNavText,
-    ]}
-  >
-    Profile
-  </Text>
-</Pressable>
+            <Text
+              style={[
+                styles.navText,
+                activeTab === 'Profile' && styles.activeNavText,
+              ]}
+            >
+              Profile
+            </Text>
+          </Pressable>
 
-</View>
+        </View>
 
       </View>
     </SafeAreaView>
@@ -873,7 +905,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  
+
 
   activeNavItem: {
     backgroundColor: COLORS.primaryContainer,
