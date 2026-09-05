@@ -12,6 +12,7 @@ import ProfileScreen from './src/screens/profile/ProfileScreen';
 import GamesScreen from './src/screens/games/GamesScreen';
 import MemoryScreen from './src/screens/memories/MemoryScreen';
 import OddOneOutScreen from './src/screens/games/OddOneOutScreen';
+import GuessFoodScreen from './src/screens/games/GuessFoodScreen';
 
 type Screen =
   | 'welcome'
@@ -25,7 +26,8 @@ type Screen =
   | 'profile'
   | 'games'
   | 'memory'
-  | 'odd-one-out';
+  | 'odd-one-out'
+  | 'guess-food';
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('welcome');
@@ -156,9 +158,21 @@ export default function App() {
 
         // Game navigation
         onOddOneOut={() => setScreen('odd-one-out')}
+        onGuessFood={() => setScreen('guess-food')}
       />
     );
   }
+
+  if (screen === 'guess-food') {
+  return (
+    <GuessFoodScreen
+      onBack={() => setScreen('games')}
+      onNextGame={() => {
+        console.log('NEXT GAME PRESSED');
+      }}
+    />
+  );
+}
 
   // =========================================================
   // MEMORY
@@ -205,6 +219,7 @@ export default function App() {
       onProfile={() => setScreen('profile')}
       onGames={() => setScreen('games')}
       onMemory={() => setScreen('memory')}
+      
     />
   );
 }
