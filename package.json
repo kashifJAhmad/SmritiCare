@@ -4,6 +4,7 @@
   "main": "index.ts",
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
+    "@react-native-community/netinfo": "12.0.1",
     "expo": "~57.0.20",
     "expo-font": "~57.0.3",
     "expo-status-bar": "~57.0.1",

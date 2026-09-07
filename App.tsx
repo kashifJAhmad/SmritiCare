@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
 
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import LoginScreen from './src/screens/auth/LoginScreen';
@@ -14,6 +16,7 @@ import MemoryScreen from './src/screens/memories/MemoryScreen';
 import OddOneOutScreen from './src/screens/games/OddOneOutScreen';
 import GuessFoodScreen from './src/screens/games/GuessFoodScreen';
 import PatientDashboardScreen from './src/screens/patients/PatientDashboardScreen';
+import OfflineScreen from './src/screens/OfflineScreen';
 
 type Screen =
   | 'welcome'
@@ -34,6 +37,117 @@ type Screen =
 export default function App() {
   const [screen, setScreen] = useState<Screen>('welcome');
 
+  // Keeps track of whether internet is unavailable.
+  const [isOffline, setIsOffline] = useState(false);
+
+  // Prevents the app from rendering before the first
+  // connection check has completed.
+  const [connectionChecked, setConnectionChecked] = useState(false);
+
+  // ---------------------------------------------------------
+  // INTERNET CONNECTION MONITOR
+  // ---------------------------------------------------------
+
+  useEffect(() => {
+    let mounted = true;
+
+    // NetInfo works for React Native and Expo.
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      if (!mounted) return;
+
+      const offline =
+        state.isConnected === false ||
+        state.isInternetReachable === false;
+
+      setIsOffline(offline);
+      setConnectionChecked(true);
+    });
+
+    // Extra handling for Expo Web.
+    if (
+      Platform.OS === 'web' &&
+      typeof window !== 'undefined'
+    ) {
+      const handleOffline = () => {
+        console.log('SmritiCare: INTERNET OFFLINE');
+
+        if (mounted) {
+          setIsOffline(true);
+          setConnectionChecked(true);
+        }
+      };
+
+      const handleOnline = () => {
+        console.log('SmritiCare: INTERNET ONLINE');
+
+        if (mounted) {
+          setIsOffline(false);
+          setConnectionChecked(true);
+        }
+      };
+
+      // Check browser connection immediately.
+      setIsOffline(!window.navigator.onLine);
+      setConnectionChecked(true);
+
+      window.addEventListener('offline', handleOffline);
+      window.addEventListener('online', handleOnline);
+
+      return () => {
+        mounted = false;
+
+        unsubscribe();
+
+        window.removeEventListener('offline', handleOffline);
+        window.removeEventListener('online', handleOnline);
+      };
+    }
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, []);
+
+  // ---------------------------------------------------------
+  // OFFLINE MODE
+  // ---------------------------------------------------------
+
+  // Wait for the first connection check.
+  if (!connectionChecked) {
+    return null;
+  }
+
+  // Show Offline Mode whenever the connection is lost.
+  if (isOffline) {
+    return (
+      <OfflineScreen
+        onBack={() => {
+          // Don't leave Offline Mode while still offline.
+          if (
+            Platform.OS === 'web' &&
+            typeof window !== 'undefined'
+          ) {
+            if (window.navigator.onLine) {
+              setIsOffline(false);
+            }
+          }
+        }}
+        onHome={() => {
+          // Only go Home if connection has returned.
+          if (
+            Platform.OS === 'web' &&
+            typeof window !== 'undefined'
+          ) {
+            if (window.navigator.onLine) {
+              setScreen('home');
+              setIsOffline(false);
+            }
+          }
+        }}
+      />
+    );
+  }
   // =========================================================
   // WELCOME
   // =========================================================
@@ -165,16 +279,20 @@ export default function App() {
     );
   }
 
+  // =========================================================
+  // GUESS FOOD
+  // =========================================================
+
   if (screen === 'guess-food') {
-  return (
-    <GuessFoodScreen
-      onBack={() => setScreen('games')}
-      onNextGame={() => {
-        console.log('NEXT GAME PRESSED');
-      }}
-    />
-  );
-}
+    return (
+      <GuessFoodScreen
+        onBack={() => setScreen('games')}
+        onNextGame={() => {
+          console.log('NEXT GAME PRESSED');
+        }}
+      />
+    );
+  }
 
   // =========================================================
   // MEMORY
@@ -206,17 +324,23 @@ export default function App() {
       />
     );
   }
-if (screen === 'patient-dashboard') {
-  return (
-    <PatientDashboardScreen
-      onHome={() => setScreen('home')}
-      onGames={() => setScreen('games')}
-      onSchedule={() => setScreen('schedule')}
-      onMemory={() => setScreen('memory')}
-      onProfile={() => setScreen('profile')}
-    />
-  );
-}
+
+  // =========================================================
+  // PATIENT DASHBOARD
+  // =========================================================
+
+  if (screen === 'patient-dashboard') {
+    return (
+      <PatientDashboardScreen
+        onHome={() => setScreen('home')}
+        onGames={() => setScreen('games')}
+        onSchedule={() => setScreen('schedule')}
+        onMemory={() => setScreen('memory')}
+        onProfile={() => setScreen('profile')}
+      />
+    );
+  }
+
   // =========================================================
   // HOME
   // =========================================================
