@@ -1,47 +1,75 @@
 import React, { useState } from 'react';
+
 import {
+  View,
+  Text,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
-  Text,
-  View,
 } from 'react-native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 
-type HomeScreenProps = {
-  onLogout?: () => void;
-  onMedicalHelp?: () => void;
-  onSchedule?: () => void;
-  onCallFamily?: () => void;
-  onCognitiveScore?: () => void;
-  onProfile?: () => void;
-  onGames?: () => void;
-  onMemory?: () => void
-  onPatientDashboard?: () => void;
-};
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import {
+  MaterialIcons,
+  Ionicons,
+} from '@expo/vector-icons';
+
+import QuickAssist from '../../components/QuickAssist';
+
+// =========================================================
+// COLORS
+// =========================================================
 
 const COLORS = {
   background: '#F4FAFF',
-  surface: '#F4FAFF',
+
+  surface: '#FFFFFF',
   surfaceLowest: '#FFFFFF',
-  surfaceLow: '#E9F6FD',
-  surfaceVariant: '#D7E4EC',
+  surfaceLow: '#F6F3F2',
+  surfaceVariant: '#EAE7E7',
+
   primary: '#00450D',
   primaryContainer: '#1B5E20',
   onPrimary: '#FFFFFF',
   onPrimaryContainer: '#90D689',
-  secondary: '#00629E',
-  secondaryContainer: '#62B4FE',
-  onSecondaryContainer: '#004470',
-  tertiary: '#7C000B',
-  tertiaryContainer: '#A70515',
+
+  secondary: '#556158',
+  secondaryContainer: '#D9E6DA',
+
+  tertiary: '#8B3A3A',
+  tertiaryContainer: '#C40018',
   onTertiary: '#FFFFFF',
-  onSurface: '#111D23',
-  onSurfaceVariant: '#41493E',
+
   outline: '#717A6D',
   outlineVariant: '#C0C9BB',
+
+  onSurface: '#1B1C1C',
+  onSurfaceVariant: '#41493E',
 };
+
+// =========================================================
+// TYPES
+// =========================================================
+
+type HomeScreenProps = {
+  onLogout: () => void;
+  onMedicalHelp: () => void;
+  onSchedule: () => void;
+  onCallFamily: () => void;
+  onCognitiveScore: () => void;
+
+  onProfile?: () => void;
+  onGames?: () => void;
+  onMemory?: () => void;
+
+  onPatientDashboard?: () => void;
+  onVoiceAssistant?: () => void;
+};
+
+// =========================================================
+// HOME SCREEN
+// =========================================================
 
 export default function HomeScreen({
   onLogout,
@@ -53,19 +81,10 @@ export default function HomeScreen({
   onGames,
   onMemory,
   onPatientDashboard,
+  onVoiceAssistant,
 }: HomeScreenProps) {
+
   const [activeTab, setActiveTab] = useState('Home');
-
-  const handleTabPress = (tab: string) => {
-    setActiveTab(tab);
-
-    // Navigation to other screens can be connected later.
-    console.log('Selected tab:', tab);
-  };
-
-  const handleCardPress = (name: string) => {
-    console.log('Selected:', name);
-  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -76,9 +95,11 @@ export default function HomeScreen({
         ====================================================== */}
 
         <View style={styles.header}>
+
           <View style={styles.headerRow}>
 
             <View style={styles.headerLeft}>
+
               <Pressable
                 style={({ pressed }) => [
                   styles.backButton,
@@ -88,26 +109,35 @@ export default function HomeScreen({
                 accessibilityRole="button"
                 accessibilityLabel="Back"
               >
+
                 <Ionicons
                   name="arrow-back"
                   size={32}
                   color={COLORS.primary}
                 />
+
               </Pressable>
 
               <Text style={styles.appTitle}>
                 SmritiCare
               </Text>
+
             </View>
 
           </View>
 
           {/* Decorative line */}
+
           <View style={styles.decorativeLine}>
+
             <View style={styles.lineTertiary} />
+
             <View style={styles.linePrimary} />
+
             <View style={styles.lineSecondary} />
+
           </View>
+
         </View>
 
         {/* =====================================================
@@ -125,6 +155,7 @@ export default function HomeScreen({
           ==================================================== */}
 
           <View style={styles.greeting}>
+
             <Text style={styles.greetingTitle}>
               Hello, Aita
             </Text>
@@ -132,6 +163,7 @@ export default function HomeScreen({
             <Text style={styles.greetingSubtitle}>
               What would you like to do today?
             </Text>
+
           </View>
 
           {/* ===================================================
@@ -140,85 +172,126 @@ export default function HomeScreen({
 
           <View style={styles.grid}>
 
-            {/* Medical Help */}
+            {/* =================================================
+                MEDICAL HELP
+            ================================================== */}
 
             <Pressable
               style={({ pressed }) => [
                 styles.actionCard,
+                styles.medicalHelpCard,
                 pressed && styles.cardPressed,
               ]}
               onPress={onMedicalHelp}
             >
+
               <View
                 style={[
                   styles.iconCircle,
                   styles.medicalIconCircle,
                 ]}
               >
+
                 <MaterialIcons
                   name="medical-services"
-                  size={48}
-                  color={COLORS.onSecondaryContainer}
+                  size={42}
+                  color="#005B96"
                 />
+
               </View>
 
-              <Text style={styles.cardTitle}>
+              <Text
+                style={[
+                  styles.cardTitle,
+                  styles.medicalCardTitle,
+                ]}
+              >
                 Medical{'\n'}Help
               </Text>
+
             </Pressable>
 
-            {/* Cognitive Score */}
+            {/* =================================================
+                COGNITIVE SCORE
+            ================================================== */}
 
             <Pressable
               style={({ pressed }) => [
                 styles.actionCard,
+                styles.cognitiveScoreCard,
                 pressed && styles.cardPressed,
               ]}
               onPress={onCognitiveScore}
             >
+
               <View
                 style={[
                   styles.iconCircle,
                   styles.cognitiveIconCircle,
                 ]}
               >
+
                 <MaterialIcons
                   name="assessment"
-                  size={48}
-                  color={COLORS.onPrimaryContainer}
+                  size={42}
+                  color="#1B5E20"
                 />
+
               </View>
 
-              <Text style={styles.cardTitle}>
+              <Text
+                style={[
+                  styles.cardTitle,
+                  styles.cognitiveCardTitle,
+                ]}
+              >
                 Cognitive{'\n'}Score
               </Text>
+
             </Pressable>
 
-            {/* My Schedule */}
+            {/* =================================================
+                MY SCHEDULE
+            ================================================== */}
 
             <Pressable
-              style={styles.actionCard}
+              style={({ pressed }) => [
+                styles.actionCard,
+                styles.scheduleActionCard,
+                pressed && styles.cardPressed,
+              ]}
               onPress={onSchedule}
             >
+
               <View
                 style={[
                   styles.iconCircle,
                   styles.scheduleIconCircle,
                 ]}
               >
+
                 <MaterialIcons
                   name="calendar-today"
-                  size={48}
-                  color={COLORS.onSurfaceVariant}
+                  size={42}
+                  color="#4A3500"
                 />
+
               </View>
 
-              <Text style={styles.cardTitle}>
+              <Text
+                style={[
+                  styles.cardTitle,
+                  styles.scheduleCardTitle,
+                ]}
+              >
                 My{'\n'}Schedule
               </Text>
+
             </Pressable>
 
-            {/* Call Family */}
+            {/* =================================================
+                CALL FAMILY
+            ================================================== */}
 
             <Pressable
               style={({ pressed }) => [
@@ -228,17 +301,20 @@ export default function HomeScreen({
               ]}
               onPress={onCallFamily}
             >
+
               <View
                 style={[
                   styles.iconCircle,
                   styles.familyIconCircle,
                 ]}
               >
+
                 <MaterialIcons
                   name="phone-in-talk"
-                  size={48}
-                  color={COLORS.tertiary}
+                  size={42}
+                  color="#A00015"
                 />
+
               </View>
 
               <Text
@@ -249,22 +325,35 @@ export default function HomeScreen({
               >
                 Call{'\n'}Family
               </Text>
+
             </Pressable>
 
           </View>
+
+          {/* ===================================================
+              PATIENT DASHBOARD
+          ==================================================== */}
+
           <Pressable
-            style={styles.dashboardCard}
+            style={({ pressed }) => [
+              styles.dashboardCard,
+              pressed && styles.cardPressed,
+            ]}
             onPress={onPatientDashboard}
           >
+
             <View style={styles.dashboardIcon}>
+
               <MaterialIcons
                 name="people"
                 size={30}
-                color="#00450D"
+                color={COLORS.primary}
               />
+
             </View>
 
             <View style={styles.dashboardContent}>
+
               <Text style={styles.dashboardTitle}>
                 Patient Dashboard
               </Text>
@@ -272,13 +361,15 @@ export default function HomeScreen({
               <Text style={styles.dashboardSubtitle}>
                 Manage and monitor patient status.
               </Text>
+
             </View>
 
             <MaterialIcons
               name="chevron-right"
-              size={30}
-              color="#00450D"
+              size={32}
+              color={COLORS.primary}
             />
+
           </Pressable>
 
           {/* ===================================================
@@ -295,17 +386,21 @@ export default function HomeScreen({
               onGames?.();
             }}
           >
+
             <View style={styles.gamesLeft}>
 
               <View style={styles.gamesIconCircle}>
+
                 <MaterialIcons
                   name="psychology"
-                  size={48}
+                  size={34}
                   color={COLORS.onPrimaryContainer}
                 />
+
               </View>
 
               <View style={styles.gamesTextContainer}>
+
                 <Text style={styles.sectionTitle}>
                   My Games
                 </Text>
@@ -313,15 +408,17 @@ export default function HomeScreen({
                 <Text style={styles.sectionSubtitle}>
                   Personalized Challenges
                 </Text>
+
               </View>
 
             </View>
 
             <MaterialIcons
               name="chevron-right"
-              size={36}
+              size={32}
               color={COLORS.primary}
             />
+
           </Pressable>
 
           {/* ===================================================
@@ -331,10 +428,15 @@ export default function HomeScreen({
           <View style={styles.scheduleCard}>
 
             {/* Gamocha-style top border */}
+
             <View style={styles.gamochaBorder}>
+
               <View style={styles.gamochaRed} />
+
               <View style={styles.gamochaGreen} />
+
               <View style={styles.gamochaBlue} />
+
             </View>
 
             <View style={styles.scheduleContent}>
@@ -342,20 +444,22 @@ export default function HomeScreen({
               {/* Schedule Header */}
 
               <View style={styles.scheduleHeader}>
+
                 <MaterialIcons
                   name="today"
-                  size={28}
+                  size={26}
                   color={COLORS.primary}
                 />
 
                 <Text style={styles.sectionTitle}>
                   Today's Schedule
                 </Text>
+
               </View>
 
-              {/* ===============================================
+              {/* =================================================
                   TASK 1
-              =============================================== */}
+              ================================================== */}
 
               <View style={styles.taskCard}>
 
@@ -363,11 +467,12 @@ export default function HomeScreen({
 
                   <MaterialIcons
                     name="medication"
-                    size={32}
+                    size={30}
                     color={COLORS.primary}
                   />
 
                   <View>
+
                     <Text style={styles.taskTitle}>
                       Morning Medicine
                     </Text>
@@ -375,6 +480,7 @@ export default function HomeScreen({
                     <Text style={styles.taskTime}>
                       9:00 AM
                     </Text>
+
                   </View>
 
                 </View>
@@ -385,19 +491,23 @@ export default function HomeScreen({
                     pressed && styles.pressed,
                   ]}
                   onPress={() =>
-                    console.log('Morning Medicine completed')
+                    console.log(
+                      'Morning Medicine completed'
+                    )
                   }
                 >
+
                   <Text style={styles.doneButtonText}>
                     Done
                   </Text>
+
                 </Pressable>
 
               </View>
 
-              {/* ===============================================
+              {/* =================================================
                   TASK 2
-              =============================================== */}
+              ================================================== */}
 
               <View style={styles.taskCard}>
 
@@ -405,11 +515,12 @@ export default function HomeScreen({
 
                   <MaterialIcons
                     name="local-drink"
-                    size={32}
+                    size={30}
                     color={COLORS.primary}
                   />
 
                   <View>
+
                     <Text style={styles.taskTitle}>
                       Drink Water
                     </Text>
@@ -417,6 +528,7 @@ export default function HomeScreen({
                     <Text style={styles.taskTime}>
                       11:00 AM
                     </Text>
+
                   </View>
 
                 </View>
@@ -427,20 +539,26 @@ export default function HomeScreen({
                     pressed && styles.pressed,
                   ]}
                   onPress={() =>
-                    console.log('Drink Water marked')
+                    console.log(
+                      'Drink Water marked'
+                    )
                   }
                 >
+
                   <Text style={styles.markButtonText}>
                     Mark
                   </Text>
+
                 </Pressable>
 
               </View>
 
             </View>
+
           </View>
 
           {/* Bottom spacing */}
+
           <View style={styles.bottomSpacing} />
 
         </ScrollView>
@@ -451,18 +569,47 @@ export default function HomeScreen({
 
         <View style={styles.bottomNav}>
 
-          {/* Home */}
+          {/* =================================================
+              HOME
+          ================================================== */}
+
           <Pressable
-            style={styles.navItem}
+            style={[
+              styles.navItem,
+              activeTab === 'Home' &&
+                styles.activeNavItem,
+            ]}
             onPress={() => {
               setActiveTab('Home');
             }}
           >
-            <MaterialIcons name="home" size={24} color="#00450D" />
-            <Text style={styles.navText}>Home</Text>
+
+            <MaterialIcons
+              name="home"
+              size={24}
+              color={
+                activeTab === 'Home'
+                  ? COLORS.primary
+                  : COLORS.onSurfaceVariant
+              }
+            />
+
+            <Text
+              style={[
+                styles.navText,
+                activeTab === 'Home' &&
+                  styles.activeNavText,
+              ]}
+            >
+              Home
+            </Text>
+
           </Pressable>
 
-          {/* Games */}
+          {/* =================================================
+              GAMES
+          ================================================== */}
+
           <Pressable
             style={styles.navItem}
             onPress={() => {
@@ -470,24 +617,44 @@ export default function HomeScreen({
               onGames?.();
             }}
           >
+
             <MaterialIcons
               name="sports-esports"
               size={24}
-              color="#41493E"
+              color={COLORS.onSurfaceVariant}
             />
-            <Text style={styles.navText}>Games</Text>
+
+            <Text style={styles.navText}>
+              Games
+            </Text>
+
           </Pressable>
 
-          {/* Remind */}
+          {/* =================================================
+              REMIND
+          ================================================== */}
+
           <Pressable
             style={styles.navItem}
             onPress={onSchedule}
           >
-            <MaterialIcons name="notifications" size={24} color="#41493E" />
-            <Text style={styles.navText}>Remind</Text>
+
+            <MaterialIcons
+              name="notifications"
+              size={24}
+              color={COLORS.onSurfaceVariant}
+            />
+
+            <Text style={styles.navText}>
+              Remind
+            </Text>
+
           </Pressable>
 
-          {/* Memory */}
+          {/* =================================================
+              MEMORY
+          ================================================== */}
+
           <Pressable
             style={styles.navItem}
             onPress={() => {
@@ -495,26 +662,40 @@ export default function HomeScreen({
               onMemory?.();
             }}
           >
+
             <MaterialIcons
               name="auto-stories"
               size={24}
-              color="#41493E"
+              color={COLORS.onSurfaceVariant}
             />
-            <Text style={styles.navText}>Memory</Text>
+
+            <Text style={styles.navText}>
+              Memory
+            </Text>
+
           </Pressable>
 
-          {/* Profile */}
+          {/* =================================================
+              PROFILE
+          ================================================== */}
+
           <Pressable
             style={[
               styles.navItem,
-              activeTab === 'Profile' && styles.activeNavItem,
+              activeTab === 'Profile' &&
+                styles.activeNavItem,
             ]}
             onPress={() => {
+
               console.log('PROFILE PRESSED');
+
               setActiveTab('Profile');
+
               onProfile?.();
+
             }}
           >
+
             <MaterialIcons
               name="person"
               size={24}
@@ -528,19 +709,33 @@ export default function HomeScreen({
             <Text
               style={[
                 styles.navText,
-                activeTab === 'Profile' && styles.activeNavText,
+                activeTab === 'Profile' &&
+                  styles.activeNavText,
               ]}
             >
               Profile
             </Text>
+
           </Pressable>
 
         </View>
+
+        {/* =====================================================
+            QUICK ASSIST
+        ====================================================== */}
+
+        <QuickAssist
+          bottomOffset={100}
+          onVoiceAssistant={onVoiceAssistant}
+        />
 
       </View>
     </SafeAreaView>
   );
 }
+// =========================================================
+// STYLES
+// =========================================================
 
 const styles = StyleSheet.create({
 
@@ -566,9 +761,10 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 800,
     alignSelf: 'center',
-    paddingHorizontal: 24,
+
+    paddingHorizontal: 22,
     paddingTop: 100,
-    paddingBottom: 20,
+    paddingBottom: 24,
   },
 
   // =========================================================
@@ -577,20 +773,26 @@ const styles = StyleSheet.create({
 
   header: {
     position: 'absolute',
+
     top: 0,
     left: 0,
     right: 0,
+
     zIndex: 50,
-    paddingHorizontal: 24,
-    paddingTop: 16,
+
+    paddingHorizontal: 20,
+    paddingTop: 10,
     paddingBottom: 8,
+
     backgroundColor: COLORS.surface,
+
     borderBottomWidth: 2,
     borderBottomColor: COLORS.outlineVariant,
   },
 
   headerRow: {
     minHeight: 48,
+
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -599,32 +801,43 @@ const styles = StyleSheet.create({
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+
+    gap: 12,
   },
 
   backButton: {
     width: 48,
     height: 48,
+
     borderRadius: 24,
+
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   appTitle: {
     fontFamily: 'sans-serif',
+
     fontSize: 28,
-    lineHeight: 36,
+    lineHeight: 34,
+
     fontWeight: '700',
+
     color: COLORS.primary,
   },
 
   decorativeLine: {
     width: '100%',
-    height: 8,
+    height: 7,
+
     marginTop: 8,
+
     borderRadius: 4,
+
     overflow: 'hidden',
+
     flexDirection: 'row',
+
     opacity: 0.2,
   },
 
@@ -648,24 +861,31 @@ const styles = StyleSheet.create({
   // =========================================================
 
   greeting: {
-    paddingVertical: 16,
-    marginBottom: 16,
+    paddingVertical: 10,
+    marginBottom: 14,
   },
 
   greetingTitle: {
     fontFamily: 'sans-serif',
-    fontSize: 28,
-    lineHeight: 34,
+
+    fontSize: 26,
+    lineHeight: 32,
+
     fontWeight: '700',
+
     color: COLORS.onSurface,
   },
 
   greetingSubtitle: {
-    marginTop: 8,
+    marginTop: 6,
+
     fontFamily: 'sans-serif',
-    fontSize: 22,
-    lineHeight: 32,
+
+    fontSize: 20,
+    lineHeight: 28,
+
     fontWeight: '400',
+
     color: COLORS.onSurfaceVariant,
   },
 
@@ -675,65 +895,194 @@ const styles = StyleSheet.create({
 
   grid: {
     width: '100%',
+
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 20,
+
+    gap: 16,
   },
 
   actionCard: {
     width: '47%',
+
     aspectRatio: 1,
-    minHeight: 150,
-    backgroundColor: COLORS.surfaceLowest,
+
+    minHeight: 140,
+
     borderWidth: 2,
-    borderColor: COLORS.outlineVariant,
     borderRadius: 12,
-    padding: 16,
+
+    padding: 12,
+
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 16,
+
+    gap: 12,
   },
+
+  // =========================================================
+  // MEDICAL HELP - BLUE
+  // =========================================================
+
+  medicalHelpCard: {
+    backgroundColor: '#2196F3',
+    borderColor: '#2196F3',
+  },
+
+  medicalCardTitle: {
+    color: '#FFFFFF',
+  },
+
+  // =========================================================
+  // COGNITIVE SCORE - GREEN
+  // =========================================================
+
+  cognitiveScoreCard: {
+    backgroundColor: '#1B5E20',
+    borderColor: '#1B5E20',
+  },
+
+  cognitiveCardTitle: {
+    color: '#FFFFFF',
+  },
+
+  // =========================================================
+  // MY SCHEDULE - YELLOW
+  // =========================================================
+
+  scheduleActionCard: {
+    backgroundColor: '#FFC107',
+    borderColor: '#FFC107',
+  },
+
+  scheduleCardTitle: {
+    color: '#000000',
+  },
+
+  // =========================================================
+  // CALL FAMILY - RED
+  // =========================================================
 
   callFamilyCard: {
-    backgroundColor: COLORS.tertiaryContainer,
-    borderColor: COLORS.tertiary,
+    backgroundColor: '#C40018',
+    borderColor: '#C40018',
   },
 
+  familyCardTitle: {
+    color: '#FFFFFF',
+  },
+
+  // =========================================================
+  // ACTION CARD ICONS
+  // =========================================================
+
   iconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 60,
+    height: 60,
+
+    borderRadius: 30,
+
     alignItems: 'center',
     justifyContent: 'center',
+
+    backgroundColor: '#FFFFFF',
   },
 
   medicalIconCircle: {
-    backgroundColor: COLORS.secondaryContainer,
+    backgroundColor: '#FFFFFF',
   },
 
   cognitiveIconCircle: {
-    backgroundColor: COLORS.primaryContainer,
+    backgroundColor: '#FFFFFF',
   },
 
   scheduleIconCircle: {
-    backgroundColor: COLORS.surfaceVariant,
+    backgroundColor: '#FFFFFF',
   },
 
   familyIconCircle: {
-    backgroundColor: COLORS.onTertiary,
+    backgroundColor: '#FFFFFF',
   },
 
   cardTitle: {
     fontFamily: 'sans-serif',
-    fontSize: 20,
-    lineHeight: 24,
+
+    fontSize: 18,
+    lineHeight: 22,
+
     fontWeight: '700',
+
     textAlign: 'center',
+
+    color: '#FFFFFF',
+  },
+
+  // =========================================================
+  // PATIENT DASHBOARD
+  // =========================================================
+
+  dashboardCard: {
+    width: '100%',
+
+    marginTop: 18,
+
+    minHeight: 100,
+
+    padding: 16,
+
+    backgroundColor: COLORS.surfaceLowest,
+
+    borderWidth: 2,
+    borderColor: COLORS.outlineVariant,
+
+    borderRadius: 12,
+
+    flexDirection: 'row',
+
+    alignItems: 'center',
+
+    justifyContent: 'space-between',
+  },
+
+  dashboardIcon: {
+    width: 56,
+    height: 56,
+
+    borderRadius: 28,
+
+    backgroundColor: COLORS.primaryContainer,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  dashboardContent: {
+    flex: 1,
+
+    marginLeft: 14,
+    marginRight: 8,
+  },
+
+  dashboardTitle: {
+    fontFamily: 'sans-serif',
+
+    fontSize: 20,
+    lineHeight: 25,
+
+    fontWeight: '700',
+
     color: COLORS.onSurface,
   },
 
-  familyCardTitle: {
-    color: COLORS.onTertiary,
+  dashboardSubtitle: {
+    marginTop: 3,
+
+    fontFamily: 'sans-serif',
+
+    fontSize: 14,
+    lineHeight: 20,
+
+    color: COLORS.onSurfaceVariant,
   },
 
   // =========================================================
@@ -742,29 +1091,45 @@ const styles = StyleSheet.create({
 
   gamesCard: {
     width: '100%',
-    marginTop: 32,
-    padding: 24,
+
+    marginTop: 20,
+
+    minHeight: 100,
+
+    padding: 16,
+
     backgroundColor: COLORS.surfaceLowest,
+
     borderWidth: 2,
     borderColor: COLORS.outlineVariant,
+
     borderRadius: 12,
+
     flexDirection: 'row',
+
     alignItems: 'center',
+
     justifyContent: 'space-between',
   },
 
   gamesLeft: {
     flexDirection: 'row',
+
     alignItems: 'center',
+
     flex: 1,
-    gap: 16,
+
+    gap: 14,
   },
 
   gamesIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 56,
+    height: 56,
+
+    borderRadius: 28,
+
     backgroundColor: COLORS.primaryContainer,
+
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -775,17 +1140,23 @@ const styles = StyleSheet.create({
 
   sectionTitle: {
     fontFamily: 'sans-serif',
-    fontSize: 28,
-    lineHeight: 34,
+
+    fontSize: 20,
+    lineHeight: 25,
+
     fontWeight: '700',
+
     color: COLORS.onSurface,
   },
 
   sectionSubtitle: {
-    marginTop: 4,
+    marginTop: 3,
+
     fontFamily: 'sans-serif',
-    fontSize: 18,
-    lineHeight: 28,
+
+    fontSize: 14,
+    lineHeight: 20,
+
     color: COLORS.onSurfaceVariant,
   },
 
@@ -795,118 +1166,176 @@ const styles = StyleSheet.create({
 
   scheduleCard: {
     width: '100%',
-    marginTop: 32,
+
+    marginTop: 20,
+
     backgroundColor: COLORS.surfaceLowest,
+
     borderWidth: 2,
     borderColor: COLORS.outlineVariant,
+
     borderRadius: 12,
+
     overflow: 'hidden',
   },
 
   gamochaBorder: {
     width: '100%',
-    height: 8,
+    height: 7,
+
     flexDirection: 'row',
   },
 
   gamochaRed: {
     flex: 1,
+
     backgroundColor: COLORS.tertiaryContainer,
   },
 
   gamochaGreen: {
     flex: 1,
+
     backgroundColor: COLORS.primary,
   },
 
   gamochaBlue: {
     flex: 1,
-    backgroundColor: COLORS.secondary,
+
+    backgroundColor: '#2196F3',
   },
 
   scheduleContent: {
-    padding: 24,
+    padding: 16,
   },
 
   scheduleHeader: {
     flexDirection: 'row',
+
     alignItems: 'center',
+
     gap: 8,
-    marginBottom: 24,
+
+    marginBottom: 18,
   },
+
+  // =========================================================
+  // TASK CARDS
+  // =========================================================
 
   taskCard: {
     width: '100%',
-    minHeight: 76,
-    padding: 16,
-    marginBottom: 16,
+
+    minHeight: 72,
+
+    padding: 12,
+
+    marginBottom: 12,
+
     backgroundColor: COLORS.surfaceLow,
+
     borderWidth: 1,
     borderColor: COLORS.outlineVariant,
+
     borderRadius: 8,
+
     flexDirection: 'row',
+
     alignItems: 'center',
+
     justifyContent: 'space-between',
   },
 
   taskLeft: {
     flexDirection: 'row',
+
     alignItems: 'center',
-    gap: 16,
+
+    gap: 12,
+
     flex: 1,
   },
 
   taskTitle: {
     fontFamily: 'sans-serif',
-    fontSize: 20,
-    lineHeight: 24,
+
+    fontSize: 17,
+    lineHeight: 22,
+
     fontWeight: '700',
+
     color: COLORS.onSurface,
   },
 
   taskTime: {
-    marginTop: 4,
+    marginTop: 3,
+
     fontFamily: 'sans-serif',
-    fontSize: 18,
-    lineHeight: 28,
+
+    fontSize: 15,
+    lineHeight: 20,
+
     color: COLORS.onSurfaceVariant,
   },
 
+  // =========================================================
+  // DONE BUTTON
+  // =========================================================
+
   doneButton: {
-    minHeight: 48,
-    paddingHorizontal: 24,
-    borderRadius: 24,
+    minHeight: 44,
+
+    paddingHorizontal: 18,
+
+    borderRadius: 22,
+
     backgroundColor: COLORS.primary,
+
     borderWidth: 2,
     borderColor: COLORS.primary,
+
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   doneButtonText: {
     fontFamily: 'sans-serif',
-    fontSize: 20,
-    lineHeight: 24,
+
+    fontSize: 16,
+    lineHeight: 20,
+
     fontWeight: '700',
+
     color: COLORS.onPrimary,
   },
 
+  // =========================================================
+  // MARK BUTTON
+  // =========================================================
+
   markButton: {
-    minHeight: 48,
-    paddingHorizontal: 24,
-    borderRadius: 24,
+    minHeight: 44,
+
+    paddingHorizontal: 18,
+
+    borderRadius: 22,
+
     backgroundColor: COLORS.surfaceLowest,
+
     borderWidth: 2,
     borderColor: COLORS.primary,
+
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   markButtonText: {
     fontFamily: 'sans-serif',
-    fontSize: 20,
-    lineHeight: 24,
+
+    fontSize: 16,
+    lineHeight: 20,
+
     fontWeight: '700',
+
     color: COLORS.primary,
   },
 
@@ -915,39 +1344,58 @@ const styles = StyleSheet.create({
   // =========================================================
 
   bottomNav: {
-    height: 88,
+    height: 78,
+
     width: '100%',
+
     flexDirection: 'row',
+
     alignItems: 'center',
+
     justifyContent: 'space-around',
-    paddingHorizontal: 8,
-    paddingVertical: 12,
+
+    paddingHorizontal: 4,
+    paddingVertical: 8,
+
     backgroundColor: COLORS.surface,
+
     borderTopWidth: 2,
     borderTopColor: COLORS.outlineVariant,
   },
 
   navItem: {
-    width: 72,
-    minHeight: 60,
-    padding: 8,
+    width: 64,
+
+    minHeight: 56,
+
+    padding: 6,
+
     borderRadius: 12,
+
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-
   activeNavItem: {
     backgroundColor: COLORS.primaryContainer,
-    transform: [{ scale: 0.95 }],
+
+    transform: [
+      {
+        scale: 0.95,
+      },
+    ],
   },
 
   navText: {
-    marginTop: 4,
+    marginTop: 3,
+
     fontFamily: 'sans-serif',
-    fontSize: 14,
-    lineHeight: 18,
+
+    fontSize: 12,
+    lineHeight: 16,
+
     fontWeight: '700',
+
     color: COLORS.onSurfaceVariant,
   },
 
@@ -955,49 +1403,14 @@ const styles = StyleSheet.create({
     color: COLORS.onPrimaryContainer,
   },
 
+  // =========================================================
+  // BOTTOM SPACING
+  // =========================================================
+
   bottomSpacing: {
-    height: 20,
+    height: 24,
   },
 
-  dashboardCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 96,
-    marginHorizontal: 20,
-    marginTop: 24,
-    marginBottom: 16,
-    paddingHorizontal: 18,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#C0C9BB',
-    backgroundColor: '#FFFFFF',
-  },
-
-  dashboardIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#D9E6DA',
-    marginRight: 14,
-  },
-
-  dashboardContent: {
-    flex: 1,
-  },
-
-  dashboardTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111D23',
-  },
-
-  dashboardSubtitle: {
-    marginTop: 4,
-    fontSize: 15,
-    color: '#41493E',
-  },
   // =========================================================
   // PRESSED STATES
   // =========================================================
@@ -1007,8 +1420,11 @@ const styles = StyleSheet.create({
   },
 
   cardPressed: {
-    transform: [{ scale: 0.98 }],
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.surfaceLow,
+    transform: [
+      {
+        scale: 0.98,
+      },
+    ],
   },
+
 });

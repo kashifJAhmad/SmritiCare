@@ -17,6 +17,7 @@ import OddOneOutScreen from './src/screens/games/OddOneOutScreen';
 import GuessFoodScreen from './src/screens/games/GuessFoodScreen';
 import PatientDashboardScreen from './src/screens/patients/PatientDashboardScreen';
 import OfflineScreen from './src/screens/OfflineScreen';
+import VoiceAssistantScreen from './src/screens/home/VoiceAssistantScreen';
 
 type Screen =
   | 'welcome'
@@ -32,26 +33,22 @@ type Screen =
   | 'memory'
   | 'odd-one-out'
   | 'guess-food'
-  | 'patient-dashboard';
+  | 'patient-dashboard'
+  | 'voice-assistant';
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('welcome');
 
-  // Keeps track of whether internet is unavailable.
+  // ---------------------------------------------------------
+  // OFFLINE DETECTION
+  // ---------------------------------------------------------
+
   const [isOffline, setIsOffline] = useState(false);
-
-  // Prevents the app from rendering before the first
-  // connection check has completed.
   const [connectionChecked, setConnectionChecked] = useState(false);
-
-  // ---------------------------------------------------------
-  // INTERNET CONNECTION MONITOR
-  // ---------------------------------------------------------
 
   useEffect(() => {
     let mounted = true;
 
-    // NetInfo works for React Native and Expo.
     const unsubscribe = NetInfo.addEventListener((state) => {
       if (!mounted) return;
 
@@ -63,11 +60,8 @@ export default function App() {
       setConnectionChecked(true);
     });
 
-    // Extra handling for Expo Web.
-    if (
-      Platform.OS === 'web' &&
-      typeof window !== 'undefined'
-    ) {
+    // Extra support for Expo Web
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
       const handleOffline = () => {
         console.log('SmritiCare: INTERNET OFFLINE');
 
@@ -86,7 +80,6 @@ export default function App() {
         }
       };
 
-      // Check browser connection immediately.
       setIsOffline(!window.navigator.onLine);
       setConnectionChecked(true);
 
@@ -95,7 +88,6 @@ export default function App() {
 
       return () => {
         mounted = false;
-
         unsubscribe();
 
         window.removeEventListener('offline', handleOffline);
@@ -110,47 +102,47 @@ export default function App() {
   }, []);
 
   // ---------------------------------------------------------
-  // OFFLINE MODE
+  // WAIT UNTIL CONNECTION STATUS IS CHECKED
   // ---------------------------------------------------------
 
-  // Wait for the first connection check.
   if (!connectionChecked) {
     return null;
   }
 
-  // Show Offline Mode whenever the connection is lost.
+  // ---------------------------------------------------------
+  // OFFLINE SCREEN
+  // ---------------------------------------------------------
+
   if (isOffline) {
     return (
       <OfflineScreen
         onBack={() => {
-          // Don't leave Offline Mode while still offline.
+          // Only leave offline mode if internet is back.
           if (
             Platform.OS === 'web' &&
-            typeof window !== 'undefined'
+            typeof window !== 'undefined' &&
+            window.navigator.onLine
           ) {
-            if (window.navigator.onLine) {
-              setIsOffline(false);
-            }
+            setIsOffline(false);
           }
         }}
         onHome={() => {
-          // Only go Home if connection has returned.
           if (
             Platform.OS === 'web' &&
-            typeof window !== 'undefined'
+            typeof window !== 'undefined' &&
+            window.navigator.onLine
           ) {
-            if (window.navigator.onLine) {
-              setScreen('home');
-              setIsOffline(false);
-            }
+            setScreen('home');
+            setIsOffline(false);
           }
         }}
       />
     );
   }
-  // =========================================================
+
+  // ---------------------------------------------------------
   // WELCOME
-  // =========================================================
+  // ---------------------------------------------------------
 
   if (screen === 'welcome') {
     return (
@@ -161,9 +153,9 @@ export default function App() {
     );
   }
 
-  // =========================================================
+  // ---------------------------------------------------------
   // LOGIN
-  // =========================================================
+  // ---------------------------------------------------------
 
   if (screen === 'login') {
     return (
@@ -175,9 +167,9 @@ export default function App() {
     );
   }
 
-  // =========================================================
+  // ---------------------------------------------------------
   // SIGNUP
-  // =========================================================
+  // ---------------------------------------------------------
 
   if (screen === 'signup') {
     return (
@@ -189,9 +181,9 @@ export default function App() {
     );
   }
 
-  // =========================================================
+  // ---------------------------------------------------------
   // MEDICAL HELP
-  // =========================================================
+  // ---------------------------------------------------------
 
   if (screen === 'medical-help') {
     return (
@@ -201,9 +193,9 @@ export default function App() {
     );
   }
 
-  // =========================================================
+  // ---------------------------------------------------------
   // SCHEDULE
-  // =========================================================
+  // ---------------------------------------------------------
 
   if (screen === 'schedule') {
     return (
@@ -213,9 +205,9 @@ export default function App() {
     );
   }
 
-  // =========================================================
+  // ---------------------------------------------------------
   // CALL FAMILY
-  // =========================================================
+  // ---------------------------------------------------------
 
   if (screen === 'call-family') {
     return (
@@ -230,9 +222,9 @@ export default function App() {
     );
   }
 
-  // =========================================================
+  // ---------------------------------------------------------
   // COGNITIVE SCORE
-  // =========================================================
+  // ---------------------------------------------------------
 
   if (screen === 'cognitive-score') {
     return (
@@ -242,9 +234,9 @@ export default function App() {
     );
   }
 
-  // =========================================================
+  // ---------------------------------------------------------
   // PROFILE
-  // =========================================================
+  // ---------------------------------------------------------
 
   if (screen === 'profile') {
     return (
@@ -259,9 +251,9 @@ export default function App() {
     );
   }
 
-  // =========================================================
+  // ---------------------------------------------------------
   // GAMES
-  // =========================================================
+  // ---------------------------------------------------------
 
   if (screen === 'games') {
     return (
@@ -271,17 +263,15 @@ export default function App() {
         onSchedule={() => setScreen('schedule')}
         onMemory={() => setScreen('memory')}
         onProfile={() => setScreen('profile')}
-
-        // Game navigation
         onOddOneOut={() => setScreen('odd-one-out')}
         onGuessFood={() => setScreen('guess-food')}
       />
     );
   }
 
-  // =========================================================
+  // ---------------------------------------------------------
   // GUESS FOOD
-  // =========================================================
+  // ---------------------------------------------------------
 
   if (screen === 'guess-food') {
     return (
@@ -294,9 +284,9 @@ export default function App() {
     );
   }
 
-  // =========================================================
+  // ---------------------------------------------------------
   // MEMORY
-  // =========================================================
+  // ---------------------------------------------------------
 
   if (screen === 'memory') {
     return (
@@ -310,9 +300,9 @@ export default function App() {
     );
   }
 
-  // =========================================================
+  // ---------------------------------------------------------
   // ODD ONE OUT
-  // =========================================================
+  // ---------------------------------------------------------
 
   if (screen === 'odd-one-out') {
     return (
@@ -325,9 +315,9 @@ export default function App() {
     );
   }
 
-  // =========================================================
+  // ---------------------------------------------------------
   // PATIENT DASHBOARD
-  // =========================================================
+  // ---------------------------------------------------------
 
   if (screen === 'patient-dashboard') {
     return (
@@ -341,21 +331,68 @@ export default function App() {
     );
   }
 
-  // =========================================================
+  // ---------------------------------------------------------
+  // VOICE ASSISTANT
+  // ---------------------------------------------------------
+
+  if (screen === 'voice-assistant') {
+    return (
+      <VoiceAssistantScreen
+        onBack={() => setScreen('home')}
+
+        // "Remind me to take my medicine"
+        onMedicine={() => {
+          setScreen('schedule');
+        }}
+        onProfile={() => setScreen('profile')}
+        // "Call my family"
+        onFamily={() => {
+          setScreen('call-family');
+        }}
+
+        // "Start a memory game"
+        onGame={() => {
+          setScreen('games');
+        }}
+
+        // "Show my schedule"
+        onSchedule={() => {
+          setScreen('schedule');
+        }}
+      />
+    );
+  }
+
+  // ---------------------------------------------------------
   // HOME
-  // =========================================================
+  // ---------------------------------------------------------
 
   return (
     <HomeScreen
       onLogout={() => setScreen('welcome')}
+
       onMedicalHelp={() => setScreen('medical-help')}
+
       onSchedule={() => setScreen('schedule')}
+
       onCallFamily={() => setScreen('call-family')}
+
       onCognitiveScore={() => setScreen('cognitive-score')}
+
       onProfile={() => setScreen('profile')}
+
       onGames={() => setScreen('games')}
+
       onMemory={() => setScreen('memory')}
-      onPatientDashboard={() => setScreen('patient-dashboard')}
+
+      onPatientDashboard={() =>
+        setScreen('patient-dashboard')
+      }
+
+      // QUICK ASSIST → VOICE ASSISTANT
+      onVoiceAssistant={() =>
+        setScreen('voice-assistant')
+      }
     />
   );
 }
