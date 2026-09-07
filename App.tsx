@@ -13,6 +13,7 @@ import GamesScreen from './src/screens/games/GamesScreen';
 import MemoryScreen from './src/screens/memories/MemoryScreen';
 import OddOneOutScreen from './src/screens/games/OddOneOutScreen';
 import GuessFoodScreen from './src/screens/games/GuessFoodScreen';
+import PatientDashboardScreen from './src/screens/patients/PatientDashboardScreen';
 
 type Screen =
   | 'welcome'
@@ -27,7 +28,8 @@ type Screen =
   | 'games'
   | 'memory'
   | 'odd-one-out'
-  | 'guess-food';
+  | 'guess-food'
+  | 'patient-dashboard';
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('welcome');
@@ -204,7 +206,17 @@ export default function App() {
       />
     );
   }
-
+if (screen === 'patient-dashboard') {
+  return (
+    <PatientDashboardScreen
+      onHome={() => setScreen('home')}
+      onGames={() => setScreen('games')}
+      onSchedule={() => setScreen('schedule')}
+      onMemory={() => setScreen('memory')}
+      onProfile={() => setScreen('profile')}
+    />
+  );
+}
   // =========================================================
   // HOME
   // =========================================================
@@ -219,7 +231,7 @@ export default function App() {
       onProfile={() => setScreen('profile')}
       onGames={() => setScreen('games')}
       onMemory={() => setScreen('memory')}
-      
+      onPatientDashboard={() => setScreen('patient-dashboard')}
     />
   );
 }

@@ -17,7 +17,8 @@ type HomeScreenProps = {
   onCognitiveScore?: () => void;
   onProfile?: () => void;
   onGames?: () => void;
-  onMemory?: () => void;
+  onMemory?: () => void
+  onPatientDashboard?: () => void;
 };
 
 const COLORS = {
@@ -51,6 +52,7 @@ export default function HomeScreen({
   onProfile,
   onGames,
   onMemory,
+  onPatientDashboard,
 }: HomeScreenProps) {
   const [activeTab, setActiveTab] = useState('Home');
 
@@ -250,6 +252,34 @@ export default function HomeScreen({
             </Pressable>
 
           </View>
+          <Pressable
+            style={styles.dashboardCard}
+            onPress={onPatientDashboard}
+          >
+            <View style={styles.dashboardIcon}>
+              <MaterialIcons
+                name="people"
+                size={30}
+                color="#00450D"
+              />
+            </View>
+
+            <View style={styles.dashboardContent}>
+              <Text style={styles.dashboardTitle}>
+                Patient Dashboard
+              </Text>
+
+              <Text style={styles.dashboardSubtitle}>
+                Manage and monitor patient status.
+              </Text>
+            </View>
+
+            <MaterialIcons
+              name="chevron-right"
+              size={30}
+              color="#00450D"
+            />
+          </Pressable>
 
           {/* ===================================================
               MY GAMES
@@ -929,6 +959,45 @@ const styles = StyleSheet.create({
     height: 20,
   },
 
+  dashboardCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 96,
+    marginHorizontal: 20,
+    marginTop: 24,
+    marginBottom: 16,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#C0C9BB',
+    backgroundColor: '#FFFFFF',
+  },
+
+  dashboardIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#D9E6DA',
+    marginRight: 14,
+  },
+
+  dashboardContent: {
+    flex: 1,
+  },
+
+  dashboardTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111D23',
+  },
+
+  dashboardSubtitle: {
+    marginTop: 4,
+    fontSize: 15,
+    color: '#41493E',
+  },
   // =========================================================
   // PRESSED STATES
   // =========================================================
