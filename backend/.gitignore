@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+backend/node_modules/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Build output
+dist/
+backend/dist/
+.expo/
+.expo-shared/
+web-build/
+
+# Expo
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Uploaded user files
+backend/uploads/
+
+# Prisma
+*.db
+*.db-journal
