@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -8,67 +8,45 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-
-import { colors } from '../../constants/colors';
-import { sizes } from '../../constants/sizes';
-import { strings } from '../../constants/strings';
-import CustomTextInput from '../../components/common/CustomTextInput';
-import PrimaryButton from '../../components/common/PrimaryButton';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 type LoginScreenProps = {
-  onBack: () => void;
-  onSignUp: () => void;
   onLogin: () => void;
+  onSignup: () => void;
+  onBack?: () => void;
+};
+
+const COLORS = {
+  background: '#F4FAFF',
+  primary: '#00450D',
+  navy: '#102A56',
+  text: '#526477',
+  border: '#CBD9E5',
+  green: '#4FA56A',
+  lightGreen: '#EAF8F0',
+  white: '#FFFFFF',
+  error: '#BA1A1A',
 };
 
 export default function LoginScreen({
-  onBack,
-  onSignUp,
   onLogin,
+  onSignup,
+  onBack,
 }: LoginScreenProps) {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-
-  // ================================
-  // LOGIN
-  // ================================
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = () => {
-    // Validate username/email
-    if (!username.trim()) {
-      Alert.alert(
-        'Missing Information',
-        'Please enter your username or email.',
-      );
+    if (!email.trim() || !password.trim()) {
       return;
     }
 
-    // Validate password
-    if (!password.trim()) {
-      Alert.alert(
-        'Missing Information',
-        'Please enter your password.',
-      );
-      return;
-    }
-
-    // Backend authentication will be added later.
-    // For now, successful login goes directly to Home.
+    // Backend authentication will be connected here next.
     onLogin();
-  };
-
-  // ================================
-  // FORGOT PASSWORD
-  // ================================
-
-  const handleForgotPassword = () => {
-    Alert.alert(
-      'Forgot Password',
-      strings.login.passwordResetMessage,
-    );
   };
 
   return (
@@ -78,132 +56,162 @@ export default function LoginScreen({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* ================================
-              HEADER
-          ================================= */}
-
+          {/* Header */}
           <View style={styles.header}>
             <Pressable
               onPress={onBack}
+              hitSlop={10}
               style={styles.backButton}
-              accessibilityRole="button"
-              accessibilityLabel="Go back"
-              hitSlop={8}
             >
-              <Ionicons
+              <MaterialIcons
                 name="arrow-back"
-                size={24}
-                color={colors.primary}
+                size={28}
+                color={COLORS.primary}
               />
             </Pressable>
 
-            <Text style={styles.headerTitle}>
-              {strings.appName}
-            </Text>
+            <Text style={styles.headerTitle}>Patient Sign In</Text>
+
+            <View style={styles.headerSpacer} />
           </View>
 
-          {/* ================================
-              MAIN CONTENT
-          ================================= */}
+          {/* Logo */}
+          <View style={styles.logoCircle}>
+            <Image
+              source={require('../../../assets/images/logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
 
-          <View style={styles.content}>
+          <Text style={styles.title}>Welcome Back</Text>
 
-            {/* Introduction */}
+          <Text style={styles.subtitle}>
+            Sign in to your SmritiCare patient account
+          </Text>
 
-            <View style={styles.introduction}>
-              <Text style={styles.welcome}>
-                {strings.login.welcomeBack}
-              </Text>
+          {/* Form */}
+          <View style={styles.form}>
+            {/* Email */}
+            <Text style={styles.label}>Email Address</Text>
 
-              <Text style={styles.subtitle}>
-                {strings.login.signInMessage}
-              </Text>
-            </View>
+            <View style={styles.inputContainer}>
+              <MaterialIcons
+                name="email"
+                size={23}
+                color={COLORS.green}
+              />
 
-            {/* ================================
-                LOGIN FORM
-            ================================= */}
-
-            <View style={styles.form}>
-
-              {/* Username / Email */}
-
-              <CustomTextInput
-                label={strings.login.usernameLabel}
-                icon="person-outline"
-                placeholder={strings.login.usernamePlaceholder}
-                value={username}
-                onChangeText={setUsername}
+              <TextInput
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Enter your email"
+                placeholderTextColor="#8A98A6"
+                keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
-                keyboardType="email-address"
+                style={styles.input}
               />
-
-              {/* Password */}
-
-              <CustomTextInput
-                label={strings.login.passwordLabel}
-                icon="lock-closed-outline"
-                placeholder={strings.login.passwordPlaceholder}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                autoCapitalize="none"
-              />
-
-              {/* Forgot Password */}
-
-              <View style={styles.forgotContainer}>
-                <Pressable
-                  onPress={handleForgotPassword}
-                  accessibilityRole="button"
-                  accessibilityLabel="Forgot password"
-                  hitSlop={8}
-                >
-                  <Text style={styles.link}>
-                    {strings.login.forgotPassword}
-                  </Text>
-                </Pressable>
-              </View>
-
-              {/* ================================
-                  LOGIN BUTTON
-              ================================= */}
-
-              <View style={styles.buttonContainer}>
-                <PrimaryButton
-                  title={strings.login.signIn}
-                  icon="log-in-outline"
-                  onPress={handleLogin}
-                />
-              </View>
             </View>
 
-            {/* ================================
-                SIGN UP
-            ================================= */}
+            {/* Password */}
+            <Text style={[styles.label, styles.passwordLabel]}>
+              Password
+            </Text>
 
-            <View style={styles.signupContainer}>
-              <Text style={styles.signupText}>
-                {strings.login.noAccount}{' '}
-              </Text>
+            <View style={styles.inputContainer}>
+              <MaterialIcons
+                name="lock"
+                size={23}
+                color={COLORS.green}
+              />
+
+              <TextInput
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Enter your password"
+                placeholderTextColor="#8A98A6"
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                style={styles.input}
+              />
 
               <Pressable
-                onPress={onSignUp}
-                accessibilityRole="button"
-                accessibilityLabel="Sign up"
-                hitSlop={8}
+                onPress={() => setShowPassword(!showPassword)}
+                hitSlop={10}
               >
-                <Text style={styles.link}>
-                  {strings.login.signUp}
-                </Text>
+                <MaterialIcons
+                  name={showPassword ? 'visibility' : 'visibility-off'}
+                  size={23}
+                  color="#718090"
+                />
               </Pressable>
             </View>
 
+            {/* Forgot Password */}
+            <Pressable
+              style={styles.forgotButton}
+              onPress={() => {}}
+            >
+              <Text style={styles.forgotText}>
+                Forgot Password?
+              </Text>
+            </Pressable>
+
+            {/* Sign In */}
+            <Pressable
+              onPress={handleLogin}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                pressed && styles.pressed,
+              ]}
+            >
+              <MaterialIcons
+                name="login"
+                size={23}
+                color={COLORS.white}
+              />
+
+              <Text style={styles.primaryButtonText}>
+                Sign In
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* Divider */}
+          <View style={styles.dividerRow}>
+            <View style={styles.divider} />
+            <Text style={styles.orText}>OR</Text>
+            <View style={styles.divider} />
+          </View>
+
+          {/* Signup */}
+          <View style={styles.signupRow}>
+            <Text style={styles.accountText}>
+              Don't have a patient account?
+            </Text>
+
+            <Pressable onPress={onSignup}>
+              <Text style={styles.signupText}> Sign Up</Text>
+            </Pressable>
+          </View>
+
+          {/* Security */}
+          <View style={styles.securityBox}>
+            <MaterialIcons
+              name="verified-user"
+              size={25}
+              color={COLORS.primary}
+            />
+
+            <Text style={styles.securityText}>
+              Your information is protected and only used to
+              provide your SmritiCare services.
+            </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -214,160 +222,229 @@ export default function LoginScreen({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: COLORS.background,
   },
 
   flex: {
     flex: 1,
   },
 
-  scrollContent: {
+  container: {
     flexGrow: 1,
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingBottom: 40,
   },
 
-  // ================================
-  // HEADER
-  // ================================
-
   header: {
-    height: 72,
-
+    width: '100%',
+    height: 64,
     flexDirection: 'row',
     alignItems: 'center',
-
-    paddingHorizontal: sizes.pageMargin,
-
-    backgroundColor: colors.surface,
-
-    borderBottomWidth: 2,
-    borderBottomColor: colors.outlineVariant,
+    justifyContent: 'space-between',
   },
 
   backButton: {
-    width: sizes.touchTarget,
-    height: sizes.touchTarget,
-
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
-
-    marginRight: 8,
   },
 
   headerTitle: {
-    fontSize: 28,
-    lineHeight: 36,
-    fontWeight: '700',
-    color: colors.primary,
+    fontSize: 21,
+    fontWeight: '800',
+    color: COLORS.primary,
   },
 
-  // ================================
-  // CONTENT
-  // ================================
-
-  content: {
-    width: '100%',
-    maxWidth: 672,
-
-    alignSelf: 'center',
-
-    paddingHorizontal: sizes.pageMargin,
-    paddingTop: 28,
-    paddingBottom: 24,
+  headerSpacer: {
+    width: 48,
   },
 
-  // ================================
-  // INTRODUCTION
-  // ================================
-
-  introduction: {
+  logoCircle: {
+    width: 135,
+    height: 135,
+    borderRadius: 68,
+    backgroundColor: COLORS.white,
     alignItems: 'center',
-    marginBottom: 32,
+    justifyContent: 'center',
+    marginTop: 12,
+    overflow: 'hidden',
+
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 5,
+    },
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    elevation: 4,
   },
 
-  welcome: {
-    fontSize: 28,
-    lineHeight: 36,
-    fontWeight: '700',
-    color: colors.onSurface,
+  logo: {
+    width: 118,
+    height: 118,
+  },
 
+  title: {
+    marginTop: 23,
+    fontSize: 30,
+    lineHeight: 38,
+    fontWeight: '800',
+    color: COLORS.navy,
     textAlign: 'center',
-    marginBottom: 8,
   },
 
   subtitle: {
-    fontSize: 18,
-    lineHeight: 28,
-    fontWeight: '400',
-    color: colors.onSurfaceVariant,
-
+    marginTop: 7,
+    marginBottom: 28,
+    fontSize: 17,
+    lineHeight: 25,
+    color: COLORS.text,
     textAlign: 'center',
   },
 
-  // ================================
-  // FORM
-  // ================================
-
   form: {
     width: '100%',
-
-    backgroundColor: colors.surfaceContainerLowest,
-
-    padding: 24,
-
-    borderWidth: 2,
-    borderColor: colors.outlineVariant,
-
-    borderRadius: sizes.radiusXl,
-
-    gap: sizes.stackGap,
+    maxWidth: 520,
   },
 
-  // ================================
-  // FORGOT PASSWORD
-  // ================================
-
-  forgotContainer: {
-    alignItems: 'flex-end',
-    paddingTop: 8,
-  },
-
-  link: {
-    fontSize: 20,
-    lineHeight: 24,
+  label: {
+    marginBottom: 8,
+    fontSize: 16,
     fontWeight: '700',
-
-    color: colors.primary,
-
-    textDecorationLine: 'underline',
+    color: COLORS.navy,
   },
 
-  // ================================
-  // LOGIN BUTTON
-  // ================================
-
-  buttonContainer: {
-    paddingTop: 16,
+  passwordLabel: {
+    marginTop: 19,
   },
 
-  // ================================
-  // SIGN UP
-  // ================================
-
-  signupContainer: {
-    marginTop: 32,
+  inputContainer: {
+    minHeight: 58,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 15,
+    backgroundColor: COLORS.white,
 
     flexDirection: 'row',
-    flexWrap: 'wrap',
-
-    justifyContent: 'center',
     alignItems: 'center',
+
+    paddingHorizontal: 16,
+  },
+
+  input: {
+    flex: 1,
+    marginLeft: 12,
+    minHeight: 54,
+    fontSize: 16,
+    color: '#1B2D42',
+    outlineStyle: 'none' as any,
+  },
+
+  forgotButton: {
+    alignSelf: 'flex-end',
+    paddingVertical: 12,
+  },
+
+  forgotText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+
+  primaryButton: {
+    minHeight: 58,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    marginTop: 8,
+
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+
+  primaryButtonText: {
+    marginLeft: 10,
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.white,
+  },
+
+  pressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.99 }],
+  },
+
+  dividerRow: {
+    width: '100%',
+    maxWidth: 520,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 28,
+  },
+
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#D6E0E8',
+  },
+
+  orText: {
+    marginHorizontal: 14,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#7B8997',
+  },
+
+  signupRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 22,
+    flexWrap: 'wrap',
+  },
+
+  accountText: {
+    fontSize: 15,
+    color: COLORS.text,
   },
 
   signupText: {
-    fontSize: 18,
-    lineHeight: 28,
-    fontWeight: '400',
+    fontSize: 15,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
 
-    color: colors.onSurfaceVariant,
+  securityBox: {
+    width: '100%',
+    maxWidth: 520,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+
+    backgroundColor: '#EDF7F0',
+
+    borderRadius: 16,
+    padding: 15,
+
+    marginTop: 28,
+  },
+
+  securityText: {
+    flex: 1,
+    marginLeft: 11,
+    fontSize: 13.5,
+    lineHeight: 20,
+    color: COLORS.text,
   },
 });

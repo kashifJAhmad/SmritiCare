@@ -1,519 +1,568 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
-} from 'react-native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+  Image,
+} from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 
-type SignupScreenProps = {
-  onBack: () => void;
-  onSignIn: () => void;
-  onCreateAccount: () => void;
-};
+import { patientSignup } from "../../services/api";
+import { saveToken } from "../../services/authStorage";
 
 const COLORS = {
-  background: '#F4FAFF',
-  surface: '#F4FAFF',
-  input: '#FFFFFF',
-  primary: '#00450D',
-  text: '#111D23',
-  secondaryText: '#41493E',
-  border: '#717A6D',
-  borderLight: '#C0C9BB',
-  white: '#FFFFFF',
+  primary: "#00450D",
+  primaryContainer: "#1B5E20",
+  background: "#F4FAFF",
+  surface: "#FFFFFF",
+  text: "#1B1C1C",
+  textSecondary: "#41493E",
+  outline: "#717A6D",
+  lightBorder: "#C0C9BB",
+  error: "#BA1A1A",
 };
 
-const languages = [
-  'English',
-  'Hindi',
-  'Assamese',
-  'Manipuri',
-  'Khasi',
-  'Garo',
-];
+type SignupScreenProps = {
+  onSignup: () => void;
+  onLogin: () => void;
+  onBack?: () => void;
+};
 
 export default function SignupScreen({
+  onSignup,
+  onLogin,
   onBack,
-  onSignIn,
-  onCreateAccount,
 }: SignupScreenProps) {
-  const [fullName, setFullName] = useState('');
-  const [age, setAge] = useState('');
-  const [caregiverName, setCaregiverName] = useState('');
-  const [emergencyContact, setEmergencyContact] = useState('');
-  const [language, setLanguage] = useState('');
-  const [password, setPassword] = useState('');
-  const [showLanguages, setShowLanguages] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [age, setAge] = useState("");
+  const [language, setLanguage] = useState("English");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
-  // ========================================
-  // CREATE ACCOUNT
-  // ========================================
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const handleCreateAccount = () => {
-    console.log('CREATE ACCOUNT BUTTON PRESSED');
+  const handleSignup = async () => {
+  if (!fullName.trim()) {
+    Alert.alert("Missing information", "Please enter your full name.");
+    return;
+  }
 
-    // Temporary navigation test.
-    // Validation can be added back after navigation is confirmed.
-    onCreateAccount();
-  };
+  if (!email.trim()) {
+    Alert.alert("Missing information", "Please enter your email address.");
+    return;
+  }
+
+  if (!password) {
+    Alert.alert("Missing information", "Please enter a password.");
+    return;
+  }
+
+  if (password.length < 6) {
+    Alert.alert(
+      "Password too short",
+      "Your password must be at least 6 characters long.",
+    );
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    Alert.alert(
+      "Passwords do not match",
+      "Please make sure both passwords are the same.",
+    );
+    return;
+  }
+
+  const parsedAge = age.trim() ? Number(age.trim()) : undefined;
+
+  if (
+    parsedAge !== undefined &&
+    (!Number.isInteger(parsedAge) || parsedAge < 1)
+  ) {
+    Alert.alert("Invalid age", "Please enter a valid age.");
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    console.log("1. Starting signup request...");
+
+    const result = await patientSignup({
+      fullName: fullName.trim(),
+      email: email.trim().toLowerCase(),
+      password,
+      age: parsedAge,
+      language,
+    });
+
+    console.log("2. Signup API succeeded");
+    console.log("3. Token received:", !!result.token);
+
+    if (result.token) {
+      console.log("4. Saving token...");
+      await saveToken(result.token);
+      console.log("5. Token saved successfully");
+    }
+
+    setLoading(false);
+
+    Alert.alert(
+      "Account created",
+      "Your SmritiCare patient account has been created successfully.",
+      [
+        {
+          text: "Continue",
+          onPress: onSignup,
+        },
+      ],
+    );
+  } catch (error) {
+    console.error("SIGNUP ERROR:", error);
+
+    setLoading(false);
+
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Unable to create your account. Please try again.";
+
+    Alert.alert("Signup failed", message);
+  }
+};
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        {/* HEADER */}
-
         <View style={styles.header}>
-          <Pressable
-            onPress={onBack}
-            style={styles.backButton}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            hitSlop={8}
-          >
-            <Ionicons
-              name="arrow-back"
-              size={24}
-              color={COLORS.primary}
-            />
-          </Pressable>
+          {onBack ? (
+            <Pressable
+              onPress={onBack}
+              style={styles.backButton}
+              hitSlop={10}
+              disabled={loading}
+            >
+              <MaterialIcons
+                name="arrow-back"
+                size={27}
+                color={COLORS.primary}
+              />
+            </Pressable>
+          ) : (
+            <View style={styles.backPlaceholder} />
+          )}
 
-          <Text style={styles.headerTitle}>
-            Create Your Profile
+          <Image
+            source={require("../../../assets/images/logo.png")}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+
+          <View style={styles.backPlaceholder} />
+        </View>
+
+        <View style={styles.titleSection}>
+          <Text style={styles.title}>Create Patient Account</Text>
+          <Text style={styles.subtitle}>
+            Create your SmritiCare account to get started.
           </Text>
         </View>
 
-        {/* FORM */}
+        <View style={styles.formCard}>
+          <Text style={styles.sectionTitle}>Your Information</Text>
 
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* DESCRIPTION */}
+          <Text style={styles.label}>Full Name</Text>
+          <TextInput
+            value={fullName}
+            onChangeText={setFullName}
+            placeholder="Enter your full name"
+            placeholderTextColor="#8A9187"
+            style={styles.input}
+            editable={!loading}
+            autoCapitalize="words"
+          />
 
-          <View style={styles.descriptionContainer}>
-            <Text style={styles.description}>
-              Please fill in your details to create an
-              account on SmritiCare.
-            </Text>
-          </View>
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            placeholder="Enter your email"
+            placeholderTextColor="#8A9187"
+            style={styles.input}
+            editable={!loading}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
 
-          {/* FULL NAME */}
+          <Text style={styles.label}>Age</Text>
+          <TextInput
+            value={age}
+            onChangeText={setAge}
+            placeholder="Enter your age"
+            placeholderTextColor="#8A9187"
+            style={styles.input}
+            editable={!loading}
+            keyboardType="number-pad"
+          />
 
-          <View style={styles.field}>
-            <Text style={styles.label}>Full Name</Text>
+          <Text style={styles.label}>Preferred Language</Text>
 
+          <Pressable
+            style={styles.languageButton}
+            disabled={loading}
+            onPress={() =>
+              Alert.alert(
+                "Preferred Language",
+                "Language selection will be added soon.",
+              )
+            }
+          >
+            <Text style={styles.languageText}>{language}</Text>
+
+            <MaterialIcons
+              name="keyboard-arrow-down"
+              size={24}
+              color={COLORS.textSecondary}
+            />
+          </Pressable>
+
+          <Text style={styles.label}>Password</Text>
+
+          <View style={styles.passwordContainer}>
             <TextInput
-              value={fullName}
-              onChangeText={setFullName}
-              placeholder="e.g. Anand Sharma"
-              placeholderTextColor={COLORS.secondaryText}
-              style={styles.input}
-              autoCapitalize="words"
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Create a password"
+              placeholderTextColor="#8A9187"
+              style={styles.passwordInput}
+              editable={!loading}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
               autoCorrect={false}
             />
-          </View>
-
-          {/* AGE */}
-
-          <View style={styles.field}>
-            <Text style={styles.label}>Age</Text>
-
-            <TextInput
-              value={age}
-              onChangeText={(text) => {
-                const numbersOnly = text.replace(/[^0-9]/g, '');
-                setAge(numbersOnly);
-              }}
-              placeholder="e.g. 72"
-              placeholderTextColor={COLORS.secondaryText}
-              style={styles.input}
-              keyboardType="number-pad"
-              maxLength={3}
-            />
-          </View>
-
-          {/* CAREGIVER NAME */}
-
-          <View style={styles.field}>
-            <Text style={styles.label}>Caregiver Name</Text>
-
-            <TextInput
-              value={caregiverName}
-              onChangeText={setCaregiverName}
-              placeholder="e.g. Priya Sharma"
-              placeholderTextColor={COLORS.secondaryText}
-              style={styles.input}
-              autoCapitalize="words"
-              autoCorrect={false}
-            />
-          </View>
-
-          {/* EMERGENCY CONTACT */}
-
-          <View style={styles.field}>
-            <Text style={styles.label}>
-              Emergency Contact (Phone)
-            </Text>
-
-            <TextInput
-              value={emergencyContact}
-              onChangeText={(text) => {
-                const numbersOnly = text.replace(/[^0-9]/g, '');
-                setEmergencyContact(numbersOnly);
-              }}
-              placeholder="e.g. 9876543210"
-              placeholderTextColor={COLORS.secondaryText}
-              style={styles.input}
-              keyboardType="phone-pad"
-              maxLength={10}
-            />
-          </View>
-
-          {/* PREFERRED LANGUAGE */}
-
-          <View style={styles.field}>
-            <Text style={styles.label}>
-              Preferred Language
-            </Text>
 
             <Pressable
-              style={styles.select}
-              onPress={() => setShowLanguages(true)}
-              accessibilityRole="button"
-              accessibilityLabel="Select preferred language"
+              onPress={() => setShowPassword((value) => !value)}
+              disabled={loading}
+              hitSlop={10}
+              style={styles.eyeButton}
             >
-              <Text
-                style={[
-                  styles.selectText,
-                  !language && styles.placeholder,
-                ]}
-              >
-                {language || 'Select your language'}
-              </Text>
-
               <MaterialIcons
-                name="keyboard-arrow-down"
-                size={32}
-                color={COLORS.border}
+                name={showPassword ? "visibility" : "visibility-off"}
+                size={22}
+                color={COLORS.textSecondary}
               />
             </Pressable>
           </View>
 
-          {/* PASSWORD */}
+          <Text style={styles.passwordHint}>
+            Password must contain at least 6 characters.
+          </Text>
 
-          <View style={[styles.field, styles.passwordField]}>
-            <Text style={styles.label}>Password</Text>
+          <Text style={styles.label}>Confirm Password</Text>
 
+          <View style={styles.passwordContainer}>
             <TextInput
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Enter a secure password"
-              placeholderTextColor={COLORS.secondaryText}
-              style={styles.input}
-              secureTextEntry
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              placeholder="Confirm your password"
+              placeholderTextColor="#8A9187"
+              style={styles.passwordInput}
+              editable={!loading}
+              secureTextEntry={!showConfirmPassword}
               autoCapitalize="none"
               autoCorrect={false}
             />
+
+            <Pressable
+              onPress={() => setShowConfirmPassword((value) => !value)}
+              disabled={loading}
+              hitSlop={10}
+              style={styles.eyeButton}
+            >
+              <MaterialIcons
+                name={
+                  showConfirmPassword ? "visibility" : "visibility-off"
+                }
+                size={22}
+                color={COLORS.textSecondary}
+              />
+            </Pressable>
           </View>
 
-          {/* CREATE ACCOUNT */}
-
           <Pressable
+            onPress={handleSignup}
+            disabled={loading}
             style={({ pressed }) => [
-              styles.createButton,
-              pressed && styles.buttonPressed,
+              styles.signupButton,
+              pressed && !loading && styles.buttonPressed,
+              loading && styles.buttonDisabled,
             ]}
-            onPress={handleCreateAccount}
-            accessibilityRole="button"
-            accessibilityLabel="Create Account"
           >
-            <MaterialIcons
-              name="person-add"
-              size={30}
-              color={COLORS.white}
-            />
-
-            <Text style={styles.createButtonText}>
-              Create Account
-            </Text>
+            {loading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Text style={styles.signupButtonText}>Create Account</Text>
+                <MaterialIcons
+                  name="arrow-forward"
+                  size={22}
+                  color="#FFFFFF"
+                />
+              </>
+            )}
           </Pressable>
+        </View>
 
-          {/* SIGN IN */}
+        <View style={styles.loginSection}>
+          <Text style={styles.loginText}>Already have an account?</Text>
 
-          <View style={styles.signInContainer}>
-            <Text style={styles.signInText}>
-              Already have an account?{' '}
+          <Pressable onPress={onLogin} disabled={loading}>
+            <Text style={styles.loginLink}>Sign In</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.securityCard}>
+          <MaterialIcons
+            name="lock"
+            size={22}
+            color={COLORS.primary}
+          />
+
+          <View style={styles.securityTextContainer}>
+            <Text style={styles.securityTitle}>Your information is secure</Text>
+            <Text style={styles.securityText}>
+              Your password is securely protected and your personal information
+              is kept private.
             </Text>
-
-            <Pressable
-              onPress={onSignIn}
-              style={styles.signInButton}
-              accessibilityRole="button"
-              accessibilityLabel="Sign In"
-              hitSlop={8}
-            >
-              <Text style={styles.signInLink}>
-                Sign In
-              </Text>
-            </Pressable>
           </View>
-        </ScrollView>
-
-        {/* LANGUAGE MODAL */}
-
-        <Modal
-          visible={showLanguages}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowLanguages(false)}
-        >
-          <Pressable
-            style={styles.modalOverlay}
-            onPress={() => setShowLanguages(false)}
-          >
-            <Pressable
-              style={styles.languageModal}
-              onPress={(event) => event.stopPropagation()}
-            >
-              <Text style={styles.modalTitle}>
-                Select Language
-              </Text>
-
-              {languages.map((item) => (
-                <Pressable
-                  key={item}
-                  style={styles.languageOption}
-                  onPress={() => {
-                    setLanguage(item);
-                    setShowLanguages(false);
-                  }}
-                >
-                  <Text style={styles.languageText}>
-                    {item}
-                  </Text>
-                </Pressable>
-              ))}
-            </Pressable>
-          </Pressable>
-        </Modal>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
   },
 
+  scrollContent: {
+    paddingHorizontal: 22,
+    paddingTop: 22,
+    paddingBottom: 40,
+  },
+
   header: {
-    height: 60,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    borderBottomWidth: 2,
-    borderBottomColor: COLORS.borderLight,
-    backgroundColor: COLORS.surface,
+    height: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
 
   backButton: {
     width: 48,
     height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 4,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
   },
 
-  headerTitle: {
-    fontFamily: 'sans-serif',
+  backPlaceholder: {
+    width: 48,
+    height: 48,
+  },
+
+  logo: {
+    width: 55,
+    height: 55,
+  },
+
+  titleSection: {
+    marginTop: 24,
+    marginBottom: 24,
+  },
+
+  title: {
     fontSize: 30,
-    lineHeight: 36,
-    fontWeight: '700',
+    lineHeight: 38,
+    fontWeight: "700",
     color: COLORS.primary,
-    flex: 1,
   },
 
-  scrollView: {
-    flex: 1,
+  subtitle: {
+    marginTop: 8,
+    fontSize: 16,
+    lineHeight: 24,
+    color: COLORS.textSecondary,
   },
 
-  content: {
-    paddingHorizontal: 30,
-    paddingTop: 48,
-    paddingBottom: 60,
+  formCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 24,
+    padding: 20,
   },
 
-  descriptionContainer: {
-    marginBottom: 42,
-  },
-
-  description: {
-    fontFamily: 'sans-serif',
-    fontSize: 26,
-    lineHeight: 40,
-    fontWeight: '400',
-    color: COLORS.secondaryText,
-  },
-
-  field: {
-    marginBottom: 30,
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: COLORS.text,
+    marginBottom: 20,
   },
 
   label: {
-    fontFamily: 'sans-serif',
-    fontSize: 24,
-    lineHeight: 30,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: "600",
     color: COLORS.text,
-    marginBottom: 10,
+    marginBottom: 8,
+    marginTop: 14,
   },
 
   input: {
-    height: 76,
-    borderWidth: 2,
-    borderColor: COLORS.border,
-    borderRadius: 10,
-    backgroundColor: COLORS.input,
-    paddingHorizontal: 20,
-    fontFamily: 'sans-serif',
-    fontSize: 24,
-    color: COLORS.text,
-  },
-
-  select: {
-    height: 76,
-    borderWidth: 2,
-    borderColor: COLORS.border,
-    borderRadius: 10,
-    backgroundColor: COLORS.input,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-
-  selectText: {
-    fontFamily: 'sans-serif',
-    fontSize: 24,
-    color: COLORS.text,
-  },
-
-  placeholder: {
-    color: COLORS.secondaryText,
-  },
-
-  passwordField: {
-    marginBottom: 38,
-  },
-
-  createButton: {
-    minHeight: 74,
-    backgroundColor: COLORS.primary,
+    minHeight: 54,
+    borderWidth: 1,
+    borderColor: COLORS.lightBorder,
     borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderBottomWidth: 5,
-    borderBottomColor: '#0C5216',
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: COLORS.text,
+    backgroundColor: "#FFFFFF",
   },
 
-  buttonPressed: {
-    transform: [
-      {
-        scale: 0.98,
-      },
-    ],
-  },
-
-  createButtonText: {
-    fontFamily: 'sans-serif',
-    fontSize: 28,
-    lineHeight: 34,
-    fontWeight: '700',
-    color: COLORS.white,
-  },
-
-  signInContainer: {
-    marginTop: 56,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
-
-  signInText: {
-    fontFamily: 'sans-serif',
-    fontSize: 20,
-    lineHeight: 28,
-    color: COLORS.secondaryText,
-  },
-
-  signInButton: {
-    minHeight: 48,
-    justifyContent: 'center',
-  },
-
-  signInLink: {
-    fontFamily: 'sans-serif',
-    fontSize: 20,
-    lineHeight: 28,
-    fontWeight: '700',
-    color: COLORS.primary,
-    textDecorationLine: 'underline',
-  },
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    justifyContent: 'center',
-    paddingHorizontal: 30,
-  },
-
-  languageModal: {
-    backgroundColor: COLORS.white,
-    borderRadius: 16,
-    paddingVertical: 12,
-    overflow: 'hidden',
-  },
-
-  modalTitle: {
-    fontFamily: 'sans-serif',
-    fontSize: 22,
-    fontWeight: '700',
-    color: COLORS.primary,
-    paddingHorizontal: 22,
-    paddingVertical: 18,
-  },
-
-  languageOption: {
-    minHeight: 56,
-    justifyContent: 'center',
-    paddingHorizontal: 22,
+  languageButton: {
+    minHeight: 54,
+    borderWidth: 1,
+    borderColor: COLORS.lightBorder,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
   },
 
   languageText: {
-    fontFamily: 'sans-serif',
-    fontSize: 20,
+    fontSize: 16,
     color: COLORS.text,
+  },
+
+  passwordContainer: {
+    minHeight: 54,
+    borderWidth: 1,
+    borderColor: COLORS.lightBorder,
+    borderRadius: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+  },
+
+  passwordInput: {
+    flex: 1,
+    minHeight: 52,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: COLORS.text,
+  },
+
+  eyeButton: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  passwordHint: {
+    marginTop: 6,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+  },
+
+  signupButton: {
+    marginTop: 26,
+    minHeight: 56,
+    borderRadius: 16,
+    backgroundColor: COLORS.primaryContainer,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+
+  signupButtonText: {
+    color: "#FFFFFF",
+    fontSize: 17,
+    fontWeight: "700",
+  },
+
+  buttonPressed: {
+    opacity: 0.8,
+  },
+
+  buttonDisabled: {
+    opacity: 0.65,
+  },
+
+  loginSection: {
+    alignItems: "center",
+    marginTop: 22,
+    gap: 5,
+  },
+
+  loginText: {
+    fontSize: 15,
+    color: COLORS.textSecondary,
+  },
+
+  loginLink: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: COLORS.primary,
+  },
+
+  securityCard: {
+    marginTop: 24,
+    padding: 16,
+    borderRadius: 18,
+    backgroundColor: "#EAF4EA",
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+
+  securityTextContainer: {
+    flex: 1,
+  },
+
+  securityTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: COLORS.primary,
+  },
+
+  securityText: {
+    marginTop: 4,
+    fontSize: 13,
+    lineHeight: 19,
+    color: COLORS.textSecondary,
   },
 });

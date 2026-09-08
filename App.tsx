@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import WelcomeScreen from './src/screens/WelcomeScreen';
+import PatientAuthScreen from './src/screens/auth/PatientAuthScreen';
 import LoginScreen from './src/screens/auth/LoginScreen';
 import SignupScreen from './src/screens/auth/SignupScreen';
 import HomeScreen from './src/screens/home/HomeScreen';
@@ -21,6 +23,7 @@ import VoiceAssistantScreen from './src/screens/home/VoiceAssistantScreen';
 
 type Screen =
   | 'welcome'
+  | 'patient-auth'
   | 'login'
   | 'signup'
   | 'home'
@@ -36,7 +39,7 @@ type Screen =
   | 'patient-dashboard'
   | 'voice-assistant';
 
-export default function App() {
+function AppContent() {
   const [screen, setScreen] = useState<Screen>('welcome');
 
   // ---------------------------------------------------------
@@ -117,7 +120,6 @@ export default function App() {
     return (
       <OfflineScreen
         onBack={() => {
-          // Only leave offline mode if internet is back.
           if (
             Platform.OS === 'web' &&
             typeof window !== 'undefined' &&
@@ -144,42 +146,50 @@ export default function App() {
   // WELCOME
   // ---------------------------------------------------------
 
-  if (screen === 'welcome') {
-    return (
-      <WelcomeScreen
-        onGetStarted={() => setScreen('login')}
-        onSignIn={() => setScreen('signup')}
-      />
-    );
-  }
-
+if (screen === 'welcome') {
+  return (
+    <WelcomeScreen
+      onPatient={() => setScreen('patient-auth')}
+      onFamilyMember={() => setScreen('login')}
+    />
+  );
+}
   // ---------------------------------------------------------
   // LOGIN
   // ---------------------------------------------------------
 
+if (screen === 'patient-auth') {
+  return (
+    <PatientAuthScreen
+      onBack={() => setScreen('welcome')}
+      onSignIn={() => setScreen('login')}
+      onSignUp={() => setScreen('signup')}
+    />
+  );
+}
+
+
+
+
   if (screen === 'login') {
-    return (
-      <LoginScreen
-        onBack={() => setScreen('welcome')}
-        onSignUp={() => setScreen('signup')}
-        onLogin={() => setScreen('home')}
-      />
-    );
-  }
+  return (
+    <LoginScreen
+      onLogin={() => setScreen('home')}
+      onSignup={() => setScreen('signup')}
+      onBack={() => setScreen('patient-auth')}
+    />
+  );
+}
 
-  // ---------------------------------------------------------
-  // SIGNUP
-  // ---------------------------------------------------------
-
-  if (screen === 'signup') {
-    return (
-      <SignupScreen
-        onBack={() => setScreen('welcome')}
-        onSignIn={() => setScreen('login')}
-        onCreateAccount={() => setScreen('home')}
-      />
-    );
-  }
+if (screen === 'signup') {
+  return (
+    <SignupScreen
+      onSignup={() => setScreen('home')}
+      onLogin={() => setScreen('login')}
+      onBack={() => setScreen('patient-auth')}
+    />
+  );
+}
 
   // ---------------------------------------------------------
   // MEDICAL HELP
@@ -340,22 +350,27 @@ export default function App() {
       <VoiceAssistantScreen
         onBack={() => setScreen('home')}
 
-        // "Remind me to take my medicine"
+        // Remind me to take my medicine
         onMedicine={() => {
           setScreen('schedule');
         }}
-        onProfile={() => setScreen('profile')}
-        // "Call my family"
+
+        // Open profile
+        onProfile={() => {
+          setScreen('profile');
+        }}
+
+        // Call my family
         onFamily={() => {
           setScreen('call-family');
         }}
 
-        // "Start a memory game"
+        // Start a memory game
         onGame={() => {
           setScreen('games');
         }}
 
-        // "Show my schedule"
+        // Show my schedule
         onSchedule={() => {
           setScreen('schedule');
         }}
@@ -370,29 +385,28 @@ export default function App() {
   return (
     <HomeScreen
       onLogout={() => setScreen('welcome')}
-
       onMedicalHelp={() => setScreen('medical-help')}
-
       onSchedule={() => setScreen('schedule')}
-
       onCallFamily={() => setScreen('call-family')}
-
       onCognitiveScore={() => setScreen('cognitive-score')}
-
       onProfile={() => setScreen('profile')}
-
       onGames={() => setScreen('games')}
-
       onMemory={() => setScreen('memory')}
-
-      onPatientDashboard={() =>
-        setScreen('patient-dashboard')
-      }
-
-      // QUICK ASSIST → VOICE ASSISTANT
-      onVoiceAssistant={() =>
-        setScreen('voice-assistant')
-      }
+      onPatientDashboard={() => setScreen('patient-dashboard')}
+      onVoiceAssistant={() => setScreen('voice-assistant')}
     />
+  );
+}
+
+// ---------------------------------------------------------
+// APP ROOT
+// SafeAreaProvider must wrap the entire application.
+// ---------------------------------------------------------
+
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppContent />
+    </SafeAreaProvider>
   );
 }

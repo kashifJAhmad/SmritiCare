@@ -3,413 +3,393 @@ import {
   Image,
   Pressable,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
-import { colors } from '../constants/colors';
-import { sizes } from '../constants/sizes';
+type WelcomeScreenProps = {
+  onPatient: () => void;
+  onFamilyMember: () => void;
+};
 
-interface WelcomeScreenProps {
-  onGetStarted: () => void;
-  onSignIn: () => void;
-}
+const COLORS = {
+  background: '#F4FAFF',
+  navy: '#102A56',
+  text: '#31445A',
+  teal: '#197D87',
+  green: '#4FA56A',
+  patientBg: '#F0FBF6',
+  patientBorder: '#D9F0E4',
+  familyBg: '#FFF8EF',
+  familyBorder: '#F8E8D2',
+  peach: '#D9784B',
+  white: '#FFFFFF',
+};
 
 export default function WelcomeScreen({
-  onGetStarted,
-  onSignIn,
+  onPatient,
+  onFamilyMember,
 }: WelcomeScreenProps) {
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Decorative leaves */}
+        <View style={styles.leftLeafOne} />
+        <View style={styles.leftLeafTwo} />
+        <View style={styles.rightLeafOne} />
+        <View style={styles.rightLeafTwo} />
 
-        {/* ================================
-            TOP DECORATIVE AREA
-        ================================= */}
-
-        <View style={styles.pattern}>
-          <View style={[styles.diagonalLine, { left: -80 }]} />
-          <View style={[styles.diagonalLine, { left: -45 }]} />
-          <View style={[styles.diagonalLine, { left: -10 }]} />
-          <View style={[styles.diagonalLine, { left: 25 }]} />
-          <View style={[styles.diagonalLine, { left: 60 }]} />
+        {/* Logo */}
+        <View style={styles.logoCircle}>
+          <Image
+            source={require('../../assets/images/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
         </View>
 
+        {/* Brand */}
+        <Text style={styles.brandName}>
+          Smriti<Text style={styles.brandGreen}>Care</Text>
+        </Text>
 
-        {/* ================================
-            CENTER CONTENT
-        ================================= */}
+        <Text style={styles.tagline}>Brighter Minds</Text>
+        <Text style={styles.tagline}>Warmer Tomorrows</Text>
 
-        <View style={styles.content}>
-
-          {/* Logo */}
-          <View style={styles.logoContainer}>
-            <Image
-              source={require('../../assets/images/logo.png')}
-              style={styles.logo}
-              resizeMode="cover"
-              accessibilityLabel="SmritiCare logo"
-            />
-          </View>
-
-
-          {/* App Name */}
-          <Text style={styles.title}>
-            SmritiCare
-          </Text>
-
-
-          {/* Description */}
+        {/* Welcome heading */}
+        <View style={styles.headingContainer}>
+          <Text style={styles.heading}>Welcome to SmritiCare</Text>
           <Text style={styles.subtitle}>
-            Your Daily Memory & Cognitive{'\n'}Companion
+            Support today for a brighter tomorrow
           </Text>
-
         </View>
 
-
-        {/* ================================
-            BOTTOM ACTION AREA
-        ================================= */}
-
-        <View style={styles.bottomArea}>
-
-          {/* Get Started */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Get Started"
-            onPress={onGetStarted}
-            style={({ pressed }) => [
-              styles.getStartedButton,
-              pressed && styles.buttonPressed,
-            ]}
-          >
-            <Text style={styles.buttonText}>
-              Get Started
-            </Text>
-
-            <Ionicons
-              name="arrow-forward"
-              size={24}
-              color="#FFFFFF"
+        {/* Patient */}
+        <Pressable
+          onPress={onPatient}
+          style={({ pressed }) => [
+            styles.optionCard,
+            styles.patientCard,
+            pressed && styles.pressed,
+          ]}
+        >
+          <View style={styles.iconCirclePatient}>
+            <MaterialIcons
+              name="elderly"
+              size={64}
+              color={COLORS.green}
             />
-          </Pressable>
-
-
-          {/* Sign In */}
-          <View style={styles.signInRow}>
-            <Text style={styles.signInText}>
-              Already have an account?{' '}
-            </Text>
-
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Sign In"
-              onPress={onSignIn}
-              hitSlop={8}
-            >
-              <Text style={styles.signInLink}>
-                Sign In
-              </Text>
-            </Pressable>
           </View>
 
-        </View>
+          <View style={styles.optionTextContainer}>
+            <Text style={styles.optionTitle}>I’m a Patient</Text>
 
-      </View>
+            <Text style={styles.optionDescription}>
+              Take care of your cognitive health and daily well-being
+            </Text>
+          </View>
+
+          <MaterialIcons
+            name="chevron-right"
+            size={38}
+            color={COLORS.green}
+          />
+        </Pressable>
+
+        {/* Family Member */}
+        <Pressable
+          onPress={onFamilyMember}
+          style={({ pressed }) => [
+            styles.optionCard,
+            styles.familyCard,
+            pressed && styles.pressed,
+          ]}
+        >
+          <View style={styles.iconCircleFamily}>
+            <MaterialIcons
+              name="people"
+              size={62}
+              color={COLORS.peach}
+            />
+          </View>
+
+          <View style={styles.optionTextContainer}>
+            <Text style={styles.optionTitle}>
+              I’m a Family Member
+            </Text>
+
+            <Text style={styles.optionDescription}>
+              Support and stay connected with your loved one
+            </Text>
+          </View>
+
+          <MaterialIcons
+            name="chevron-right"
+            size={38}
+            color={COLORS.peach}
+          />
+        </Pressable>
+
+        {/* Footer */}
+        <View style={styles.footer}>
+          <MaterialIcons
+            name="favorite"
+            size={34}
+            color="#E96B7A"
+          />
+
+          <Text style={styles.footerText}>
+            Together for a healthier,{'\n'}
+            happier tomorrow
+          </Text>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-
 const styles = StyleSheet.create({
-
-  /* ========================================
-     SCREEN
-  ======================================== */
-
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: COLORS.background,
   },
 
-  container: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+    paddingHorizontal: 22,
+    paddingTop: 24,
+    paddingBottom: 45,
+  },
 
-    width: '100%',
+  /* ---------------- LOGO ---------------- */
 
-    backgroundColor: colors.background,
+  logoCircle: {
+    width: 235,
+    height: 235,
+    borderRadius: 118,
+    backgroundColor: COLORS.white,
 
     alignItems: 'center',
-
-    justifyContent: 'space-between',
-
-    overflow: 'hidden',
-  },
-
-
-  /* ========================================
-     DECORATIVE TOP PATTERN
-  ======================================== */
-
-  pattern: {
-    position: 'absolute',
-
-    top: 0,
-    left: 0,
-    right: 0,
-
-    height: 114,
-
-    backgroundColor: colors.background,
-
-    borderBottomWidth: 3,
-
-    borderBottomColor: '#E3F0E8',
-
-    overflow: 'hidden',
-  },
-
-  diagonalLine: {
-    position: 'absolute',
-
-    top: -50,
-
-    width: 2,
-
-    height: 180,
-
-    backgroundColor: '#E3F0F8',
-
-    transform: [
-      {
-        rotate: '-45deg',
-      },
-    ],
-  },
-
-
-  /* ========================================
-     CENTER CONTENT
-  ======================================== */
-
-  content: {
-    flex: 1,
-
-    width: '100%',
-
-    maxWidth: 448,
-
-    alignItems: 'center',
-
     justifyContent: 'center',
 
-    paddingHorizontal: 24,
+    marginTop: 12,
 
-    /*
-     * This keeps the content in the
-     * same vertical position as Figma.
-     */
-    paddingTop: 40,
-
-    paddingBottom: 20,
-  },
-
-
-  /* ========================================
-     LOGO
-  ======================================== */
-
-  logoContainer: {
-    width: 128,
-    height: 128,
-
-    borderRadius: 64,
-
-    backgroundColor: colors.surfaceContainerHighest,
-
-    borderWidth: 4,
-
-    borderColor: colors.outlineVariant,
-
-    alignItems: 'center',
-
-    justifyContent: 'center',
-
-    overflow: 'hidden',
-
-    marginBottom: 32,
-
-    elevation: 3,
-
-    shadowColor: '#000000',
-
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 6,
     },
+    shadowOpacity: 0.06,
+    shadowRadius: 18,
+    elevation: 4,
 
-    shadowOpacity: 0.12,
-
-    shadowRadius: 3,
+    overflow: 'hidden',
   },
 
   logo: {
-    width: '100%',
-    height: '100%',
+    width: 205,
+    height: 205,
   },
 
+  brandName: {
+    marginTop: 14,
+    fontSize: 40,
+    lineHeight: 46,
+    fontWeight: '800',
+    color: '#176B88',
+    letterSpacing: -1.2,
+  },
 
-  /* ========================================
-     TITLE
-  ======================================== */
+  brandGreen: {
+    color: '#4FA56A',
+  },
 
-  title: {
-    /*
-     * Use a safe fallback until the
-     * custom Work Sans font is loaded.
-     */
-    fontFamily: 'sans-serif',
-
-    fontSize: 20,
-
-    lineHeight: 26,
-
-    fontWeight: '700',
-
-    color: colors.primary,
-
+  tagline: {
+    fontSize: 18,
+    lineHeight: 24,
+    color: '#647586',
+    fontWeight: '500',
     textAlign: 'center',
-
-    marginBottom: 12,
   },
 
+  /* ---------------- HEADING ---------------- */
 
-  /* ========================================
-     SUBTITLE
-  ======================================== */
+  headingContainer: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 34,
+    marginBottom: 24,
+  },
+
+  heading: {
+    fontSize: 31,
+    lineHeight: 39,
+    fontWeight: '800',
+    color: COLORS.navy,
+    textAlign: 'center',
+  },
 
   subtitle: {
-    fontFamily: 'sans-serif',
-
-    fontSize: 16,
-
-    lineHeight: 24,
-
-    fontWeight: '400',
-
-    color: colors.onSurfaceVariant,
-
+    marginTop: 8,
+    fontSize: 18,
+    lineHeight: 26,
+    color: '#607284',
     textAlign: 'center',
-
-    maxWidth: 250,
+    paddingHorizontal: 10,
   },
 
+  /* ---------------- CARDS ---------------- */
 
-  /* ========================================
-     BOTTOM
-  ======================================== */
-
-  bottomArea: {
+  optionCard: {
     width: '100%',
+    minHeight: 170,
 
-    maxWidth: 448,
-
-    paddingHorizontal: 12,
-
-    paddingBottom: 32,
-  },
-
-
-  /* ========================================
-     GET STARTED BUTTON
-  ======================================== */
-
-  getStartedButton: {
-    width: '100%',
-
-    height: 54,
-
-    backgroundColor: colors.primary,
-
-    borderRadius: 8,
-
-    borderBottomWidth: 3,
-
-    borderBottomColor: '#002203',
+    borderRadius: 24,
+    borderWidth: 1,
 
     flexDirection: 'row',
-
     alignItems: 'center',
 
-    justifyContent: 'center',
+    paddingVertical: 22,
+    paddingHorizontal: 18,
 
-    gap: 12,
+    marginBottom: 18,
 
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
     elevation: 2,
   },
 
-  buttonPressed: {
-    transform: [
-      {
-        scale: 0.97,
-      },
-    ],
+  patientCard: {
+    backgroundColor: COLORS.patientBg,
+    borderColor: COLORS.patientBorder,
   },
 
-  buttonText: {
-    fontFamily: 'sans-serif',
-
-    fontSize: 14,
-
-    lineHeight: 20,
-
-    fontWeight: '700',
-
-    color: '#FFFFFF',
+  familyCard: {
+    backgroundColor: COLORS.familyBg,
+    borderColor: COLORS.familyBorder,
   },
 
+  pressed: {
+    opacity: 0.82,
+    transform: [{ scale: 0.99 }],
+  },
 
-  /* ========================================
-     SIGN IN
-  ======================================== */
-
-  signInRow: {
-    marginTop: 26,
-
-    minHeight: 30,
-
-    flexDirection: 'row',
+  iconCirclePatient: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    backgroundColor: '#DDF4E8',
 
     alignItems: 'center',
-
     justifyContent: 'center',
 
-    flexWrap: 'wrap',
+    marginRight: 16,
   },
 
-  signInText: {
-    fontFamily: 'sans-serif',
+  iconCircleFamily: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    backgroundColor: '#FCEBD8',
 
-    fontSize: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
 
-    lineHeight: 18,
-
-    color: colors.onSurfaceVariant,
+    marginRight: 16,
   },
 
-  signInLink: {
-    fontFamily: 'sans-serif',
+  optionTextContainer: {
+    flex: 1,
+    paddingRight: 5,
+  },
 
-    fontSize: 12,
+  optionTitle: {
+    fontSize: 22,
+    lineHeight: 29,
+    fontWeight: '800',
+    color: COLORS.navy,
+  },
 
-    lineHeight: 18,
+  optionDescription: {
+    marginTop: 8,
+    fontSize: 16,
+    lineHeight: 23,
+    color: COLORS.text,
+  },
 
-    fontWeight: '700',
+  /* ---------------- FOOTER ---------------- */
 
-    color: colors.primary,
+  footer: {
+    alignItems: 'center',
+    marginTop: 22,
+    paddingTop: 12,
+  },
 
-    textDecorationLine: 'underline',
+  footerText: {
+    marginTop: 10,
+    fontSize: 17,
+    lineHeight: 25,
+    color: '#687887',
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+
+  /* ---------------- DECORATION ---------------- */
+
+  leftLeafOne: {
+    position: 'absolute',
+    left: -28,
+    top: 90,
+    width: 100,
+    height: 45,
+    borderRadius: 100,
+    backgroundColor: 'rgba(92, 190, 164, 0.10)',
+    transform: [{ rotate: '-25deg' }],
+  },
+
+  leftLeafTwo: {
+    position: 'absolute',
+    left: -35,
+    top: 145,
+    width: 90,
+    height: 38,
+    borderRadius: 100,
+    backgroundColor: 'rgba(92, 190, 164, 0.08)',
+    transform: [{ rotate: '20deg' }],
+  },
+
+  rightLeafOne: {
+    position: 'absolute',
+    right: -32,
+    top: 150,
+    width: 105,
+    height: 48,
+    borderRadius: 100,
+    backgroundColor: 'rgba(92, 190, 164, 0.10)',
+    transform: [{ rotate: '35deg' }],
+  },
+
+  rightLeafTwo: {
+    position: 'absolute',
+    right: -28,
+    top: 215,
+    width: 85,
+    height: 40,
+    borderRadius: 100,
+    backgroundColor: 'rgba(92, 190, 164, 0.08)',
+    transform: [{ rotate: '-20deg' }],
   },
 });
