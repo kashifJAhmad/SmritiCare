@@ -1,12 +1,5 @@
 const API_BASE_URL = "http://192.168.29.253:5000";
 
-type ApiResponse<T> = {
-  success: boolean;
-  message?: string;
-  token?: string;
-  user?: T;
-};
-
 export type PatientUser = {
   id: string;
   fullName: string;
@@ -20,6 +13,29 @@ export type PatientUser = {
   createdAt: string;
   updatedAt: string;
 };
+
+type ApiResponse = {
+  success: boolean;
+  message?: string;
+  token?: string;
+  user?: PatientUser;
+};
+
+async function parseResponse(response: Response): Promise<ApiResponse> {
+  let result: ApiResponse;
+
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error("The server returned an invalid response.");
+  }
+
+  if (!response.ok || !result.success) {
+    throw new Error(result.message || "Something went wrong.");
+  }
+
+  return result;
+}
 
 export async function patientSignup(data: {
   fullName: string;
@@ -36,13 +52,7 @@ export async function patientSignup(data: {
     body: JSON.stringify(data),
   });
 
-  const result: ApiResponse<PatientUser> = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Unable to create account");
-  }
-
-  return result;
+  return parseResponse(response);
 }
 
 export async function patientLogin(data: {
@@ -57,13 +67,7 @@ export async function patientLogin(data: {
     body: JSON.stringify(data),
   });
 
-  const result: ApiResponse<PatientUser> = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Unable to login");
-  }
-
-  return result;
+  return parseResponse(response);
 }
 
 export async function getCurrentPatient(token: string) {
@@ -74,11 +78,4 @@ export async function getCurrentPatient(token: string) {
     },
   });
 
-  const result: ApiResponse<PatientUser> = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Unable to get patient");
-  }
-
-  return result;
-}
+  return parseResponse(response);}

@@ -1,3 +1,6 @@
+import { Alert, ActivityIndicator } from "react-native";
+import { patientLogin } from "../../services/api";
+import { saveToken } from "../../services/authStorage";
 import React, { useState } from 'react';
 import {
   Image,
@@ -38,15 +41,47 @@ export default function LoginScreen({
 }: LoginScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading] = useState(false);;
 
-  const handleLogin = () => {
-    if (!email.trim() || !password.trim()) {
+  const handleLogin = async () => {
+    if (!email.trim()) {
+      Alert.alert("Missing information", "Please enter your email.");
       return;
     }
 
-    // Backend authentication will be connected here next.
-    onLogin();
+    if (!password) {
+      Alert.alert("Missing information", "Please enter your password.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const result = await patientLogin({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      if (!result.token) {
+        throw new Error("Login succeeded but no authentication token was returned.");
+      }
+
+      await saveToken(result.token);
+
+      setLoading(false);
+
+      onLogin();
+    } catch (error) {
+      setLoading(false);
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to sign in. Please try again.";
+
+      Alert.alert("Sign In Failed", message);
+    }
   };
 
   return (
@@ -155,7 +190,7 @@ export default function LoginScreen({
             {/* Forgot Password */}
             <Pressable
               style={styles.forgotButton}
-              onPress={() => {}}
+              onPress={() => { }}
             >
               <Text style={styles.forgotText}>
                 Forgot Password?
@@ -165,20 +200,31 @@ export default function LoginScreen({
             {/* Sign In */}
             <Pressable
               onPress={handleLogin}
+              disabled={loading}
               style={({ pressed }) => [
                 styles.primaryButton,
                 pressed && styles.pressed,
+                loading && styles.buttonDisabled,
               ]}
             >
-              <MaterialIcons
-                name="login"
-                size={23}
-                color={COLORS.white}
-              />
+              {loading ? (
+                <ActivityIndicator
+                  size="small"
+                  color={COLORS.white}
+                />
+              ) : (
+                <>
+                  <MaterialIcons
+                    name="login"
+                    size={23}
+                    color={COLORS.white}
+                  />
 
-              <Text style={styles.primaryButtonText}>
-                Sign In
-              </Text>
+                  <Text style={styles.primaryButtonText}>
+                    Sign In
+                  </Text>
+                </>
+              )}
             </Pressable>
           </View>
 
@@ -303,6 +349,9 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     textAlign: 'center',
   },
+  buttonDisabled: {
+  opacity: 0.65,
+},
 
   form: {
     width: '100%',

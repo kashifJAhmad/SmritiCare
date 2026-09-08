@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Platform } from 'react-native';
+import {
+  ActivityIndicator,
+  Platform,
+  Text,
+  View,
+} from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -20,6 +25,16 @@ import GuessFoodScreen from './src/screens/games/GuessFoodScreen';
 import PatientDashboardScreen from './src/screens/patients/PatientDashboardScreen';
 import OfflineScreen from './src/screens/OfflineScreen';
 import VoiceAssistantScreen from './src/screens/home/VoiceAssistantScreen';
+
+import {
+  getCurrentPatient,
+  type PatientUser,
+} from './src/services/api';
+
+import {
+  getToken,
+  removeToken,
+} from './src/services/authStorage';
 
 type Screen =
   | 'welcome'
@@ -43,11 +58,147 @@ function AppContent() {
   const [screen, setScreen] = useState<Screen>('welcome');
 
   // ---------------------------------------------------------
+  // PATIENT AUTHENTICATION
+  // ---------------------------------------------------------
+
+  const [patient, setPatient] = useState<PatientUser | null>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  // ---------------------------------------------------------
   // OFFLINE DETECTION
   // ---------------------------------------------------------
 
   const [isOffline, setIsOffline] = useState(false);
   const [connectionChecked, setConnectionChecked] = useState(false);
+
+  // ---------------------------------------------------------
+  // RESTORE PATIENT SESSION
+  // ---------------------------------------------------------
+
+  useEffect(() => {
+    restorePatientSession();
+  }, []);
+
+  async function restorePatientSession() {
+    try {
+      console.log('SmritiCare: checking saved patient session...');
+
+      const token = await getToken();
+
+      if (!token) {
+        console.log('SmritiCare: no saved login found');
+
+        setPatient(null);
+        setScreen('welcome');
+        return;
+      }
+
+      console.log('SmritiCare: saved token found');
+
+      const result = await getCurrentPatient(token);
+
+      if (result.success && result.user) {
+        console.log(
+          'SmritiCare: patient session restored:',
+          result.user.fullName,
+        );
+
+        setPatient(result.user);
+        setScreen('home');
+      } else {
+        console.log('SmritiCare: saved session is invalid');
+
+        await removeToken();
+        setPatient(null);
+        setScreen('welcome');
+      }
+    } catch (error) {
+      console.log(
+        'SmritiCare: unable to restore patient session:',
+        error,
+      );
+
+      await removeToken();
+      setPatient(null);
+      setScreen('welcome');
+    } finally {
+      setIsCheckingAuth(false);
+    }
+  }
+
+  // ---------------------------------------------------------
+  // LOGOUT
+  // ---------------------------------------------------------
+
+  async function handleLogout() {
+    try {
+      console.log('SmritiCare: logging out patient...');
+
+      await removeToken();
+
+      setPatient(null);
+      setScreen('welcome');
+
+      console.log('SmritiCare: logout successful');
+    } catch (error) {
+      console.log('SmritiCare: logout error:', error);
+
+      // Even if storage fails, don't keep the user inside
+      // the authenticated part of the app.
+      setPatient(null);
+      setScreen('welcome');
+    }
+  }
+
+  // ---------------------------------------------------------
+  // AUTH SUCCESS
+  // ---------------------------------------------------------
+
+  async function handleAuthenticationSuccess() {
+    console.log('SmritiCare: authentication successful');
+
+    // The Signup/Login screen has already saved the token.
+    // We now load the complete patient from /api/auth/me.
+    try {
+      const token = await getToken();
+
+      if (!token) {
+        console.log('SmritiCare: no token after authentication');
+        setPatient(null);
+        setScreen('welcome');
+        return;
+      }
+
+      const result = await getCurrentPatient(token);
+
+      if (result.success && result.user) {
+        setPatient(result.user);
+        setScreen('home');
+
+        console.log(
+          'SmritiCare: logged in as:',
+          result.user.fullName,
+        );
+      } else {
+        await removeToken();
+        setPatient(null);
+        setScreen('welcome');
+      }
+    } catch (error) {
+      console.log(
+        'SmritiCare: unable to load current patient:',
+        error,
+      );
+
+      await removeToken();
+      setPatient(null);
+      setScreen('welcome');
+    }
+  }
+
+  // ---------------------------------------------------------
+  // OFFLINE DETECTION
+  // ---------------------------------------------------------
 
   useEffect(() => {
     let mounted = true;
@@ -105,6 +256,52 @@ function AppContent() {
   }, []);
 
   // ---------------------------------------------------------
+  // WAIT FOR AUTHENTICATION CHECK
+  // ---------------------------------------------------------
+
+  if (isCheckingAuth) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: '#F4FAFF',
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingHorizontal: 30,
+        }}
+      >
+        <ActivityIndicator
+          size="large"
+          color="#00450D"
+        />
+
+        <Text
+          style={{
+            marginTop: 18,
+            fontSize: 18,
+            fontWeight: '600',
+            color: '#00450D',
+            textAlign: 'center',
+          }}
+        >
+          Loading SmritiCare...
+        </Text>
+
+        <Text
+          style={{
+            marginTop: 8,
+            fontSize: 14,
+            color: '#41493E',
+            textAlign: 'center',
+          }}
+        >
+          Checking your patient account
+        </Text>
+      </View>
+    );
+  }
+
+  // ---------------------------------------------------------
   // WAIT UNTIL CONNECTION STATUS IS CHECKED
   // ---------------------------------------------------------
 
@@ -146,50 +343,56 @@ function AppContent() {
   // WELCOME
   // ---------------------------------------------------------
 
-if (screen === 'welcome') {
-  return (
-    <WelcomeScreen
-      onPatient={() => setScreen('patient-auth')}
-      onFamilyMember={() => setScreen('login')}
-    />
-  );
-}
+  if (screen === 'welcome') {
+    return (
+      <WelcomeScreen
+        onPatient={() => setScreen('patient-auth')}
+        onFamilyMember={() => setScreen('login')}
+      />
+    );
+  }
+
+  // ---------------------------------------------------------
+  // PATIENT AUTH
+  // ---------------------------------------------------------
+
+  if (screen === 'patient-auth') {
+    return (
+      <PatientAuthScreen
+        onBack={() => setScreen('welcome')}
+        onSignIn={() => setScreen('login')}
+        onSignUp={() => setScreen('signup')}
+      />
+    );
+  }
+
   // ---------------------------------------------------------
   // LOGIN
   // ---------------------------------------------------------
 
-if (screen === 'patient-auth') {
-  return (
-    <PatientAuthScreen
-      onBack={() => setScreen('welcome')}
-      onSignIn={() => setScreen('login')}
-      onSignUp={() => setScreen('signup')}
-    />
-  );
-}
-
-
-
-
   if (screen === 'login') {
-  return (
-    <LoginScreen
-      onLogin={() => setScreen('home')}
-      onSignup={() => setScreen('signup')}
-      onBack={() => setScreen('patient-auth')}
-    />
-  );
-}
+    return (
+      <LoginScreen
+        onLogin={handleAuthenticationSuccess}
+        onSignup={() => setScreen('signup')}
+        onBack={() => setScreen('patient-auth')}
+      />
+    );
+  }
 
-if (screen === 'signup') {
-  return (
-    <SignupScreen
-      onSignup={() => setScreen('home')}
-      onLogin={() => setScreen('login')}
-      onBack={() => setScreen('patient-auth')}
-    />
-  );
-}
+  // ---------------------------------------------------------
+  // SIGNUP
+  // ---------------------------------------------------------
+
+  if (screen === 'signup') {
+    return (
+      <SignupScreen
+        onSignup={handleAuthenticationSuccess}
+        onLogin={() => setScreen('login')}
+        onBack={() => setScreen('patient-auth')}
+      />
+    );
+  }
 
   // ---------------------------------------------------------
   // MEDICAL HELP
@@ -208,13 +411,17 @@ if (screen === 'signup') {
   // ---------------------------------------------------------
 
   if (screen === 'schedule') {
-    return (
-      <ScheduleScreen
-        onBack={() => setScreen('home')}
-      />
-    );
-  }
-
+  return (
+    <ScheduleScreen
+      onBack={() => setScreen('home')}
+      onHome={() => setScreen('home')}
+      onGames={() => setScreen('games')}
+      onSchedule={() => setScreen('schedule')}
+      onMemory={() => setScreen('memory')}
+      onProfile={() => setScreen('profile')}
+    />
+  );
+}
   // ---------------------------------------------------------
   // CALL FAMILY
   // ---------------------------------------------------------
@@ -384,7 +591,7 @@ if (screen === 'signup') {
 
   return (
     <HomeScreen
-      onLogout={() => setScreen('welcome')}
+      onLogout={handleLogout}
       onMedicalHelp={() => setScreen('medical-help')}
       onSchedule={() => setScreen('schedule')}
       onCallFamily={() => setScreen('call-family')}

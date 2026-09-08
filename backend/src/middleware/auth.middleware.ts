@@ -1,66 +1,75 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
-export type AuthenticatedRequest = Request & {
+export interface AuthenticatedRequest extends Request {
   userId?: string;
-};
+}
 
-type JwtPayload = {
-  userId: string;
-};
+declare global {
+  namespace Express {
+    interface Request {
+      userId?: string;
+    }
+  }
+}
 
 export function authenticate(
   req: AuthenticatedRequest,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ) {
   try {
-    const authorization = req.headers.authorization;
+    const authHeader = req.headers.authorization;
 
-    if (!authorization) {
-      return res.status(401).json({
+    if (!authHeader) {
+      res.status(401).json({
         success: false,
-        message: "Authentication token is required",
+        message: "Authorization token is required.",
       });
+      return;
     }
 
-    const [scheme, token] = authorization.split(" ");
+    const [scheme, token] = authHeader.split(" ");
 
     if (scheme !== "Bearer" || !token) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
-        message: "Invalid authentication format",
+        message: "Invalid authorization format.",
       });
+      return;
     }
 
     const secret = process.env.JWT_SECRET;
 
     if (!secret) {
-      return res.status(500).json({
+      res.status(500).json({
         success: false,
-        message: "JWT_SECRET is not configured",
+        message: "JWT secret is not configured.",
       });
+      return;
     }
 
-    const decoded = jwt.verify(
-      token,
-      secret,
-    ) as JwtPayload;
+    const decoded = jwt.verify(token, secret);
 
-    if (!decoded.userId) {
-      return res.status(401).json({
+    if (
+      typeof decoded !== "object" ||
+      decoded === null ||
+      typeof decoded.userId !== "string"
+    ) {
+      res.status(401).json({
         success: false,
-        message: "Invalid authentication token",
+        message: "Invalid authentication token.",
       });
+      return;
     }
 
     req.userId = decoded.userId;
 
     next();
   } catch {
-    return res.status(401).json({
+    res.status(401).json({
       success: false,
-      message: "Invalid or expired authentication token",
+      message: "Invalid or expired authentication token.",
     });
   }
 }

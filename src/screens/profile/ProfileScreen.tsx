@@ -1,16 +1,36 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
+  Image,
+  Modal,
+  Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
-} from 'react-native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+} from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+
+import {
+  getMyProfile,
+  updateMyProfile,
+  uploadProfileImage,
+  type UserProfile,
+} from "../../services/profile.service";
+import { getToken } from "../../services/authStorage";
+
+type EmergencyContact = {
+  id: string;
+  name: string;
+  relationship: string;
+  phone: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
 
 type ProfileScreenProps = {
   onBack?: () => void;
@@ -21,945 +41,2522 @@ type ProfileScreenProps = {
   onProfile?: () => void;
 };
 
+const API_BASE_URL = "http://192.168.29.253:5000";
+
+const COLORS = {
+  background: "#F4FAFF",
+  primary: "#00450D",
+  primaryContainer: "#1B5E20",
+  onPrimaryContainer: "#90D689",
+  surfaceLow: "#F6F3F2",
+  surface: "#F0EDED",
+  surfaceHigh: "#EAE7E7",
+  surfaceHighest: "#E5E2E1",
+  secondary: "#556158",
+  secondaryFixed: "#D9E6DA",
+  error: "#BA1A1A",
+  errorContainer: "#FFDAD6",
+  outline: "#717A6D",
+  outlineVariant: "#C0C9BB",
+  onSurface: "#1B1C1C",
+  onSurfaceVariant: "#41493E",
+  white: "#FFFFFF",
+};
+
+const BODY_FONT = Platform.select({
+  ios: "Atkinson Hyperlegible",
+  android: "sans-serif",
+  web: "Atkinson Hyperlegible Next",
+  default: "sans-serif",
+});
+
+const HEADING_FONT = Platform.select({
+  ios: "Plus Jakarta Sans",
+  android: "sans-serif",
+  web: "Plus Jakarta Sans",
+  default: "sans-serif",
+});
+
+function formatDateForInput(value: string | null | undefined): string {
+  if (!value) return "";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function formatDisplayDate(value: string | null | undefined): string {
+  if (!value) return "Not provided";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+function getInitials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+
+  if (words.length === 0) return "SC";
+
+  if (words.length === 1) {
+    return words[0].slice(0, 2).toUpperCase();
+  }
+
+  return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
+}
+
+function showMessage(title: string, message: string) {
+  if (Platform.OS === "web") {
+    window.alert(`${title}\n\n${message}`);
+    return;
+  }
+
+  Alert.alert(title, message);
+}
+
+function confirmAction(
+  title: string,
+  message: string,
+  onConfirm: () => void
+) {
+  if (Platform.OS === "web") {
+    const confirmed = window.confirm(`${title}\n\n${message}`);
+
+    if (confirmed) {
+      onConfirm();
+    }
+
+    return;
+  }
+
+  Alert.alert(title, message, [
+    {
+      text: "Cancel",
+      style: "cancel",
+    },
+    {
+      text: "Delete",
+      style: "destructive",
+      onPress: onConfirm,
+    },
+  ]);
+}
+
 export default function ProfileScreen({
   onBack,
   onHome,
   onGames,
   onSchedule,
   onMemory,
-  onProfile,
 }: ProfileScreenProps) {
-  const [caregiverAccess, setCaregiverAccess] = useState(true);
-  const [gpsSharing, setGpsSharing] = useState(true);
-  const [textSize, setTextSize] = useState<'normal' | 'large'>('large');
-  const [language, setLanguage] = useState('English');
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [contacts, setContacts] = useState<EmergencyContact[]>([]);
 
-  const editDetails = () => {
-    Alert.alert(
-      'Edit Details',
-      'Profile editing will be connected next.'
-    );
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  const [editProfileVisible, setEditProfileVisible] = useState(false);
+  const [photoModalVisible, setPhotoModalVisible] = useState(false);
+  const [contactModalVisible, setContactModalVisible] = useState(false);
+
+  const [editingContact, setEditingContact] =
+    useState<EmergencyContact | null>(null);
+
+  const [fullName, setFullName] = useState("");
+  const [age, setAge] = useState("");
+  const [phone, setPhone] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [gender, setGender] = useState("");
+  const [bloodGroup, setBloodGroup] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [medicalNotes, setMedicalNotes] = useState("");
+
+  const [language, setLanguage] = useState("English");
+  const [textSize, setTextSize] = useState("Normal");
+  const [caregiverName, setCaregiverName] = useState("");
+  const [caregiverAccess, setCaregiverAccess] = useState(false);
+  const [gpsSharing, setGpsSharing] = useState(false);
+
+  const [contactName, setContactName] = useState("");
+  const [contactRelationship, setContactRelationship] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+
+  const loadProfile = useCallback(async () => {
+    try {
+      setLoading(true);
+
+      const token = await getToken();
+
+      if (!token) {
+        throw new Error("Please log in again.");
+      }
+
+      const data = await getMyProfile();
+
+      setProfile(data);
+
+      setFullName(data.fullName || "");
+      setAge(data.age !== null && data.age !== undefined ? String(data.age) : "");
+      setPhone(data.phone || "");
+      setDateOfBirth(formatDateForInput(data.dateOfBirth));
+      setGender(data.gender || "");
+      setBloodGroup(data.bloodGroup || "");
+      setAddress(data.address || "");
+      setCity(data.city || "");
+      setMedicalNotes(data.medicalNotes || "");
+
+      setLanguage(data.language || "English");
+      setTextSize(data.textSize || "Normal");
+      setCaregiverName(data.caregiverName || "");
+      setCaregiverAccess(Boolean(data.caregiverAccess));
+      setGpsSharing(Boolean(data.gpsSharing));
+
+      await loadEmergencyContacts(token);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to load your profile.";
+
+      showMessage("Profile", message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadEmergencyContacts = async (token?: string) => {
+    try {
+      const authToken = token || (await getToken());
+
+      if (!authToken) return;
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/emergency-contacts`,
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        return;
+      }
+
+      const data = result.data;
+
+      if (Array.isArray(data)) {
+        setContacts(data);
+      } else if (Array.isArray(data?.contacts)) {
+        setContacts(data.contacts);
+      } else {
+        setContacts([]);
+      }
+    } catch {
+      setContacts([]);
+    }
   };
 
-  const editContact = (name: string) => {
-    Alert.alert(
-      'Edit Contact',
-      `Opening editor for ${name}...`
-    );
-  };
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
 
-  const addContact = () => {
-    Alert.alert(
-      'Add New Contact',
-      'New contact creation will be connected next.'
-    );
-  };
-
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        {/* Mobile Header */}
-        <View style={styles.header}>
-          <Pressable
-            onPress={onBack}
-            style={({ pressed }) => [
-              styles.backButton,
-              pressed && styles.pressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <Ionicons
-              name="arrow-back"
-              size={28}
-              color="#00450D"
-            />
-          </Pressable>
-
-          <Text style={styles.headerTitle}>My Profile</Text>
-        </View>
-
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.content}
-        >
-          {/* Personal Details */}
-          <View style={styles.card}>
-            <View style={styles.mekhelaBorder}>
-              <View style={styles.mekhelaStripe} />
-              <View style={styles.mekhelaStripeLight} />
-              <View style={styles.mekhelaStripe} />
-              <View style={styles.mekhelaStripeLight} />
-              <View style={styles.mekhelaStripe} />
-            </View>
-
-            <View style={styles.cardPadding}>
-              <View style={styles.profileHeader}>
-                <View style={styles.avatar}>
-                  <MaterialIcons
-                    name="person"
-                    size={42}
-                    color="#00450D"
-                  />
-                </View>
-
-                <View style={styles.profileNameBlock}>
-                  <Text style={styles.profileName}>
-                    Ramani Barman
-                  </Text>
-                  <Text style={styles.profileAge}>
-                    Age: 72
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.fieldGroup}>
-                <Text style={styles.label}>Full Name</Text>
-                <TextInput
-                  value="Ramani Barman"
-                  editable={false}
-                  style={styles.input}
-                />
-              </View>
-
-              <View style={styles.fieldGroup}>
-                <Text style={styles.label}>Age</Text>
-                <TextInput
-                  value="72"
-                  editable={false}
-                  keyboardType="number-pad"
-                  style={styles.input}
-                />
-              </View>
-
-              <Pressable
-                onPress={editDetails}
-                style={({ pressed }) => [
-                  styles.outlineButton,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <MaterialIcons
-                  name="edit"
-                  size={24}
-                  color="#00450D"
-                />
-                <Text style={styles.outlineButtonText}>
-                  Edit Details
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-
-          {/* Caregiver Access */}
-          <View style={styles.card}>
-            <View style={styles.settingRow}>
-              <View style={styles.settingInfo}>
-                <View style={styles.greenSettingIcon}>
-                  <MaterialIcons
-                    name="supervisor-account"
-                    size={30}
-                    color="#90D689"
-                  />
-                </View>
-
-                <View style={styles.settingText}>
-                  <Text style={styles.settingTitle}>
-                    Caregiver Access
-                  </Text>
-                  <Text style={styles.settingDescription}>
-                    Allow family to help
-                  </Text>
-                </View>
-              </View>
-
-              <Switch
-                value={caregiverAccess}
-                onValueChange={setCaregiverAccess}
-                trackColor={{
-                  false: '#D7E4EC',
-                  true: '#1B5E20',
-                }}
-                thumbColor="#FFFFFF"
-                ios_backgroundColor="#D7E4EC"
-              />
-            </View>
-          </View>
-
-          {/* Emergency Contacts */}
-          <View style={styles.card}>
-            <View style={styles.cardPadding}>
-              <View style={styles.sectionHeader}>
-                <View style={styles.emergencyIcon}>
-                  <MaterialIcons
-                    name="emergency"
-                    size={30}
-                    color="#93000A"
-                  />
-                </View>
-                <Text style={styles.sectionTitle}>
-                  Emergency Contacts
-                </Text>
-              </View>
-
-              <ContactRow
-                icon="call"
-                name="Son (Bikash)"
-                phone="+91 98765 43210"
-                onEdit={() => editContact('Son (Bikash)')}
-              />
-
-              <ContactRow
-                icon="local-hospital"
-                name="Dr. Sharma"
-                phone="+91 91234 56789"
-                onEdit={() => editContact('Dr. Sharma')}
-              />
-
-              <Pressable
-                onPress={addContact}
-                style={({ pressed }) => [
-                  styles.primaryButton,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <MaterialIcons
-                  name="add"
-                  size={26}
-                  color="#FFFFFF"
-                />
-                <Text style={styles.primaryButtonText}>
-                  Add New Contact
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-
-          {/* GPS Sharing */}
-          <View style={styles.card}>
-            <View style={styles.cardPadding}>
-              <View style={styles.settingRow}>
-                <View style={styles.settingInfo}>
-                  <View style={styles.blueSettingIcon}>
-                    <MaterialIcons
-                      name="location-on"
-                      size={30}
-                      color="#004470"
-                    />
-                  </View>
-
-                  <View style={styles.settingText}>
-                    <Text style={styles.settingTitle}>
-                      GPS Sharing
-                    </Text>
-                  </View>
-                </View>
-
-                <Switch
-                  value={gpsSharing}
-                  onValueChange={setGpsSharing}
-                  trackColor={{
-                    false: '#D7E4EC',
-                    true: '#1B5E20',
-                  }}
-                  thumbColor="#FFFFFF"
-                  ios_backgroundColor="#D7E4EC"
-                />
-              </View>
-
-              <Text style={styles.mapDescription}>
-                Sharing location with caregivers for safety.
-              </Text>
-
-              <View style={styles.mapPlaceholder}>
-                <View style={styles.mapRoadOne} />
-                <View style={styles.mapRoadTwo} />
-                <View style={styles.mapRoadThree} />
-                <View style={styles.mapRoadFour} />
-
-                <View style={styles.locationMarker}>
-                  <MaterialIcons
-                    name="my-location"
-                    size={28}
-                    color="#90D689"
-                  />
-                </View>
-
-                <Text style={styles.mapLabel}>Guwahati</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* App Settings */}
-          <View style={[styles.card, styles.lastCard]}>
-            <View style={styles.cardPadding}>
-              <View style={styles.sectionHeader}>
-                <View style={styles.settingsIcon}>
-                  <MaterialIcons
-                    name="settings"
-                    size={30}
-                    color="#111D23"
-                  />
-                </View>
-                <Text style={styles.sectionTitle}>
-                  App Settings
-                </Text>
-              </View>
-
-              <Text style={styles.label}>Language</Text>
-
-              <View style={styles.languageRow}>
-                <Pressable
-                  onPress={() =>
-                    setLanguage(
-                      language === 'English'
-                        ? 'Assamese (অসমীয়া)'
-                        : 'English'
-                    )
-                  }
-                  style={styles.languageSelector}
-                >
-                  <Text style={styles.languageText}>
-                    {language}
-                  </Text>
-                  <MaterialIcons
-                    name="keyboard-arrow-down"
-                    size={28}
-                    color="#41493E"
-                  />
-                </Pressable>
-              </View>
-
-              <Text style={[styles.label, styles.textSizeLabel]}>
-                Text Size
-              </Text>
-
-              <View style={styles.textSizeRow}>
-                <Pressable
-                  onPress={() => setTextSize('normal')}
-                  style={[
-                    styles.textSizeButton,
-                    textSize === 'normal' &&
-                      styles.textSizeButtonNormalActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.textSizeButtonText,
-                      textSize === 'normal' &&
-                        styles.textSizeButtonTextActive,
-                    ]}
-                  >
-                    A- Normal
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  onPress={() => setTextSize('large')}
-                  style={[
-                    styles.textSizeButton,
-                    textSize === 'large' &&
-                      styles.textSizeButtonLargeActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.textSizeButtonText,
-                      textSize === 'large' &&
-                        styles.textSizeButtonTextLargeActive,
-                    ]}
-                  >
-                    A+ Large
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-          </View>
-        </ScrollView>
-
-        {/* Bottom Navigation */}
-        <View style={styles.bottomNav}>
-          <NavItem
-            icon="home"
-            label="Home"
-            onPress={onHome}
-          />
-          <NavItem
-            icon="extension"
-            label="Games"
-            onPress={onGames}
-          />
-          <NavItem
-            icon="alarm"
-            label="Remind"
-            onPress={onSchedule}
-          />
-          <NavItem
-            icon="auto-stories"
-            label="Memory"
-            onPress={onMemory}
-          />
-          <NavItem
-            icon="person"
-            label="Profile"
-            active
-            onPress={onProfile}
-          />
-        </View>
-      </View>
-    </SafeAreaView>
+  const initials = useMemo(
+    () => getInitials(profile?.fullName || fullName || "SmritiCare"),
+    [profile?.fullName, fullName]
   );
-}
 
-type ContactRowProps = {
-  icon: keyof typeof MaterialIcons.glyphMap;
-  name: string;
-  phone: string;
-  onEdit: () => void;
-};
+  const saveProfile = async () => {
+    if (!fullName.trim()) {
+      showMessage("Missing information", "Please enter your full name.");
+      return;
+    }
 
-function ContactRow({
-  icon,
-  name,
-  phone,
-  onEdit,
-}: ContactRowProps) {
-  return (
-    <View style={styles.contactRow}>
-      <View style={styles.contactInfo}>
+    try {
+      setSaving(true);
+
+      const parsedAge = age.trim() ? Number(age) : null;
+
+      if (
+        parsedAge !== null &&
+        (!Number.isFinite(parsedAge) ||
+          parsedAge < 1 ||
+          parsedAge > 120)
+      ) {
+        showMessage(
+          "Invalid age",
+          "Please enter an age between 1 and 120."
+        );
+        return;
+      }
+
+      const updated = await updateMyProfile({
+        fullName: fullName.trim(),
+        age: parsedAge,
+        phone: phone.trim() || null,
+        dateOfBirth: dateOfBirth.trim() || null,
+        gender: gender.trim() || null,
+        bloodGroup: bloodGroup.trim() || null,
+        address: address.trim() || null,
+        city: city.trim() || null,
+        medicalNotes: medicalNotes.trim() || null,
+        language,
+        textSize,
+        caregiverName: caregiverName.trim() || null,
+        caregiverAccess,
+        gpsSharing,
+      });
+
+      setProfile(updated);
+      setEditProfileVisible(false);
+
+      showMessage(
+        "Profile updated",
+        "Your profile information has been saved successfully."
+      );
+    } catch (error) {
+      showMessage(
+        "Unable to save",
+        error instanceof Error
+          ? error.message
+          : "Something went wrong while saving your profile."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const choosePhoto = async () => {
+    try {
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        showMessage(
+          "Permission required",
+          "Please allow photo library access to choose a profile picture."
+        );
+        return;
+      }
+
+      const result =
+        await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.85,
+        });
+
+      if (result.canceled || !result.assets?.[0]?.uri) {
+        return;
+      }
+
+      await uploadPhoto(result.assets[0].uri);
+    } catch (error) {
+      showMessage(
+        "Photo error",
+        error instanceof Error
+          ? error.message
+          : "Unable to select the photo."
+      );
+    }
+  };
+
+  const takePhoto = async () => {
+    try {
+      const permission =
+        await ImagePicker.requestCameraPermissionsAsync();
+
+      if (!permission.granted) {
+        showMessage(
+          "Permission required",
+          "Please allow camera access to take a profile picture."
+        );
+        return;
+      }
+
+      const result =
+        await ImagePicker.launchCameraAsync({
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.85,
+        });
+
+      if (result.canceled || !result.assets?.[0]?.uri) {
+        return;
+      }
+
+      await uploadPhoto(result.assets[0].uri);
+    } catch (error) {
+      showMessage(
+        "Camera error",
+        error instanceof Error
+          ? error.message
+          : "Unable to take the photo."
+      );
+    }
+  };
+
+  const uploadPhoto = async (uri: string) => {
+    try {
+      setUploadingPhoto(true);
+
+      const imageUrl = await uploadProfileImage(uri);
+
+      const updated = await updateMyProfile({
+        profileImageUrl: imageUrl,
+      });
+
+      setProfile(updated);
+      setPhotoModalVisible(false);
+
+      showMessage(
+        "Profile photo updated",
+        "Your new profile photo has been saved."
+      );
+    } catch (error) {
+      showMessage(
+        "Upload failed",
+        error instanceof Error
+          ? error.message
+          : "Unable to upload your profile photo."
+      );
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const removePhoto = () => {
+    if (!profile?.profileImageUrl) {
+      setPhotoModalVisible(false);
+      return;
+    }
+
+    confirmAction(
+      "Remove profile photo",
+      "Are you sure you want to remove your profile photo?",
+      async () => {
+        try {
+          setUploadingPhoto(true);
+
+          const updated = await updateMyProfile({
+            profileImageUrl: null,
+          });
+
+          setProfile(updated);
+          setPhotoModalVisible(false);
+
+          showMessage(
+            "Photo removed",
+            "Your profile photo has been removed."
+          );
+        } catch (error) {
+          showMessage(
+            "Unable to remove photo",
+            error instanceof Error
+              ? error.message
+              : "Something went wrong."
+          );
+        } finally {
+          setUploadingPhoto(false);
+        }
+      }
+    );
+  };
+
+  const openAddContact = () => {
+    setEditingContact(null);
+    setContactName("");
+    setContactRelationship("");
+    setContactPhone("");
+    setContactModalVisible(true);
+  };
+
+  const openEditContact = (contact: EmergencyContact) => {
+    setEditingContact(contact);
+    setContactName(contact.name);
+    setContactRelationship(contact.relationship);
+    setContactPhone(contact.phone);
+    setContactModalVisible(true);
+  };
+
+  const saveContact = async () => {
+    if (!contactName.trim()) {
+      showMessage("Missing information", "Please enter the contact name.");
+      return;
+    }
+
+    if (!contactPhone.trim()) {
+      showMessage("Missing information", "Please enter the phone number.");
+      return;
+    }
+
+    if (!contactRelationship.trim()) {
+      showMessage(
+        "Missing information",
+        "Please enter the relationship."
+      );
+      return;
+    }
+
+    try {
+      const token = await getToken();
+
+      if (!token) {
+        throw new Error("Please log in again.");
+      }
+
+      const payload = {
+        name: contactName.trim(),
+        relationship: contactRelationship.trim(),
+        phone: contactPhone.trim(),
+      };
+
+      const url = editingContact
+        ? `${API_BASE_URL}/api/emergency-contacts/${editingContact.id}`
+        : `${API_BASE_URL}/api/emergency-contacts`;
+
+      const response = await fetch(url, {
+        method: editingContact ? "PUT" : "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.message || "Unable to save emergency contact."
+        );
+      }
+
+      setContactModalVisible(false);
+
+      await loadEmergencyContacts(token);
+
+      showMessage(
+        editingContact ? "Contact updated" : "Contact added",
+        editingContact
+          ? "The emergency contact has been updated."
+          : "The emergency contact has been added."
+      );
+    } catch (error) {
+      showMessage(
+        "Unable to save contact",
+        error instanceof Error
+          ? error.message
+          : "Something went wrong."
+      );
+    }
+  };
+
+  const deleteContact = (contact: EmergencyContact) => {
+    confirmAction(
+      "Delete emergency contact",
+      `Remove ${contact.name} from your emergency contacts?`,
+      async () => {
+        try {
+          const token = await getToken();
+
+          if (!token) {
+            throw new Error("Please log in again.");
+          }
+
+          const response = await fetch(
+            `${API_BASE_URL}/api/emergency-contacts/${contact.id}`,
+            {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+
+          const result = await response.json();
+
+          if (!response.ok || !result.success) {
+            throw new Error(
+              result.message || "Unable to delete contact."
+            );
+          }
+
+          await loadEmergencyContacts(token);
+
+          showMessage(
+            "Contact removed",
+            `${contact.name} has been removed from your emergency contacts.`
+          );
+        } catch (error) {
+          showMessage(
+            "Unable to delete contact",
+            error instanceof Error
+              ? error.message
+              : "Something went wrong."
+          );
+        }
+      }
+    );
+  };
+
+  const renderSectionHeader = (
+    icon: keyof typeof MaterialIcons.glyphMap,
+    title: string,
+    subtitle?: string
+  ) => (
+    <View style={styles.sectionHeader}>
+      <View style={styles.sectionIcon}>
         <MaterialIcons
           name={icon}
-          size={30}
-          color="#41493E"
+          size={23}
+          color={COLORS.primary}
         />
+      </View>
 
-        <View style={styles.contactText}>
-          <Text style={styles.contactName}>{name}</Text>
-          <Text style={styles.contactPhone}>{phone}</Text>
-        </View>
+      <View style={styles.sectionHeaderText}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+
+        {subtitle ? (
+          <Text style={styles.sectionSubtitle}>{subtitle}</Text>
+        ) : null}
+      </View>
+    </View>
+  );
+
+  const renderInfoRow = (
+    icon: keyof typeof MaterialIcons.glyphMap,
+    label: string,
+    value: string
+  ) => (
+    <View style={styles.infoRow}>
+      <MaterialIcons
+        name={icon}
+        size={22}
+        color={COLORS.secondary}
+      />
+
+      <View style={styles.infoTextContainer}>
+        <Text style={styles.infoLabel}>{label}</Text>
+        <Text style={styles.infoValue}>{value || "Not provided"}</Text>
+      </View>
+    </View>
+  );
+
+  const renderSwitchRow = (
+    icon: keyof typeof MaterialIcons.glyphMap,
+    title: string,
+    description: string,
+    value: boolean,
+    onChange: (value: boolean) => void
+  ) => (
+    <View style={styles.switchRow}>
+      <View style={styles.switchIcon}>
+        <MaterialIcons
+          name={icon}
+          size={23}
+          color={COLORS.primary}
+        />
+      </View>
+
+      <View style={styles.switchText}>
+        <Text style={styles.switchTitle}>{title}</Text>
+        <Text style={styles.switchDescription}>
+          {description}
+        </Text>
       </View>
 
       <Pressable
-        onPress={onEdit}
-        style={({ pressed }) => [
-          styles.editContactButton,
-          pressed && styles.pressed,
+        accessibilityRole="switch"
+        accessibilityState={{ checked: value }}
+        onPress={() => onChange(!value)}
+        style={[
+          styles.switch,
+          value && styles.switchActive,
         ]}
-        accessibilityRole="button"
-        accessibilityLabel={`Edit ${name}`}
       >
-        <MaterialIcons
-          name="edit"
-          size={23}
-          color="#00450D"
+        <View
+          style={[
+            styles.switchThumb,
+            value && styles.switchThumbActive,
+          ]}
         />
       </Pressable>
     </View>
   );
-}
 
-type NavItemProps = {
-  icon: keyof typeof MaterialIcons.glyphMap;
-  label: string;
-  active?: boolean;
-  onPress?: () => void;
-};
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator
+          size="large"
+          color={COLORS.primary}
+        />
 
-function NavItem({
-  icon,
-  label,
-  active,
-  onPress,
-}: NavItemProps) {
+        <Text style={styles.loadingText}>
+          Loading your profile...
+        </Text>
+      </View>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <View style={styles.loadingContainer}>
+        <MaterialIcons
+          name="person-outline"
+          size={64}
+          color={COLORS.outline}
+        />
+
+        <Text style={styles.emptyTitle}>
+          Profile unavailable
+        </Text>
+
+        <Text style={styles.emptyText}>
+          We couldn't load your profile information.
+        </Text>
+
+        <Pressable
+          style={styles.primaryButton}
+          onPress={loadProfile}
+        >
+          <Text style={styles.primaryButtonText}>
+            Try Again
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.navItem,
-        active && styles.navItemActive,
-        pressed && styles.navPressed,
-      ]}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-    >
-      <MaterialIcons
-        name={icon}
-        size={28}
-        color={active ? '#90D689' : '#41493E'}
-      />
-      <Text
-        style={[
-          styles.navLabel,
-          active && styles.navLabelActive,
-        ]}
+    <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        {label}
-      </Text>
-    </Pressable>
+        {/* Top bar */}
+        <View style={styles.topBar}>
+          <Pressable
+            onPress={onBack}
+            style={styles.iconButton}
+            accessibilityLabel="Go back"
+          >
+            <MaterialIcons
+              name="arrow-back"
+              size={26}
+              color={COLORS.onSurface}
+            />
+          </Pressable>
+
+          <Text style={styles.topTitle}>My Profile</Text>
+
+          <Pressable
+            onPress={() => setEditProfileVisible(true)}
+            style={styles.iconButton}
+            accessibilityLabel="Edit profile"
+          >
+            <MaterialIcons
+              name="edit"
+              size={24}
+              color={COLORS.primary}
+            />
+          </Pressable>
+        </View>
+
+        {/* Profile hero */}
+        <View style={styles.heroCard}>
+          <Pressable
+            onPress={() => setPhotoModalVisible(true)}
+            style={styles.avatarWrapper}
+          >
+            {profile.profileImageUrl ? (
+              <Image
+                source={{ uri: profile.profileImageUrl }}
+                style={styles.avatarImage}
+              />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Text style={styles.avatarInitials}>
+                  {initials}
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.cameraBadge}>
+              <MaterialIcons
+                name="photo-camera"
+                size={17}
+                color={COLORS.white}
+              />
+            </View>
+          </Pressable>
+
+          <Text style={styles.heroName}>
+            {profile.fullName}
+          </Text>
+
+          <Text style={styles.heroEmail}>
+            {profile.email}
+          </Text>
+
+          <View style={styles.profileBadge}>
+            <MaterialIcons
+              name="verified-user"
+              size={16}
+              color={COLORS.primary}
+            />
+
+            <Text style={styles.profileBadgeText}>
+              SmritiCare Member
+            </Text>
+          </View>
+        </View>
+
+        {/* Personal information */}
+        <View style={styles.card}>
+          {renderSectionHeader(
+            "person",
+            "Personal Information",
+            "Your basic personal details"
+          )}
+
+          <View style={styles.divider} />
+
+          {renderInfoRow(
+            "person-outline",
+            "Full Name",
+            profile.fullName
+          )}
+
+          {renderInfoRow(
+            "cake",
+            "Date of Birth",
+            formatDisplayDate(profile.dateOfBirth)
+          )}
+
+          {renderInfoRow(
+            "calendar-today",
+            "Age",
+            profile.age !== null
+              ? `${profile.age} years`
+              : "Not provided"
+          )}
+
+          {renderInfoRow(
+            "wc",
+            "Gender",
+            profile.gender || "Not provided"
+          )}
+
+          {renderInfoRow(
+            "phone",
+            "Phone",
+            profile.phone || "Not provided"
+          )}
+        </View>
+
+        {/* Health information */}
+        <View style={styles.card}>
+          {renderSectionHeader(
+            "favorite",
+            "Health Information",
+            "Important information for your care"
+          )}
+
+          <View style={styles.divider} />
+
+          {renderInfoRow(
+            "bloodtype",
+            "Blood Group",
+            profile.bloodGroup || "Not provided"
+          )}
+
+          {renderInfoRow(
+            "location-city",
+            "City",
+            profile.city || "Not provided"
+          )}
+
+          {renderInfoRow(
+            "home",
+            "Address",
+            profile.address || "Not provided"
+          )}
+
+          <View style={styles.medicalNotesBox}>
+            <View style={styles.medicalNotesHeader}>
+              <MaterialIcons
+                name="medical-information"
+                size={21}
+                color={COLORS.primary}
+              />
+
+              <Text style={styles.medicalNotesTitle}>
+                Medical Notes
+              </Text>
+            </View>
+
+            <Text style={styles.medicalNotesText}>
+              {profile.medicalNotes ||
+                "No medical notes have been added yet."}
+            </Text>
+          </View>
+        </View>
+
+        {/* Caregiver */}
+        <View style={styles.card}>
+          {renderSectionHeader(
+            "supervisor-account",
+            "Caregiver",
+            "Manage trusted caregiver access"
+          )}
+
+          <View style={styles.divider} />
+
+          {renderInfoRow(
+            "person",
+            "Caregiver Name",
+            profile.caregiverName || "Not assigned"
+          )}
+
+          {renderSwitchRow(
+            "security",
+            "Caregiver Access",
+            "Allow your caregiver to access your care information.",
+            profile.caregiverAccess,
+            setCaregiverAccess
+          )}
+        </View>
+
+        {/* Emergency contacts */}
+        <View style={styles.card}>
+          {renderSectionHeader(
+            "emergency",
+            "Emergency Contacts",
+            "People who can help when you need them"
+          )}
+
+          <View style={styles.divider} />
+
+          {contacts.length === 0 ? (
+            <View style={styles.noContacts}>
+              <MaterialIcons
+                name="contacts"
+                size={42}
+                color={COLORS.outline}
+              />
+
+              <Text style={styles.noContactsTitle}>
+                No emergency contacts
+              </Text>
+
+              <Text style={styles.noContactsText}>
+                Add a trusted person for quick access during an
+                emergency.
+              </Text>
+            </View>
+          ) : (
+            contacts.map((contact) => (
+              <View
+                key={contact.id}
+                style={styles.contactRow}
+              >
+                <View style={styles.contactAvatar}>
+                  <Text style={styles.contactInitials}>
+                    {getInitials(contact.name)}
+                  </Text>
+                </View>
+
+                <View style={styles.contactInfo}>
+                  <Text style={styles.contactName}>
+                    {contact.name}
+                  </Text>
+
+                  <Text style={styles.contactRelationship}>
+                    {contact.relationship}
+                  </Text>
+
+                  <Text style={styles.contactPhone}>
+                    {contact.phone}
+                  </Text>
+                </View>
+
+                <View style={styles.contactActions}>
+                  <Pressable
+                    onPress={() => openEditContact(contact)}
+                    style={styles.smallIconButton}
+                  >
+                    <MaterialIcons
+                      name="edit"
+                      size={20}
+                      color={COLORS.primary}
+                    />
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => deleteContact(contact)}
+                    style={styles.smallIconButton}
+                  >
+                    <MaterialIcons
+                      name="delete-outline"
+                      size={21}
+                      color={COLORS.error}
+                    />
+                  </Pressable>
+                </View>
+              </View>
+            ))
+          )}
+
+          <Pressable
+            style={styles.outlineButton}
+            onPress={openAddContact}
+          >
+            <MaterialIcons
+              name="person-add"
+              size={21}
+              color={COLORS.primary}
+            />
+
+            <Text style={styles.outlineButtonText}>
+              Add Emergency Contact
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* Privacy and sharing */}
+        <View style={styles.card}>
+          {renderSectionHeader(
+            "privacy-tip",
+            "Privacy & Sharing",
+            "Choose what information you share"
+          )}
+
+          <View style={styles.divider} />
+
+          {renderSwitchRow(
+            "location-on",
+            "GPS Location Sharing",
+            "Allow trusted caregivers to access your location.",
+            profile.gpsSharing,
+            async (value) => {
+              setGpsSharing(value);
+
+              try {
+                const updated = await updateMyProfile({
+                  gpsSharing: value,
+                });
+
+                setProfile(updated);
+              } catch (error) {
+                setGpsSharing(!value);
+
+                showMessage(
+                  "Unable to update",
+                  error instanceof Error
+                    ? error.message
+                    : "Could not update location sharing."
+                );
+              }
+            }
+          )}
+
+          <View style={styles.gpsStatus}>
+            <View
+              style={[
+                styles.statusDot,
+                profile.gpsSharing
+                  ? styles.statusDotActive
+                  : styles.statusDotInactive,
+              ]}
+            />
+
+            <Text style={styles.gpsStatusText}>
+              {profile.gpsSharing
+                ? "Location sharing is enabled"
+                : "Location sharing is disabled"}
+            </Text>
+          </View>
+        </View>
+
+        {/* Preferences */}
+        <View style={styles.card}>
+          {renderSectionHeader(
+            "tune",
+            "Preferences",
+            "Customize your SmritiCare experience"
+          )}
+
+          <View style={styles.divider} />
+
+          <Text style={styles.preferenceLabel}>
+            Language
+          </Text>
+
+          <View style={styles.optionRow}>
+            {["English", "Hindi"].map((option) => (
+              <Pressable
+                key={option}
+                onPress={async () => {
+                  setLanguage(option);
+
+                  try {
+                    const updated =
+                      await updateMyProfile({
+                        language: option,
+                      });
+
+                    setProfile(updated);
+                  } catch {
+                    setLanguage(profile.language);
+                  }
+                }}
+                style={[
+                  styles.optionButton,
+                  language === option &&
+                    styles.optionButtonActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.optionButtonText,
+                    language === option &&
+                      styles.optionButtonTextActive,
+                  ]}
+                >
+                  {option}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <Text style={styles.preferenceLabel}>
+            Text Size
+          </Text>
+
+          <View style={styles.optionRow}>
+            {["Normal", "Large", "Extra Large"].map(
+              (option) => (
+                <Pressable
+                  key={option}
+                  onPress={async () => {
+                    setTextSize(option);
+
+                    try {
+                      const updated =
+                        await updateMyProfile({
+                          textSize: option,
+                        });
+
+                      setProfile(updated);
+                    } catch {
+                      setTextSize(profile.textSize);
+                    }
+                  }}
+                  style={[
+                    styles.optionButton,
+                    textSize === option &&
+                      styles.optionButtonActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.optionButtonText,
+                      textSize === option &&
+                        styles.optionButtonTextActive,
+                    ]}
+                  >
+                    {option}
+                  </Text>
+                </Pressable>
+              )
+            )}
+          </View>
+        </View>
+
+        {/* Account information */}
+        <View style={styles.card}>
+          {renderSectionHeader(
+            "account-circle",
+            "Account",
+            "Your SmritiCare account information"
+          )}
+
+          <View style={styles.divider} />
+
+          {renderInfoRow(
+            "email",
+            "Email",
+            profile.email
+          )}
+
+          {renderInfoRow(
+            "calendar-month",
+            "Member Since",
+            formatDisplayDate(profile.createdAt)
+          )}
+
+          {renderInfoRow(
+            "update",
+            "Last Updated",
+            formatDisplayDate(profile.updatedAt)
+          )}
+        </View>
+
+        {/* Bottom navigation */}
+        <View style={styles.bottomNavigation}>
+          <Pressable
+            style={styles.navItem}
+            onPress={onHome}
+          >
+            <MaterialIcons
+              name="home"
+              size={25}
+              color={COLORS.secondary}
+            />
+            <Text style={styles.navText}>Home</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.navItem}
+            onPress={onSchedule}
+          >
+            <MaterialIcons
+              name="calendar-month"
+              size={25}
+              color={COLORS.secondary}
+            />
+            <Text style={styles.navText}>Schedule</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.navItem}
+            onPress={onGames}
+          >
+            <MaterialIcons
+              name="extension"
+              size={25}
+              color={COLORS.secondary}
+            />
+            <Text style={styles.navText}>Games</Text>
+          </Pressable>
+
+          <View style={[styles.navItem, styles.navItemActive]}>
+            <MaterialIcons
+              name="person"
+              size={25}
+              color={COLORS.primary}
+            />
+            <Text style={styles.navTextActive}>Profile</Text>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Edit profile modal */}
+      <Modal
+        visible={editProfileVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() =>
+          setEditProfileVisible(false)
+        }
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>
+                  Edit Profile
+                </Text>
+
+                <Text style={styles.modalSubtitle}>
+                  Update your personal and health information
+                </Text>
+              </View>
+
+              <Pressable
+                onPress={() =>
+                  setEditProfileVisible(false)
+                }
+                style={styles.closeButton}
+              >
+                <MaterialIcons
+                  name="close"
+                  size={25}
+                  color={COLORS.onSurface}
+                />
+              </Pressable>
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.modalScroll}
+            >
+              <Text style={styles.inputLabel}>
+                Full Name *
+              </Text>
+
+              <TextInput
+                value={fullName}
+                onChangeText={setFullName}
+                placeholder="Enter your full name"
+                placeholderTextColor={COLORS.outline}
+                style={styles.input}
+              />
+
+              <Text style={styles.inputLabel}>
+                Age
+              </Text>
+
+              <TextInput
+                value={age}
+                onChangeText={setAge}
+                placeholder="Enter your age"
+                placeholderTextColor={COLORS.outline}
+                keyboardType="numeric"
+                style={styles.input}
+              />
+
+              <Text style={styles.inputLabel}>
+                Phone
+              </Text>
+
+              <TextInput
+                value={phone}
+                onChangeText={setPhone}
+                placeholder="Enter your phone number"
+                placeholderTextColor={COLORS.outline}
+                keyboardType="phone-pad"
+                style={styles.input}
+              />
+
+              <Text style={styles.inputLabel}>
+                Date of Birth
+              </Text>
+
+              <TextInput
+                value={dateOfBirth}
+                onChangeText={setDateOfBirth}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={COLORS.outline}
+                style={styles.input}
+              />
+
+              <Text style={styles.inputHint}>
+                Use the format YYYY-MM-DD
+              </Text>
+
+              <Text style={styles.inputLabel}>
+                Gender
+              </Text>
+
+              <TextInput
+                value={gender}
+                onChangeText={setGender}
+                placeholder="Male, Female, Other..."
+                placeholderTextColor={COLORS.outline}
+                style={styles.input}
+              />
+
+              <Text style={styles.inputLabel}>
+                Blood Group
+              </Text>
+
+              <TextInput
+                value={bloodGroup}
+                onChangeText={setBloodGroup}
+                placeholder="e.g. O+, A+, B-"
+                placeholderTextColor={COLORS.outline}
+                style={styles.input}
+              />
+
+              <Text style={styles.inputLabel}>
+                City
+              </Text>
+
+              <TextInput
+                value={city}
+                onChangeText={setCity}
+                placeholder="Enter your city"
+                placeholderTextColor={COLORS.outline}
+                style={styles.input}
+              />
+
+              <Text style={styles.inputLabel}>
+                Address
+              </Text>
+
+              <TextInput
+                value={address}
+                onChangeText={setAddress}
+                placeholder="Enter your address"
+                placeholderTextColor={COLORS.outline}
+                multiline
+                numberOfLines={3}
+                style={[
+                  styles.input,
+                  styles.multilineInput,
+                ]}
+              />
+
+              <Text style={styles.inputLabel}>
+                Medical Notes
+              </Text>
+
+              <TextInput
+                value={medicalNotes}
+                onChangeText={setMedicalNotes}
+                placeholder="Add important medical information"
+                placeholderTextColor={COLORS.outline}
+                multiline
+                numberOfLines={5}
+                style={[
+                  styles.input,
+                  styles.multilineInput,
+                ]}
+              />
+
+              <Text style={styles.inputLabel}>
+                Caregiver Name
+              </Text>
+
+              <TextInput
+                value={caregiverName}
+                onChangeText={setCaregiverName}
+                placeholder="Enter caregiver name"
+                placeholderTextColor={COLORS.outline}
+                style={styles.input}
+              />
+
+              {renderSwitchRow(
+                "security",
+                "Caregiver Access",
+                "Allow your caregiver to access care information.",
+                caregiverAccess,
+                setCaregiverAccess
+              )}
+
+              <View style={styles.modalButtons}>
+                <Pressable
+                  style={styles.cancelButton}
+                  onPress={() =>
+                    setEditProfileVisible(false)
+                  }
+                  disabled={saving}
+                >
+                  <Text style={styles.cancelButtonText}>
+                    Cancel
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={[
+                    styles.saveButton,
+                    saving && styles.disabledButton,
+                  ]}
+                  onPress={saveProfile}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ActivityIndicator
+                      size="small"
+                      color={COLORS.white}
+                    />
+                  ) : (
+                    <>
+                      <MaterialIcons
+                        name="save"
+                        size={21}
+                        color={COLORS.white}
+                      />
+
+                      <Text style={styles.saveButtonText}>
+                        Save Changes
+                      </Text>
+                    </>
+                  )}
+                </Pressable>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Profile photo modal */}
+      <Modal
+        visible={photoModalVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() =>
+          setPhotoModalVisible(false)
+        }
+      >
+        <View style={styles.photoModalOverlay}>
+          <View style={styles.photoModalContainer}>
+            <View style={styles.photoPreview}>
+              {profile.profileImageUrl ? (
+                <Image
+                  source={{
+                    uri: profile.profileImageUrl,
+                  }}
+                  style={styles.photoPreviewImage}
+                />
+              ) : (
+                <View style={styles.photoPreviewPlaceholder}>
+                  <Text style={styles.photoPreviewInitials}>
+                    {initials}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <Text style={styles.photoModalTitle}>
+              Profile Photo
+            </Text>
+
+            <Text style={styles.photoModalText}>
+              Choose a new photo from your device or take a
+              new picture.
+            </Text>
+
+            {uploadingPhoto ? (
+              <View style={styles.uploadingBox}>
+                <ActivityIndicator
+                  size="large"
+                  color={COLORS.primary}
+                />
+
+                <Text style={styles.uploadingText}>
+                  Saving photo...
+                </Text>
+              </View>
+            ) : (
+              <>
+                <Pressable
+                  style={styles.photoActionButton}
+                  onPress={choosePhoto}
+                >
+                  <MaterialIcons
+                    name="photo-library"
+                    size={24}
+                    color={COLORS.primary}
+                  />
+
+                  <Text style={styles.photoActionText}>
+                    Choose from Gallery
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={styles.photoActionButton}
+                  onPress={takePhoto}
+                >
+                  <MaterialIcons
+                    name="photo-camera"
+                    size={24}
+                    color={COLORS.primary}
+                  />
+
+                  <Text style={styles.photoActionText}>
+                    Take a Photo
+                  </Text>
+                </Pressable>
+
+                {profile.profileImageUrl ? (
+                  <Pressable
+                    style={[
+                      styles.photoActionButton,
+                      styles.removePhotoButton,
+                    ]}
+                    onPress={removePhoto}
+                  >
+                    <MaterialIcons
+                      name="delete-outline"
+                      size={24}
+                      color={COLORS.error}
+                    />
+
+                    <Text
+                      style={[
+                        styles.photoActionText,
+                        styles.removePhotoText,
+                      ]}
+                    >
+                      Remove Photo
+                    </Text>
+                  </Pressable>
+                ) : null}
+
+                <Pressable
+                  style={styles.photoCancelButton}
+                  onPress={() =>
+                    setPhotoModalVisible(false)
+                  }
+                >
+                  <Text style={styles.photoCancelText}>
+                    Cancel
+                  </Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Emergency contact modal */}
+      <Modal
+        visible={contactModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() =>
+          setContactModalVisible(false)
+        }
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.contactModalContainer}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>
+                  {editingContact
+                    ? "Edit Contact"
+                    : "Add Emergency Contact"}
+                </Text>
+
+                <Text style={styles.modalSubtitle}>
+                  Keep a trusted person close when help is needed.
+                </Text>
+              </View>
+
+              <Pressable
+                onPress={() =>
+                  setContactModalVisible(false)
+                }
+                style={styles.closeButton}
+              >
+                <MaterialIcons
+                  name="close"
+                  size={25}
+                  color={COLORS.onSurface}
+                />
+              </Pressable>
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.modalScroll}
+            >
+              <Text style={styles.inputLabel}>
+                Name *
+              </Text>
+
+              <TextInput
+                value={contactName}
+                onChangeText={setContactName}
+                placeholder="Contact name"
+                placeholderTextColor={COLORS.outline}
+                style={styles.input}
+              />
+
+              <Text style={styles.inputLabel}>
+                Relationship *
+              </Text>
+
+              <TextInput
+                value={contactRelationship}
+                onChangeText={setContactRelationship}
+                placeholder="e.g. Daughter, Son, Spouse"
+                placeholderTextColor={COLORS.outline}
+                style={styles.input}
+              />
+
+              <Text style={styles.inputLabel}>
+                Phone *
+              </Text>
+
+              <TextInput
+                value={contactPhone}
+                onChangeText={setContactPhone}
+                placeholder="Phone number"
+                placeholderTextColor={COLORS.outline}
+                keyboardType="phone-pad"
+                style={styles.input}
+              />
+
+              <View style={styles.modalButtons}>
+                <Pressable
+                  style={styles.cancelButton}
+                  onPress={() =>
+                    setContactModalVisible(false)
+                  }
+                >
+                  <Text style={styles.cancelButtonText}>
+                    Cancel
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={styles.saveButton}
+                  onPress={saveContact}
+                >
+                  <MaterialIcons
+                    name="check"
+                    size={21}
+                    color={COLORS.white}
+                  />
+
+                  <Text style={styles.saveButtonText}>
+                    {editingContact
+                      ? "Update Contact"
+                      : "Add Contact"}
+                  </Text>
+                </Pressable>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#F4FAFF',
-  },
   container: {
     flex: 1,
-    backgroundColor: '#F4FAFF',
+    backgroundColor: COLORS.background,
   },
 
-  // Header
-  header: {
-    height: 64,
-    paddingHorizontal: 24,
-    backgroundColor: '#F4FAFF',
-    borderBottomWidth: 2,
-    borderBottomColor: '#C0C9BB',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    marginRight: 48,
-    fontSize: 28,
-    lineHeight: 36,
-    fontWeight: '700',
-    color: '#00450D',
-  },
-
-  // Content
-  content: {
-    paddingHorizontal: 24,
-    paddingTop: 24,
+  scrollContent: {
+    width: "100%",
+    maxWidth: 900,
+    alignSelf: "center",
     paddingBottom: 110,
   },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#E0E0E0',
-    marginBottom: 16,
-    overflow: 'hidden',
-    elevation: 2,
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
-  },
-  lastCard: {
-    marginBottom: 8,
-  },
-  cardPadding: {
-    padding: 24,
-  },
 
-  // Mekhela decoration
-  mekhelaBorder: {
-    height: 4,
-    width: '100%',
-    flexDirection: 'row',
-  },
-  mekhelaStripe: {
+  loadingContainer: {
     flex: 1,
-    backgroundColor: '#00450D',
-  },
-  mekhelaStripeLight: {
-    flex: 1,
-    backgroundColor: '#E3F0F8',
-  },
-
-  // Profile
-  profileHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#DDEAF2',
-    borderWidth: 2,
-    borderColor: '#00450D',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  profileNameBlock: {
-    flex: 1,
-  },
-  profileName: {
-    fontSize: 28,
-    lineHeight: 34,
-    fontWeight: '700',
-    color: '#111D23',
-  },
-  profileAge: {
-    marginTop: 3,
-    fontSize: 22,
-    lineHeight: 32,
-    color: '#41493E',
+    backgroundColor: COLORS.background,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 30,
   },
 
-  fieldGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 20,
-    lineHeight: 24,
-    fontWeight: '700',
-    color: '#111D23',
-    marginBottom: 8,
-  },
-  input: {
-    minHeight: 60,
-    borderWidth: 2,
-    borderColor: '#717A6D',
-    borderRadius: 8,
-    backgroundColor: '#F4FAFF',
-    paddingHorizontal: 16,
-    fontSize: 22,
-    color: '#111D23',
-  },
-  outlineButton: {
-    minHeight: 60,
-    marginTop: 2,
-    borderWidth: 2,
-    borderColor: '#00450D',
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  outlineButtonText: {
-    fontSize: 20,
-    lineHeight: 24,
-    fontWeight: '700',
-    color: '#00450D',
+  loadingText: {
+    marginTop: 16,
+    fontFamily: BODY_FONT,
+    fontSize: 17,
+    color: COLORS.onSurfaceVariant,
   },
 
-  // Settings
-  settingRow: {
+  emptyTitle: {
+    marginTop: 18,
+    fontFamily: HEADING_FONT,
+    fontSize: 24,
+    fontWeight: "700",
+    color: COLORS.onSurface,
+  },
+
+  emptyText: {
+    marginTop: 8,
+    fontFamily: BODY_FONT,
+    fontSize: 16,
+    color: COLORS.onSurfaceVariant,
+    textAlign: "center",
+    maxWidth: 400,
+  },
+
+  topBar: {
     minHeight: 72,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
-  settingInfo: {
+
+  topTitle: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  settingText: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  settingTitle: {
-    fontSize: 28,
-    lineHeight: 34,
-    fontWeight: '700',
-    color: '#111D23',
-  },
-  settingDescription: {
-    marginTop: 2,
+    marginHorizontal: 12,
+    fontFamily: HEADING_FONT,
     fontSize: 22,
-    lineHeight: 32,
-    color: '#41493E',
-  },
-  greenSettingIcon: {
-    width: 54,
-    height: 54,
-    borderRadius: 8,
-    backgroundColor: '#1B5E20',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  blueSettingIcon: {
-    width: 54,
-    height: 54,
-    borderRadius: 8,
-    backgroundColor: '#CFE5FF',
-    alignItems: 'center',
-    justifyContent: 'center',
+    fontWeight: "700",
+    color: COLORS.onSurface,
   },
 
-  // Emergency contacts
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    flex: 1,
-    marginLeft: 16,
-    fontSize: 28,
-    lineHeight: 34,
-    fontWeight: '700',
-    color: '#111D23',
-  },
-  emergencyIcon: {
-    width: 54,
-    height: 54,
-    borderRadius: 8,
-    backgroundColor: '#FFDAD6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  settingsIcon: {
-    width: 54,
-    height: 54,
-    borderRadius: 8,
-    backgroundColor: '#DDEAF2',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  contactRow: {
-    minHeight: 86,
-    padding: 16,
-    marginBottom: 12,
-    backgroundColor: '#F4FAFF',
-    borderWidth: 2,
-    borderColor: '#C0C9BB',
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  contactInfo: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  contactText: {
-    marginLeft: 16,
-    flex: 1,
-  },
-  contactName: {
-    fontSize: 20,
-    lineHeight: 24,
-    fontWeight: '700',
-    color: '#111D23',
-  },
-  contactPhone: {
-    marginTop: 3,
-    fontSize: 18,
-    lineHeight: 28,
-    color: '#41493E',
-  },
-  editContactButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
-    backgroundColor: '#E3F0F8',
-    borderWidth: 1,
-    borderColor: '#C0C9BB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButton: {
-    minHeight: 60,
-    marginTop: 4,
-    borderRadius: 8,
-    backgroundColor: '#00450D',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  primaryButtonText: {
-    fontSize: 20,
-    lineHeight: 24,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-
-  // GPS / map
-  mapDescription: {
-    marginTop: 10,
-    marginBottom: 16,
-    fontSize: 18,
-    lineHeight: 28,
-    color: '#41493E',
-  },
-  mapPlaceholder: {
-    height: 192,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#C0C9BB',
-    backgroundColor: '#D7E4EC',
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  mapRoadOne: {
-    position: 'absolute',
-    width: '140%',
-    height: 22,
-    backgroundColor: '#FFFFFF',
-    top: 50,
-    left: -40,
-    transform: [{ rotate: '-12deg' }],
-    opacity: 0.8,
-  },
-  mapRoadTwo: {
-    position: 'absolute',
-    width: '140%',
-    height: 16,
-    backgroundColor: '#FFFFFF',
-    top: 118,
-    left: -40,
-    transform: [{ rotate: '18deg' }],
-    opacity: 0.75,
-  },
-  mapRoadThree: {
-    position: 'absolute',
-    width: 18,
-    height: '140%',
-    backgroundColor: '#FFFFFF',
-    left: 95,
-    top: -35,
-    transform: [{ rotate: '28deg' }],
-    opacity: 0.7,
-  },
-  mapRoadFour: {
-    position: 'absolute',
-    width: 12,
-    height: '130%',
-    backgroundColor: '#FFFFFF',
-    right: 70,
-    top: -25,
-    transform: [{ rotate: '-25deg' }],
-    opacity: 0.7,
-  },
-  locationMarker: {
-    position: 'absolute',
+  iconButton: {
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#1B5E20',
-    borderWidth: 4,
-    borderColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-    top: 70,
-  },
-  mapLabel: {
-    position: 'absolute',
-    top: 12,
-    left: 14,
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#41493E',
+    alignItems: "center",
+    justifyContent: "center",
   },
 
-  // App settings
-  languageRow: {
-    marginBottom: 20,
-  },
-  languageSelector: {
-    minHeight: 60,
-    borderWidth: 2,
-    borderColor: '#717A6D',
-    borderRadius: 8,
-    backgroundColor: '#F4FAFF',
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  languageText: {
-    fontSize: 22,
-    color: '#111D23',
-  },
-  textSizeLabel: {
-    marginTop: 2,
-  },
-  textSizeRow: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  textSizeButton: {
-    flex: 1,
-    minHeight: 60,
-    borderWidth: 2,
-    borderColor: '#C0C9BB',
-    borderRadius: 8,
-    backgroundColor: '#DDEAF2',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  textSizeButtonNormalActive: {
-    borderColor: '#00450D',
-    backgroundColor: '#E9F6FD',
-  },
-  textSizeButtonLargeActive: {
-    borderColor: '#00450D',
-    backgroundColor: '#1B5E20',
-  },
-  textSizeButtonText: {
-    fontSize: 20,
-    lineHeight: 24,
-    fontWeight: '700',
-    color: '#111D23',
-  },
-  textSizeButtonTextActive: {
-    color: '#00450D',
-  },
-  textSizeButtonTextLargeActive: {
-    color: '#90D689',
+  heroCard: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    paddingVertical: 30,
+    paddingHorizontal: 20,
+    borderRadius: 28,
+    backgroundColor: COLORS.white,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
   },
 
-  // Bottom navigation
-  bottomNav: {
-    position: 'absolute',
-    left: 0,
+  avatarWrapper: {
+    width: 112,
+    height: 112,
+    position: "relative",
+    marginBottom: 15,
+  },
+
+  avatarImage: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+  },
+
+  avatarPlaceholder: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    backgroundColor: COLORS.primaryContainer,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  avatarInitials: {
+    fontFamily: HEADING_FONT,
+    fontSize: 38,
+    fontWeight: "800",
+    color: COLORS.onPrimaryContainer,
+  },
+
+  cameraBadge: {
+    position: "absolute",
     right: 0,
     bottom: 0,
-    height: 90,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 3,
+    borderColor: COLORS.white,
+  },
+
+  heroName: {
+    fontFamily: HEADING_FONT,
+    fontSize: 27,
+    fontWeight: "800",
+    color: COLORS.onSurface,
+    textAlign: "center",
+  },
+
+  heroEmail: {
+    marginTop: 5,
+    fontFamily: BODY_FONT,
+    fontSize: 16,
+    color: COLORS.onSurfaceVariant,
+    textAlign: "center",
+  },
+
+  profileBadge: {
+    marginTop: 15,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: COLORS.secondaryFixed,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+
+  profileBadgeText: {
+    fontFamily: BODY_FONT,
+    fontSize: 14,
+    fontWeight: "700",
+    color: COLORS.primary,
+  },
+
+  card: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 20,
+    borderRadius: 24,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+  },
+
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  sectionIcon: {
+    width: 45,
+    height: 45,
+    borderRadius: 14,
+    backgroundColor: COLORS.secondaryFixed,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  sectionHeaderText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+
+  sectionTitle: {
+    fontFamily: HEADING_FONT,
+    fontSize: 19,
+    fontWeight: "800",
+    color: COLORS.onSurface,
+  },
+
+  sectionSubtitle: {
+    marginTop: 2,
+    fontFamily: BODY_FONT,
+    fontSize: 14,
+    color: COLORS.onSurfaceVariant,
+  },
+
+  divider: {
+    height: 1,
+    backgroundColor: COLORS.outlineVariant,
+    marginVertical: 16,
+  },
+
+  infoRow: {
+    minHeight: 62,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+
+  infoTextContainer: {
+    flex: 1,
+    marginLeft: 13,
+  },
+
+  infoLabel: {
+    fontFamily: BODY_FONT,
+    fontSize: 13,
+    fontWeight: "700",
+    color: COLORS.secondary,
+  },
+
+  infoValue: {
+    marginTop: 3,
+    fontFamily: BODY_FONT,
+    fontSize: 17,
+    color: COLORS.onSurface,
+  },
+
+  medicalNotesBox: {
+    marginTop: 12,
+    padding: 15,
+    borderRadius: 16,
+    backgroundColor: COLORS.surfaceLow,
+  },
+
+  medicalNotesHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+
+  medicalNotesTitle: {
+    fontFamily: BODY_FONT,
+    fontSize: 15,
+    fontWeight: "800",
+    color: COLORS.primary,
+  },
+
+  medicalNotesText: {
+    marginTop: 9,
+    fontFamily: BODY_FONT,
+    fontSize: 16,
+    lineHeight: 23,
+    color: COLORS.onSurfaceVariant,
+  },
+
+  switchRow: {
+    minHeight: 76,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  switchIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    backgroundColor: COLORS.secondaryFixed,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  switchText: {
+    flex: 1,
+    marginHorizontal: 12,
+  },
+
+  switchTitle: {
+    fontFamily: BODY_FONT,
+    fontSize: 16,
+    fontWeight: "800",
+    color: COLORS.onSurface,
+  },
+
+  switchDescription: {
+    marginTop: 3,
+    fontFamily: BODY_FONT,
+    fontSize: 13,
+    lineHeight: 18,
+    color: COLORS.onSurfaceVariant,
+  },
+
+  switch: {
+    width: 54,
+    height: 32,
+    borderRadius: 18,
+    padding: 3,
+    justifyContent: "center",
+    backgroundColor: COLORS.outlineVariant,
+  },
+
+  switchActive: {
+    backgroundColor: COLORS.primary,
+  },
+
+  switchThumb: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: COLORS.white,
+  },
+
+  switchThumbActive: {
+    alignSelf: "flex-end",
+  },
+
+  gpsStatus: {
+    marginTop: 8,
+    padding: 12,
+    borderRadius: 13,
+    backgroundColor: COLORS.surfaceLow,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  statusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 9,
+  },
+
+  statusDotActive: {
+    backgroundColor: COLORS.primary,
+  },
+
+  statusDotInactive: {
+    backgroundColor: COLORS.outline,
+  },
+
+  gpsStatusText: {
+    fontFamily: BODY_FONT,
+    fontSize: 14,
+    color: COLORS.onSurfaceVariant,
+  },
+
+  noContacts: {
+    paddingVertical: 20,
+    alignItems: "center",
+  },
+
+  noContactsTitle: {
+    marginTop: 10,
+    fontFamily: HEADING_FONT,
+    fontSize: 18,
+    fontWeight: "800",
+    color: COLORS.onSurface,
+  },
+
+  noContactsText: {
+    marginTop: 6,
+    maxWidth: 420,
+    fontFamily: BODY_FONT,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+    color: COLORS.onSurfaceVariant,
+  },
+
+  contactRow: {
+    minHeight: 84,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.outlineVariant,
+  },
+
+  contactAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: COLORS.secondaryFixed,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  contactInitials: {
+    fontFamily: HEADING_FONT,
+    fontSize: 17,
+    fontWeight: "800",
+    color: COLORS.primary,
+  },
+
+  contactInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+
+  contactName: {
+    fontFamily: BODY_FONT,
+    fontSize: 16,
+    fontWeight: "800",
+    color: COLORS.onSurface,
+  },
+
+  contactRelationship: {
+    marginTop: 2,
+    fontFamily: BODY_FONT,
+    fontSize: 13,
+    color: COLORS.secondary,
+  },
+
+  contactPhone: {
+    marginTop: 2,
+    fontFamily: BODY_FONT,
+    fontSize: 14,
+    color: COLORS.onSurfaceVariant,
+  },
+
+  contactActions: {
+    flexDirection: "row",
+    gap: 2,
+  },
+
+  smallIconButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  outlineButton: {
+    minHeight: 54,
+    marginTop: 16,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 9,
+  },
+
+  outlineButtonText: {
+    fontFamily: BODY_FONT,
+    fontSize: 15,
+    fontWeight: "800",
+    color: COLORS.primary,
+  },
+
+  preferenceLabel: {
+    marginTop: 7,
+    marginBottom: 9,
+    fontFamily: BODY_FONT,
+    fontSize: 15,
+    fontWeight: "800",
+    color: COLORS.onSurface,
+  },
+
+  optionRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 15,
+  },
+
+  optionButton: {
+    minHeight: 46,
+    paddingHorizontal: 15,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.white,
+  },
+
+  optionButtonActive: {
+    backgroundColor: COLORS.secondaryFixed,
+    borderColor: COLORS.primary,
+  },
+
+  optionButtonText: {
+    fontFamily: BODY_FONT,
+    fontSize: 14,
+    fontWeight: "700",
+    color: COLORS.onSurfaceVariant,
+  },
+
+  optionButtonTextActive: {
+    color: COLORS.primary,
+  },
+
+  primaryButton: {
+    marginTop: 22,
+    minHeight: 54,
+    paddingHorizontal: 25,
+    borderRadius: 17,
+    backgroundColor: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  primaryButtonText: {
+    fontFamily: BODY_FONT,
+    fontSize: 16,
+    fontWeight: "800",
+    color: COLORS.white,
+  },
+
+  bottomNavigation: {
+    position: "absolute",
+    left: 14,
+    right: 14,
+    bottom: 18,
+    minHeight: 70,
     paddingHorizontal: 8,
-    paddingVertical: 12,
-    backgroundColor: '#F4FAFF',
-    borderTopWidth: 2,
-    borderTopColor: '#C0C9BB',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
+    borderRadius: 25,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
   },
+
   navItem: {
-    minWidth: 60,
-    minHeight: 60,
-    paddingHorizontal: 7,
-    paddingVertical: 6,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    minWidth: 68,
+    minHeight: 56,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
   },
+
   navItemActive: {
-    backgroundColor: '#1B5E20',
+    backgroundColor: COLORS.secondaryFixed,
   },
- navLabel: {
-  fontSize: 12,
-  fontWeight: '600',
-  color: '#41493E',
-  marginTop: 4,
-},
-  navLabelActive: {
-    color: '#90D689',
+
+  navText: {
+    marginTop: 2,
+    fontFamily: BODY_FONT,
+    fontSize: 11,
+    fontWeight: "700",
+    color: COLORS.secondary,
   },
-  pressed: {
-    opacity: 0.75,
+
+  navTextActive: {
+    marginTop: 2,
+    fontFamily: BODY_FONT,
+    fontSize: 11,
+    fontWeight: "800",
+    color: COLORS.primary,
   },
-  navPressed: {
-    opacity: 0.75,
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-end",
+  },
+
+  modalContainer: {
+    width: "100%",
+    maxHeight: "92%",
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    paddingTop: 20,
+  },
+
+  contactModalContainer: {
+    width: "100%",
+    maxHeight: "75%",
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    paddingTop: 20,
+  },
+
+  modalHeader: {
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  modalTitle: {
+    fontFamily: HEADING_FONT,
+    fontSize: 22,
+    fontWeight: "800",
+    color: COLORS.onSurface,
+  },
+
+  modalSubtitle: {
+    marginTop: 4,
+    maxWidth: 500,
+    fontFamily: BODY_FONT,
+    fontSize: 14,
+    color: COLORS.onSurfaceVariant,
+  },
+
+  closeButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  modalScroll: {
+    paddingHorizontal: 20,
+    paddingBottom: 35,
+  },
+
+  inputLabel: {
+    marginTop: 13,
+    marginBottom: 7,
+    fontFamily: BODY_FONT,
+    fontSize: 15,
+    fontWeight: "800",
+    color: COLORS.onSurface,
+  },
+
+  input: {
+    minHeight: 54,
+    paddingHorizontal: 15,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    backgroundColor: COLORS.surfaceLow,
+    fontFamily: BODY_FONT,
+    fontSize: 16,
+    color: COLORS.onSurface,
+  },
+
+  multilineInput: {
+    minHeight: 100,
+    paddingTop: 14,
+    textAlignVertical: "top",
+  },
+
+  inputHint: {
+    marginTop: 5,
+    fontFamily: BODY_FONT,
+    fontSize: 12,
+    color: COLORS.secondary,
+  },
+
+  modalButtons: {
+    marginTop: 24,
+    flexDirection: "row",
+    gap: 10,
+  },
+
+  cancelButton: {
+    flex: 1,
+    minHeight: 54,
+    borderRadius: 16,
+    backgroundColor: COLORS.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  cancelButtonText: {
+    fontFamily: BODY_FONT,
+    fontSize: 15,
+    fontWeight: "800",
+    color: COLORS.onSurfaceVariant,
+  },
+
+  saveButton: {
+    flex: 1,
+    minHeight: 54,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+
+  saveButtonText: {
+    fontFamily: BODY_FONT,
+    fontSize: 15,
+    fontWeight: "800",
+    color: COLORS.white,
+  },
+
+  disabledButton: {
+    opacity: 0.65,
+  },
+
+  photoModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+  },
+
+  photoModalContainer: {
+    width: "100%",
+    maxWidth: 430,
+    padding: 24,
+    borderRadius: 28,
+    backgroundColor: COLORS.white,
+    alignItems: "center",
+  },
+
+  photoPreview: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    overflow: "hidden",
+    marginBottom: 17,
+  },
+
+  photoPreviewImage: {
+    width: "100%",
+    height: "100%",
+  },
+
+  photoPreviewPlaceholder: {
+    flex: 1,
+    backgroundColor: COLORS.primaryContainer,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  photoPreviewInitials: {
+    fontFamily: HEADING_FONT,
+    fontSize: 50,
+    fontWeight: "800",
+    color: COLORS.onPrimaryContainer,
+  },
+
+  photoModalTitle: {
+    fontFamily: HEADING_FONT,
+    fontSize: 22,
+    fontWeight: "800",
+    color: COLORS.onSurface,
+  },
+
+  photoModalText: {
+    marginTop: 7,
+    marginBottom: 18,
+    fontFamily: BODY_FONT,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+    color: COLORS.onSurfaceVariant,
+  },
+
+  photoActionButton: {
+    width: "100%",
+    minHeight: 54,
+    marginTop: 9,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: COLORS.surfaceLow,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+
+  photoActionText: {
+    fontFamily: BODY_FONT,
+    fontSize: 15,
+    fontWeight: "800",
+    color: COLORS.primary,
+  },
+
+  removePhotoButton: {
+    borderColor: COLORS.error,
+  },
+
+  removePhotoText: {
+    color: COLORS.error,
+  },
+
+  photoCancelButton: {
+    width: "100%",
+    minHeight: 52,
+    marginTop: 14,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  photoCancelText: {
+    fontFamily: BODY_FONT,
+    fontSize: 15,
+    fontWeight: "800",
+    color: COLORS.onSurfaceVariant,
+  },
+
+  uploadingBox: {
+    width: "100%",
+    paddingVertical: 25,
+    alignItems: "center",
+  },
+
+  uploadingText: {
+    marginTop: 12,
+    fontFamily: BODY_FONT,
+    fontSize: 15,
+    color: COLORS.onSurfaceVariant,
   },
 });

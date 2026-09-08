@@ -1,6 +1,9 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { User } from "@prisma/client";
 import { prisma } from "../config/database";
+
+
 
 type SignupData = {
   fullName: string;
@@ -13,6 +16,24 @@ type SignupData = {
 type LoginData = {
   email: string;
   password: string;
+};
+
+export type UpdateProfileData = {
+  fullName?: string;
+  age?: number | null;
+  phone?: string | null;
+  dateOfBirth?: Date | string | null;
+  gender?: string | null;
+  address?: string | null;
+  city?: string | null;
+  bloodGroup?: string | null;
+  medicalNotes?: string | null;
+  profileImageUrl?: string | null;
+  language?: string;
+  caregiverName?: string | null;
+  caregiverAccess?: boolean;
+  gpsSharing?: boolean;
+  textSize?: string;
 };
 
 function getJwtSecret(): string {
@@ -49,17 +70,38 @@ function sanitizeUser(user: {
   textSize: string;
   createdAt: Date;
   updatedAt: Date;
+
+  phone?: string | null;
+  dateOfBirth?: Date | null;
+  gender?: string | null;
+  address?: string | null;
+  city?: string | null;
+  bloodGroup?: string | null;
+  medicalNotes?: string | null;
+  profileImageUrl?: string | null;
 }) {
   return {
     id: user.id,
     fullName: user.fullName,
     email: user.email,
     age: user.age,
+
+    phone: user.phone ?? null,
+    dateOfBirth: user.dateOfBirth ?? null,
+    gender: user.gender ?? null,
+    address: user.address ?? null,
+    city: user.city ?? null,
+    bloodGroup: user.bloodGroup ?? null,
+    medicalNotes: user.medicalNotes ?? null,
+
+    profileImageUrl: user.profileImageUrl ?? null,
+
     language: user.language,
     caregiverName: user.caregiverName,
     caregiverAccess: user.caregiverAccess,
     gpsSharing: user.gpsSharing,
     textSize: user.textSize,
+
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };
@@ -165,6 +207,172 @@ export async function getCurrentUser(userId: string) {
   if (!user) {
     throw new Error("User not found");
   }
+
+  return sanitizeUser(user);
+}
+
+export async function updateCurrentUser(
+  userId: string,
+  data: UpdateProfileData,
+) {
+  const existingUser = await prisma.user.findUnique({
+    where: {
+      id: userId,
+    },
+  });
+
+  if (!existingUser) {
+    throw new Error("User not found");
+  }
+
+    const updateData: {
+    fullName?: string;
+    age?: number | null;
+    phone?: string | null;
+    dateOfBirth?: Date | null;
+    gender?: string | null;
+    address?: string | null;
+    city?: string | null;
+    bloodGroup?: string | null;
+    medicalNotes?: string | null;
+    profileImageUrl?: string | null;
+    language?: string;
+    caregiverName?: string | null;
+    caregiverAccess?: boolean;
+    gpsSharing?: boolean;
+    textSize?: string;
+  } = {};
+  // Full name
+  if (data.fullName !== undefined) {
+    const fullName = data.fullName.trim();
+
+    if (!fullName) {
+      throw new Error("Full name cannot be empty");
+    }
+
+    updateData.fullName = fullName;
+  }
+
+  // Age
+  if (data.age !== undefined) {
+    if (
+      data.age !== null &&
+      (!Number.isInteger(data.age) || data.age < 1)
+    ) {
+      throw new Error("Age must be a valid number");
+    }
+
+    updateData.age = data.age;
+  }
+
+  // Phone
+  if (data.phone !== undefined) {
+    const phone = data.phone?.trim();
+
+    updateData.phone = phone || null;
+  }
+
+  // Date of birth
+  if (data.dateOfBirth !== undefined) {
+    if (data.dateOfBirth === null) {
+      updateData.dateOfBirth = null;
+    } else {
+      const dateOfBirth = new Date(data.dateOfBirth);
+
+      if (Number.isNaN(dateOfBirth.getTime())) {
+        throw new Error("Date of birth must be a valid date");
+      }
+
+      updateData.dateOfBirth = dateOfBirth;
+    }
+  }
+
+  // Gender
+  if (data.gender !== undefined) {
+    const gender = data.gender?.trim();
+
+    updateData.gender = gender || null;
+  }
+
+  // Address
+  if (data.address !== undefined) {
+    const address = data.address?.trim();
+
+    updateData.address = address || null;
+  }
+
+  // City
+  if (data.city !== undefined) {
+    const city = data.city?.trim();
+
+    updateData.city = city || null;
+  }
+
+  // Blood group
+  if (data.bloodGroup !== undefined) {
+    const bloodGroup = data.bloodGroup?.trim();
+
+    updateData.bloodGroup = bloodGroup || null;
+  }
+
+   // Medical notes
+  if (data.medicalNotes !== undefined) {
+    const medicalNotes = data.medicalNotes?.trim();
+
+    updateData.medicalNotes = medicalNotes || null;
+  }
+
+  // Profile image
+  if (data.profileImageUrl !== undefined) {
+    const profileImageUrl = data.profileImageUrl?.trim();
+
+    updateData.profileImageUrl = profileImageUrl || null;
+  }
+
+  // Language
+  if (data.language !== undefined) {
+    const language = data.language.trim();
+
+    if (!language) {
+      throw new Error("Language cannot be empty");
+    }
+
+    updateData.language = language;
+  }
+
+  // Caregiver name
+  if (data.caregiverName !== undefined) {
+    const caregiverName = data.caregiverName?.trim();
+
+    updateData.caregiverName = caregiverName || null;
+  }
+
+  // Caregiver access
+  if (data.caregiverAccess !== undefined) {
+    updateData.caregiverAccess = data.caregiverAccess;
+  }
+
+  // GPS sharing
+  if (data.gpsSharing !== undefined) {
+    updateData.gpsSharing = data.gpsSharing;
+  }
+
+  // Text size
+  if (data.textSize !== undefined) {
+    if (!["Normal", "Large"].includes(data.textSize)) {
+      throw new Error("Text size must be Normal or Large");
+    }
+
+    updateData.textSize = data.textSize;
+  }
+
+  // Update database
+  const user = await prisma.user.update({
+    where: {
+      id: userId,
+    },
+    data: updateData,
+  });
 
   return sanitizeUser(user);
 }

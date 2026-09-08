@@ -1,1638 +1,1671 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
+  Image,
+  Linking,
+  Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
-} from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+} from "react-native";
 
-type MemoryScreenProps = {
+import * as ImagePicker from "expo-image-picker";
+import {
+  AudioModule,
+  RecordingPresets,
+  setAudioModeAsync,
+  useAudioRecorder,
+  useAudioRecorderState,
+} from "expo-audio";
+
+import { getToken } from "../../services/authStorage";
+
+const API_BASE_URL = "http://192.168.29.253:5000";
+
+type MemoryType = "text" | "photo" | "voice";
+
+type Memory = {
+  id: string;
+  title: string;
+  description?: string | null;
+  category?: string | null;
+  imageUrl?: string | null;
+  audioUrl?: string | null;
+  type?: MemoryType;
+  createdAt: string;
+};
+
+type Props = {
   onBack?: () => void;
   onHome?: () => void;
   onGames?: () => void;
   onSchedule?: () => void;
+  onMemory?: () => void;
   onProfile?: () => void;
 };
-
-type InputMode = 'photo' | 'voice' | 'text';
-
-type TagType = 'People' | 'Place' | 'Decade / Year' | 'Event';
-
-const COLORS = {
-  background: '#FCF9F8',
-  surface: '#FCF9F8',
-  surfaceLowest: '#FFFFFF',
-
-  primary: '#00450D',
-  primaryContainer: '#1B5E20',
-  onPrimary: '#FFFFFF',
-  onPrimaryFixed: '#002203',
-  onPrimaryFixedVariant: '#0C5216',
-  primaryFixed: '#ACF4A4',
-  primaryFixedDim: '#91D78A',
-  onPrimaryContainer: '#90D689',
-
-  secondary: '#556158',
-  secondaryContainer: '#D9E6DA',
-  secondaryFixed: '#D9E6DA',
-  secondaryFixedDim: '#BDCABE',
-  onSecondaryContainer: '#5B675E',
-  onSecondaryFixed: '#131E17',
-
-  tertiary: '#721900',
-  tertiaryFixed: '#FFDBD1',
-  onTertiaryFixed: '#3B0800',
-
-  surfaceContainer: '#F0EDED',
-  surfaceContainerLow: '#F6F3F2',
-  surfaceContainerHigh: '#EAE7E7',
-  surfaceContainerHighest: '#E5E2E1',
-
-  outlineVariant: '#C0C9BB',
-
-  onSurface: '#1B1C1C',
-  onSurfaceVariant: '#41493E',
-};
-
-const initialMemory =
-  'He worked in a tea garden when he was young and loved the fresh morning air with his colleagues.';
 
 export default function MemoryScreen({
   onBack,
   onHome,
   onGames,
   onSchedule,
+  onMemory,
   onProfile,
-}: MemoryScreenProps) {
-  const [activeTab, setActiveTab] = useState('Memory');
+}: Props) {
+  const [memories, setMemories] = useState<Memory[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [inputMode, setInputMode] =
-    useState<InputMode>('text');
+  const [memoryType, setMemoryType] =
+    useState<MemoryType>("text");
 
-  const [memoryStory, setMemoryStory] =
-    useState(initialMemory);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("");
 
-  const [selectedTags, setSelectedTags] =
-    useState<TagType[]>([]);
+  const [selectedImage, setSelectedImage] =
+    useState<string | null>(null);
 
-  const handleTab = (tab: string) => {
-    setActiveTab(tab);
+  const [recordedAudio, setRecordedAudio] =
+    useState<string | null>(null);
 
-    if (tab === 'Home') {
-      onHome?.();
-    }
+  const [saving, setSaving] = useState(false);
 
-    if (tab === 'Games') {
-      onGames?.();
-    }
+  const recorder = useAudioRecorder(
+    RecordingPresets.HIGH_QUALITY
+  );
 
-    if (tab === 'Remind') {
-      onSchedule?.();
-    }
+  const recorderState =
+    useAudioRecorderState(recorder);
 
-    if (tab === 'Profile') {
-      onProfile?.();
-    }
-  };
+  const recording = recorderState.isRecording;
 
-  const handleInputMode = (mode: InputMode) => {
-    setInputMode(mode);
+  useEffect(() => {
+    loadMemories();
+  }, []);
 
-    if (mode === 'photo') {
-      Alert.alert(
-        'Photo Memory',
-        'Camera/Gallery will open here.',
+  // ------------------------------------------------------------
+  // LOAD MEMORIES
+  // ------------------------------------------------------------
+
+  const loadMemories = async () => {
+    try {
+      setLoading(true);
+
+      const token = await getToken();
+
+      if (!token) {
+        throw new Error("Please log in again.");
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/memories`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
-    }
 
-    if (mode === 'voice') {
-      Alert.alert(
-        'Voice Memory',
-        'Voice recording will open here.',
-      );
-    }
-  };
+      const data = await response.json();
 
-  const toggleTag = (tag: TagType) => {
-    setSelectedTags((current) => {
-      if (current.includes(tag)) {
-        return current.filter(
-          (item) => item !== tag,
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Unable to load memories."
         );
       }
 
-      return [...current, tag];
-    });
+      setMemories(data.memories || []);
+    } catch (error) {
+      Alert.alert(
+        "Unable to load memories",
+        error instanceof Error
+          ? error.message
+          : "Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleContinue = () => {
+  // ------------------------------------------------------------
+  // RESET
+  // ------------------------------------------------------------
+
+  const resetForm = () => {
+    setTitle("");
+    setDescription("");
+    setCategory("");
+    setSelectedImage(null);
+    setRecordedAudio(null);
+    setMemoryType("text");
+  };
+
+  // ------------------------------------------------------------
+  // CHANGE MEMORY TYPE
+  // ------------------------------------------------------------
+
+  const selectMemoryType = (type: MemoryType) => {
+    if (recording) {
+      Alert.alert(
+        "Recording in progress",
+        "Please stop the recording first."
+      );
+      return;
+    }
+
+    setMemoryType(type);
+
+    if (type !== "photo") {
+      setSelectedImage(null);
+    }
+
+    if (type !== "voice") {
+      setRecordedAudio(null);
+    }
+  };
+
+  // ------------------------------------------------------------
+  // SAVE TEXT MEMORY
+  // ------------------------------------------------------------
+
+  const saveTextMemory = async () => {
+    if (!title.trim()) {
+      Alert.alert(
+        "Title required",
+        "Please enter a title for this memory."
+      );
+      return;
+    }
+
+    if (!description.trim()) {
+      Alert.alert(
+        "Description required",
+        "Please write something about this memory."
+      );
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const token = await getToken();
+
+      if (!token) {
+        throw new Error("Please log in again.");
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/memories`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: title.trim(),
+            description: description.trim(),
+            category: category.trim() || "Text",
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Unable to save memory."
+        );
+      }
+
+      resetForm();
+      await loadMemories();
+
+      Alert.alert(
+        "Memory saved",
+        "Your text memory has been saved successfully."
+      );
+    } catch (error) {
+      Alert.alert(
+        "Unable to save",
+        error instanceof Error
+          ? error.message
+          : "Please try again."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ------------------------------------------------------------
+  // GALLERY
+  // ------------------------------------------------------------
+
+  const choosePhoto = async () => {
+    try {
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert(
+          "Photo permission",
+          "Please allow SmritiCare to access your photos."
+        );
+        return;
+      }
+
+      const result =
+        await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ["images"],
+          allowsEditing: true,
+          quality: 0.8,
+        });
+
+      if (
+        !result.canceled &&
+        result.assets.length > 0
+      ) {
+        setSelectedImage(result.assets[0].uri);
+        setRecordedAudio(null);
+      }
+    } catch (error) {
+      Alert.alert(
+        "Photo error",
+        error instanceof Error
+          ? error.message
+          : "Unable to open your photo library."
+      );
+    }
+  };
+
+  // ------------------------------------------------------------
+  // CAMERA
+  // ------------------------------------------------------------
+
+  const takePhoto = async () => {
+    try {
+      const permission =
+        await ImagePicker.requestCameraPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert(
+          "Camera permission",
+          "Please allow SmritiCare to use the camera."
+        );
+        return;
+      }
+
+      const result =
+        await ImagePicker.launchCameraAsync({
+          mediaTypes: ["images"],
+          allowsEditing: true,
+          quality: 0.8,
+        });
+
+      if (
+        !result.canceled &&
+        result.assets.length > 0
+      ) {
+        setSelectedImage(result.assets[0].uri);
+        setRecordedAudio(null);
+      }
+    } catch (error) {
+      Alert.alert(
+        "Camera error",
+        error instanceof Error
+          ? error.message
+          : "Unable to open the camera."
+      );
+    }
+  };
+
+  // ------------------------------------------------------------
+  // START VOICE RECORDING
+  // ------------------------------------------------------------
+
+  const startRecording = async () => {
+    try {
+      const permission =
+        await AudioModule.requestRecordingPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert(
+          "Microphone permission",
+          "Please allow SmritiCare to use the microphone."
+        );
+        return;
+      }
+
+      await setAudioModeAsync({
+        playsInSilentMode: true,
+        allowsRecording: true,
+      });
+
+      await recorder.prepareToRecordAsync();
+
+      recorder.record();
+
+      setSelectedImage(null);
+      setRecordedAudio(null);
+    } catch (error) {
+      Alert.alert(
+        "Recording error",
+        error instanceof Error
+          ? error.message
+          : "Unable to start recording."
+      );
+    }
+  };
+
+  // ------------------------------------------------------------
+  // STOP VOICE RECORDING
+  // ------------------------------------------------------------
+
+  const stopRecording = async () => {
+    try {
+      await recorder.stop();
+
+      const uri = recorder.uri;
+
+      if (uri) {
+        setRecordedAudio(uri);
+      }
+    } catch (error) {
+      Alert.alert(
+        "Recording error",
+        error instanceof Error
+          ? error.message
+          : "Unable to stop recording."
+      );
+    }
+  };
+
+  // ------------------------------------------------------------
+  // CREATE FILE FOR UPLOAD
+  // ------------------------------------------------------------
+
+  const createFileObject = async (
+    uri: string,
+    fileName: string,
+    mimeType: string
+  ) => {
+    if (Platform.OS === "web") {
+      const response = await fetch(uri);
+
+      const blob = await response.blob();
+
+      return new File([blob], fileName, {
+        type: blob.type || mimeType,
+      });
+    }
+
+    return {
+      uri,
+      name: fileName,
+      type: mimeType,
+    };
+  };
+
+  // ------------------------------------------------------------
+  // SAVE PHOTO MEMORY
+  // ------------------------------------------------------------
+
+  const savePhotoMemory = async () => {
+    if (!title.trim()) {
+      Alert.alert(
+        "Title required",
+        "Please enter a title for this memory."
+      );
+      return;
+    }
+
+    if (!selectedImage) {
+      Alert.alert(
+        "Photo required",
+        "Please choose or take a photo first."
+      );
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const token = await getToken();
+
+      if (!token) {
+        throw new Error("Please log in again.");
+      }
+
+      const formData = new FormData();
+
+      formData.append("title", title.trim());
+
+      formData.append(
+        "description",
+        description.trim()
+      );
+
+      formData.append(
+        "category",
+        category.trim() || "Photo"
+      );
+
+      formData.append("type", "photo");
+
+      const file = await createFileObject(
+        selectedImage,
+        `memory-${Date.now()}.jpg`,
+        "image/jpeg"
+      );
+
+      formData.append("file", file as any);
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/memories/upload`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            "Unable to save photo memory."
+        );
+      }
+
+      resetForm();
+
+      await loadMemories();
+
+      Alert.alert(
+        "Memory saved",
+        "Your photo memory has been saved successfully."
+      );
+    } catch (error) {
+      Alert.alert(
+        "Unable to save",
+        error instanceof Error
+          ? error.message
+          : "Please try again."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ------------------------------------------------------------
+  // SAVE VOICE MEMORY
+  // ------------------------------------------------------------
+
+  const saveVoiceMemory = async () => {
+    if (!title.trim()) {
+      Alert.alert(
+        "Title required",
+        "Please enter a title for this memory."
+      );
+      return;
+    }
+
+    if (!recordedAudio) {
+      Alert.alert(
+        "Recording required",
+        "Please record your memory first."
+      );
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const token = await getToken();
+
+      if (!token) {
+        throw new Error("Please log in again.");
+      }
+
+      const formData = new FormData();
+
+      formData.append("title", title.trim());
+
+      formData.append(
+        "description",
+        description.trim()
+      );
+
+      formData.append(
+        "category",
+        category.trim() || "Voice"
+      );
+
+      formData.append("type", "voice");
+
+      const file = await createFileObject(
+        recordedAudio,
+        `memory-${Date.now()}.m4a`,
+        Platform.OS === "web"
+          ? "audio/webm"
+          : "audio/m4a"
+      );
+
+      formData.append("file", file as any);
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/memories/upload`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            "Unable to save voice memory."
+        );
+      }
+
+      resetForm();
+
+      await loadMemories();
+
+      Alert.alert(
+        "Memory saved",
+        "Your voice memory has been saved successfully."
+      );
+    } catch (error) {
+      Alert.alert(
+        "Unable to save",
+        error instanceof Error
+          ? error.message
+          : "Please try again."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ------------------------------------------------------------
+  // SAVE CURRENT MEMORY
+  // ------------------------------------------------------------
+
+  const saveMemory = async () => {
+    if (memoryType === "text") {
+      await saveTextMemory();
+      return;
+    }
+
+    if (memoryType === "photo") {
+      await savePhotoMemory();
+      return;
+    }
+
+    await saveVoiceMemory();
+  };
+
+  // ------------------------------------------------------------
+  // DELETE
+  // ------------------------------------------------------------
+
+  const deleteMemory = async (id: string) => {
     Alert.alert(
-      'AI Extraction',
-      'Your memory is ready for AI extraction.',
+      "Delete memory?",
+      "This memory will be removed permanently.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const token = await getToken();
+
+              if (!token) {
+                throw new Error(
+                  "Please log in again."
+                );
+              }
+
+              const response = await fetch(
+                `${API_BASE_URL}/api/memories/${id}`,
+                {
+                  method: "DELETE",
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+              );
+
+              const data = await response.json();
+
+              if (!response.ok) {
+                throw new Error(
+                  data.message ||
+                    "Unable to delete memory."
+                );
+              }
+
+              setMemories((current) =>
+                current.filter(
+                  (memory) => memory.id !== id
+                )
+              );
+            } catch (error) {
+              Alert.alert(
+                "Delete failed",
+                error instanceof Error
+                  ? error.message
+                  : "Please try again."
+              );
+            }
+          },
+        },
+      ]
     );
   };
 
-  const isTagSelected = (tag: TagType) =>
-    selectedTags.includes(tag);
+  // ------------------------------------------------------------
+  // OPEN AUDIO
+  // ------------------------------------------------------------
+
+  const openAudio = async (url: string) => {
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert(
+        "Unable to play",
+        "The voice recording could not be opened."
+      );
+    }
+  };
+
+  // ------------------------------------------------------------
+  // RENDER
+  // ------------------------------------------------------------
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-
-        {/* =================================================
-            HEADER
-        ================================================= */}
+    <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* HEADER */}
 
         <View style={styles.header}>
+          {onBack && (
+            <Pressable
+              style={styles.backButton}
+              onPress={onBack}
+            >
+              <Text style={styles.backText}>
+                ← Back
+              </Text>
+            </Pressable>
+          )}
 
-          <Pressable
-            style={({ pressed }) => [
-              styles.backButton,
-              pressed && styles.backButtonPressed,
-            ]}
-            onPress={onBack}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            hitSlop={10}
-          >
-            <MaterialIcons
-              name="arrow-back"
-              size={28}
-              color={COLORS.onSurface}
-            />
-          </Pressable>
-
-          <Text
-            style={styles.headerTitle}
-            numberOfLines={1}
-          >
-            SmritiCare
+          <Text style={styles.title}>
+            My Memories
           </Text>
 
-          <View style={styles.headerProfile}>
-            <View style={styles.profileCircle}>
-              <MaterialIcons
-                name="person"
-                size={18}
-                color={COLORS.onPrimary}
-              />
-            </View>
-          </View>
-
+          <Text style={styles.subtitle}>
+            Save important people, places, moments
+            and stories.
+          </Text>
         </View>
 
-        {/* =================================================
-            MAIN CONTENT
-        ================================================= */}
+        {/* ADD MEMORY */}
 
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-        >
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>
+            Add a memory
+          </Text>
 
-          {/* =================================================
-              MEMORY INTRO
-          ================================================= */}
+          {/* MEMORY TYPE */}
 
-          <View style={styles.introSection}>
+          <Text style={styles.typeLabel}>
+            How would you like to save it?
+          </Text>
 
-            <View style={styles.archiveBadge}>
-              <MaterialIcons
-                name="psychology"
-                size={18}
-                color={COLORS.onSecondaryContainer}
-              />
-
-              <Text style={styles.archiveText}>
-                Smriti Archive
-              </Text>
-            </View>
-
-            <Text style={styles.pageTitle}>
-              Add a Memory
-            </Text>
-
-            <Text style={styles.pageSubtitle}>
-              Capture something meaningful from their life.
-            </Text>
-
-          </View>
-
-          {/* =================================================
-              INPUT MODES
-          ================================================= */}
-
-          <View style={styles.inputModes}>
-
-            {/* PHOTO */}
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.modeCard,
-
-                inputMode === 'photo' &&
-                  styles.modeCardActive,
-
-                pressed &&
-                  styles.modeCardPressed,
-              ]}
+          <View style={styles.typeRow}>
+            <TypeButton
+              icon="📝"
+              label="Text"
+              active={memoryType === "text"}
               onPress={() =>
-                handleInputMode('photo')
+                selectMemoryType("text")
               }
-              accessibilityRole="button"
-              accessibilityLabel="Add photo"
-            >
-              {inputMode === 'photo' && (
-                <View style={styles.checkBadge}>
-                  <MaterialIcons
-                    name="check"
-                    size={16}
-                    color={COLORS.onPrimaryFixed}
-                  />
-                </View>
-              )}
+            />
 
-              <View
-                style={[
-                  styles.modeIcon,
-                  inputMode === 'photo' &&
-                    styles.modeIconActive,
-                ]}
-              >
-                <MaterialIcons
-                  name="photo-camera"
-                  size={26}
-                  color={
-                    inputMode === 'photo'
-                      ? COLORS.primaryFixed
-                      : COLORS.primary
-                  }
-                />
-              </View>
-
-              <Text
-                style={[
-                  styles.modeTitle,
-                  inputMode === 'photo' &&
-                    styles.modeTitleActive,
-                ]}
-              >
-                Photo
-              </Text>
-
-              <Text
-                style={[
-                  styles.modeSubtitle,
-                  inputMode === 'photo' &&
-                    styles.modeSubtitleActive,
-                ]}
-              >
-                Add photo
-              </Text>
-            </Pressable>
-
-            {/* VOICE */}
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.modeCard,
-
-                inputMode === 'voice' &&
-                  styles.modeCardActive,
-
-                pressed &&
-                  styles.modeCardPressed,
-              ]}
+            <TypeButton
+              icon="📷"
+              label="Photo"
+              active={memoryType === "photo"}
               onPress={() =>
-                handleInputMode('voice')
+                selectMemoryType("photo")
               }
-              accessibilityRole="button"
-              accessibilityLabel="Record story"
-            >
-              {inputMode === 'voice' && (
-                <View style={styles.checkBadge}>
-                  <MaterialIcons
-                    name="check"
-                    size={16}
-                    color={COLORS.onPrimaryFixed}
-                  />
-                </View>
-              )}
+            />
 
-              <View
-                style={[
-                  styles.modeIcon,
-                  styles.voiceIcon,
-                  inputMode === 'voice' &&
-                    styles.modeIconActive,
-                ]}
-              >
-                <MaterialIcons
-                  name="mic"
-                  size={26}
-                  color={
-                    inputMode === 'voice'
-                      ? COLORS.primaryFixed
-                      : COLORS.tertiary
-                  }
-                />
-              </View>
-
-              <Text
-                style={[
-                  styles.modeTitle,
-                  inputMode === 'voice' &&
-                    styles.modeTitleActive,
-                ]}
-              >
-                Voice
-              </Text>
-
-              <Text
-                style={[
-                  styles.modeSubtitle,
-                  inputMode === 'voice' &&
-                    styles.modeSubtitleActive,
-                ]}
-              >
-                Record story
-              </Text>
-            </Pressable>
-
-            {/* TEXT */}
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.modeCard,
-
-                inputMode === 'text' &&
-                  styles.modeCardActive,
-
-                pressed &&
-                  styles.modeCardPressed,
-              ]}
+            <TypeButton
+              icon="🎙️"
+              label="Voice"
+              active={memoryType === "voice"}
               onPress={() =>
-                handleInputMode('text')
+                selectMemoryType("voice")
               }
-              accessibilityRole="button"
-              accessibilityLabel="Write memory"
-            >
-              {inputMode === 'text' && (
-                <View style={styles.checkBadge}>
-                  <MaterialIcons
-                    name="check"
-                    size={16}
-                    color={COLORS.onPrimaryFixed}
-                  />
-                </View>
-              )}
-
-              <View
-                style={[
-                  styles.modeIcon,
-                  inputMode === 'text' &&
-                    styles.modeIconActive,
-                ]}
-              >
-                <MaterialIcons
-                  name="edit-note"
-                  size={26}
-                  color={
-                    inputMode === 'text'
-                      ? COLORS.primaryFixed
-                      : COLORS.primary
-                  }
-                />
-              </View>
-
-              <Text
-                style={[
-                  styles.modeTitle,
-                  inputMode === 'text' &&
-                    styles.modeTitleActive,
-                ]}
-              >
-                Text
-              </Text>
-
-              <Text
-                style={[
-                  styles.modeSubtitle,
-                  inputMode === 'text' &&
-                    styles.modeSubtitleActive,
-                ]}
-              >
-                Write memory
-              </Text>
-            </Pressable>
-
+            />
           </View>
 
-          {/* =================================================
-              VOICE DICTATION
-          ================================================= */}
+          {/* TITLE */}
 
-          <View style={styles.voiceBanner}>
+          <TextInput
+            style={styles.input}
+            placeholder="Memory title"
+            placeholderTextColor="#717A6D"
+            value={title}
+            onChangeText={setTitle}
+          />
 
-            <View style={styles.voiceBannerIcon}>
-              <MaterialIcons
-                name="mic"
-                size={22}
-                color={COLORS.primary}
-              />
-            </View>
+          {/* DESCRIPTION */}
 
-            <View style={styles.voiceBannerText}>
-              <Text style={styles.voiceBannerTitle}>
-                Voice dictation available
-              </Text>
+          <TextInput
+            style={[
+              styles.input,
+              styles.textArea,
+            ]}
+            placeholder={
+              memoryType === "voice"
+                ? "Add a description or note about this recording"
+                : "Tell us about this memory"
+            }
+            placeholderTextColor="#717A6D"
+            value={description}
+            onChangeText={setDescription}
+            multiline
+          />
 
-              <Text style={styles.voiceBannerSubtitle}>
-                Or tap mic to narrate in Assamese, Hindi, or English.
-              </Text>
-            </View>
+          {/* CATEGORY */}
 
-          </View>
+          <TextInput
+            style={styles.input}
+            placeholder="Category (optional)"
+            placeholderTextColor="#717A6D"
+            value={category}
+            onChangeText={setCategory}
+          />
 
-          {/* =================================================
-              MEMORY TEXT
-          ================================================= */}
+          {/* TEXT */}
 
-          <View style={styles.storySection}>
-
-            <Text style={styles.storyLabel}>
-              Tell us something important about Arun...
-            </Text>
-
-            <View style={styles.textBox}>
-
-              <TextInput
-                value={memoryStory}
-                onChangeText={setMemoryStory}
-                multiline
-                numberOfLines={4}
-                placeholder="He worked in a tea garden when he was young and loved the fresh morning air with his colleagues."
-                placeholderTextColor={COLORS.onSurfaceVariant}
-                style={styles.textInput}
-                textAlignVertical="top"
-                accessibilityLabel="Memory story"
-              />
-
-              <View style={styles.textBoxFooter}>
-
-                <Pressable
-                  style={styles.languageButton}
-                  onPress={() =>
-                    Alert.alert(
-                      'Language',
-                      'Assamese / English selected.',
-                    )
-                  }
-                  accessibilityRole="button"
-                  accessibilityLabel="Select language"
-                >
-                  <MaterialIcons
-                    name="translate"
-                    size={18}
-                    color={COLORS.primary}
-                  />
-
-                  <Text style={styles.languageText}>
-                    Assamese / English
-                  </Text>
-                </Pressable>
-
-                <Text style={styles.charCount}>
-                  {memoryStory.length} chars
-                </Text>
-
-              </View>
-
-            </View>
-
-          </View>
-
-          {/* =================================================
-              CONTEXTUAL DETAILS
-          ================================================= */}
-
-          <View style={styles.contextSection}>
-
-            <View style={styles.contextHeader}>
-
-              <Text style={styles.contextTitle}>
-                Add Contextual Details
-              </Text>
-
-              <Text style={styles.contextSubtitle}>
-                Helps AI reconstruct memories
-              </Text>
-
-            </View>
-
-            <View style={styles.tagList}>
-
-              {/* PEOPLE */}
-
-              <Pressable
-                style={[
-                  styles.tagChip,
-                  isTagSelected('People') &&
-                    styles.tagChipSelected,
-                ]}
-                onPress={() =>
-                  toggleTag('People')
-                }
-                accessibilityRole="button"
-                accessibilityLabel="Add people"
-              >
-                <MaterialIcons
-                  name="person-add"
-                  size={20}
-                  color={
-                    isTagSelected('People')
-                      ? COLORS.onPrimaryFixed
-                      : COLORS.primary
-                  }
-                />
-
-                <Text
-                  style={[
-                    styles.tagText,
-                    isTagSelected('People') &&
-                      styles.tagTextSelected,
-                  ]}
-                >
-                  + People
-                </Text>
-              </Pressable>
-
-              {/* PLACE */}
-
-              <Pressable
-                style={[
-                  styles.tagChip,
-                  isTagSelected('Place') &&
-                    styles.tagChipSelected,
-                ]}
-                onPress={() =>
-                  toggleTag('Place')
-                }
-                accessibilityRole="button"
-                accessibilityLabel="Add place"
-              >
-                <MaterialIcons
-                  name="location-on"
-                  size={20}
-                  color={
-                    isTagSelected('Place')
-                      ? COLORS.onPrimaryFixed
-                      : COLORS.primary
-                  }
-                />
-
-                <Text
-                  style={[
-                    styles.tagText,
-                    isTagSelected('Place') &&
-                      styles.tagTextSelected,
-                  ]}
-                >
-                  + Place
-                </Text>
-              </Pressable>
-
-              {/* YEAR */}
-
-              <Pressable
-                style={[
-                  styles.tagChip,
-                  isTagSelected('Decade / Year') &&
-                    styles.tagChipSelected,
-                ]}
-                onPress={() =>
-                  toggleTag('Decade / Year')
-                }
-                accessibilityRole="button"
-                accessibilityLabel="Add decade or year"
-              >
-                <MaterialIcons
-                  name="calendar-month"
-                  size={20}
-                  color={
-                    isTagSelected('Decade / Year')
-                      ? COLORS.onPrimaryFixed
-                      : COLORS.primary
-                  }
-                />
-
-                <Text
-                  style={[
-                    styles.tagText,
-                    isTagSelected('Decade / Year') &&
-                      styles.tagTextSelected,
-                  ]}
-                >
-                  + Decade / Year
-                </Text>
-              </Pressable>
-
-              {/* EVENT */}
-
-              <Pressable
-                style={[
-                  styles.tagChip,
-                  isTagSelected('Event') &&
-                    styles.tagChipSelected,
-                ]}
-                onPress={() =>
-                  toggleTag('Event')
-                }
-                accessibilityRole="button"
-                accessibilityLabel="Add event"
-              >
-                <MaterialIcons
-                  name="celebration"
-                  size={20}
-                  color={
-                    isTagSelected('Event')
-                      ? COLORS.onPrimaryFixed
-                      : COLORS.primary
-                  }
-                />
-
-                <Text
-                  style={[
-                    styles.tagText,
-                    isTagSelected('Event') &&
-                      styles.tagTextSelected,
-                  ]}
-                >
-                  + Event
-                </Text>
-              </Pressable>
-
-            </View>
-
-          </View>
-
-          {/* =================================================
-              STORY ANCHOR
-          ================================================= */}
-
-          <View style={styles.storyAnchor}>
-
-            <View style={styles.storyAnchorIcon}>
-              <MaterialIcons
-                name="local-florist"
-                size={26}
-                color={COLORS.primary}
-              />
-            </View>
-
-            <View style={styles.storyAnchorText}>
-              <Text style={styles.storyAnchorTitle}>
-                Story Anchor
-              </Text>
-
-              <Text style={styles.storyAnchorDescription}>
-                Tea Gardens of Jorhat (1960s). Associated with aroma of CTC tea and morning whistles.
-              </Text>
-            </View>
-
-          </View>
-
-          {/* =================================================
-              CONTINUE
-          ================================================= */}
-
-          <View style={styles.continueSection}>
-
+          {memoryType === "text" && (
             <Pressable
-              style={({ pressed }) => [
-                styles.continueButton,
-                pressed &&
-                  styles.continueButtonPressed,
-              ]}
-              onPress={handleContinue}
-              accessibilityRole="button"
-              accessibilityLabel="Continue to AI Extraction"
+              style={styles.saveButton}
+              onPress={saveMemory}
+              disabled={saving}
             >
-              <Text style={styles.continueText}>
-                Continue to AI Extraction
-              </Text>
-
-              <MaterialIcons
-                name="arrow-forward"
-                size={24}
-                color={COLORS.onPrimary}
-              />
+              {saving ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.saveButtonText}>
+                  Save Memory
+                </Text>
+              )}
             </Pressable>
+          )}
 
-            <View style={styles.privateNotice}>
+          {/* PHOTO */}
 
-              <MaterialIcons
-                name="lock"
-                size={16}
-                color={COLORS.secondary}
-              />
+         {memoryType === "photo" && (
+  <>
+    <View style={styles.actionRow}>
+      <Pressable
+        style={styles.actionButton}
+        onPress={choosePhoto}
+        disabled={saving}
+      >
+        <Text style={styles.actionIcon}>🖼️</Text>
+        <Text style={styles.actionText}>Gallery</Text>
+      </Pressable>
 
-              <Text style={styles.privateText}>
-                Memories stay encrypted & private to Arun's circle
-              </Text>
+      <Pressable
+        style={styles.actionButton}
+        onPress={takePhoto}
+        disabled={saving}
+      >
+        <Text style={styles.actionIcon}>📷</Text>
+        <Text style={styles.actionText}>Camera</Text>
+      </Pressable>
+    </View>
 
-            </View>
+    {selectedImage && (
+      <View style={styles.previewContainer}>
+        <Image
+          source={{ uri: selectedImage }}
+          style={styles.previewImage}
+        />
 
-          </View>
-
-          <View style={styles.bottomSpacing} />
-
-        </ScrollView>
-
-        {/* =================================================
-            BOTTOM NAVIGATION
-        ================================================= */}
-
-        <View style={styles.bottomNav}>
-
-          {/* HOME */}
-
-          <Pressable
-            style={[
-              styles.navItem,
-              activeTab === 'Home' &&
-                styles.activeNavItem,
-            ]}
-            onPress={() => handleTab('Home')}
-            accessibilityRole="button"
-            accessibilityLabel="Home"
-          >
-            <MaterialIcons
-              name="home"
-              size={28}
-              color={
-                activeTab === 'Home'
-                  ? COLORS.primary
-                  : COLORS.onSurfaceVariant
-              }
-            />
-
-            <Text
-              style={[
-                styles.navText,
-                activeTab === 'Home' &&
-                  styles.activeNavText,
-              ]}
-            >
-              Home
-            </Text>
-
-          </Pressable>
-
-          {/* GAMES */}
-
-          <Pressable
-            style={[
-              styles.navItem,
-              activeTab === 'Games' &&
-                styles.activeNavItem,
-            ]}
-            onPress={() => handleTab('Games')}
-            accessibilityRole="button"
-            accessibilityLabel="Games"
-          >
-            <MaterialIcons
-              name="sports-esports"
-              size={28}
-              color={
-                activeTab === 'Games'
-                  ? COLORS.primary
-                  : COLORS.onSurfaceVariant
-              }
-            />
-
-            <Text
-              style={[
-                styles.navText,
-                activeTab === 'Games' &&
-                  styles.activeNavText,
-              ]}
-            >
-              Games
-            </Text>
-
-          </Pressable>
-
-          {/* REMIND */}
-
-          <Pressable
-            style={[
-              styles.navItem,
-              activeTab === 'Remind' &&
-                styles.activeNavItem,
-            ]}
-            onPress={() => handleTab('Remind')}
-            accessibilityRole="button"
-            accessibilityLabel="Reminders"
-          >
-            <MaterialIcons
-              name="notifications-active"
-              size={28}
-              color={
-                activeTab === 'Remind'
-                  ? COLORS.primary
-                  : COLORS.onSurfaceVariant
-              }
-            />
-
-            <Text
-              style={[
-                styles.navText,
-                activeTab === 'Remind' &&
-                  styles.activeNavText,
-              ]}
-            >
-              Remind
-            </Text>
-
-          </Pressable>
-
-          {/* MEMORY */}
-
-          <Pressable
-            style={[
-              styles.navItem,
-              activeTab === 'Memory' &&
-                styles.activeNavItem,
-            ]}
-            onPress={() => handleTab('Memory')}
-            accessibilityRole="button"
-            accessibilityLabel="Memory"
-          >
-            <MaterialIcons
-              name="psychology"
-              size={28}
-              color={
-                activeTab === 'Memory'
-                  ? COLORS.primary
-                  : COLORS.onSurfaceVariant
-              }
-            />
-
-            <Text
-              style={[
-                styles.navText,
-                activeTab === 'Memory' &&
-                  styles.activeNavText,
-              ]}
-            >
-              Memory
-            </Text>
-
-          </Pressable>
-
-          {/* PROFILE */}
-
-          <Pressable
-            style={[
-              styles.navItem,
-              activeTab === 'Profile' &&
-                styles.activeNavItem,
-            ]}
-            onPress={() => handleTab('Profile')}
-            accessibilityRole="button"
-            accessibilityLabel="Profile"
-          >
-            <MaterialIcons
-              name="person"
-              size={28}
-              color={
-                activeTab === 'Profile'
-                  ? COLORS.primary
-                  : COLORS.onSurfaceVariant
-              }
-            />
-
-            <Text
-              style={[
-                styles.navText,
-                activeTab === 'Profile' &&
-                  styles.activeNavText,
-              ]}
-            >
-              Profile
-            </Text>
-
-          </Pressable>
-
-        </View>
-
+        <Text style={styles.previewText}>
+          Photo selected
+        </Text>
       </View>
-    </SafeAreaView>
+    )}
+
+    <Pressable
+      style={[
+        styles.saveButton,
+        !selectedImage && styles.saveButtonDisabled,
+      ]}
+      onPress={saveMemory}
+      disabled={saving}
+    >
+      {saving ? (
+        <ActivityIndicator color="#FFFFFF" />
+      ) : (
+        <Text style={styles.saveButtonText}>
+          Save Memory
+        </Text>
+      )}
+    </Pressable>
+  </>
+)}
+
+          {/* VOICE */}
+
+          {memoryType === "voice" && (
+            <>
+              <Pressable
+                style={[
+                  styles.voiceButton,
+                  recording &&
+                    styles.voiceButtonRecording,
+                ]}
+                onPress={
+                  recording
+                    ? stopRecording
+                    : startRecording
+                }
+                disabled={saving}
+              >
+                <Text style={styles.voiceIcon}>
+                  {recording ? "⏹️" : "🎙️"}
+                </Text>
+
+                <Text
+                  style={styles.voiceButtonText}
+                >
+                  {recording
+                    ? "Stop Recording"
+                    : "Start Recording"}
+                </Text>
+              </Pressable>
+
+              {recording && (
+                <View
+                  style={styles.recordingStatus}
+                >
+                  <View
+                    style={styles.recordingDot}
+                  />
+
+                  <Text
+                    style={styles.recordingText}
+                  >
+                    Recording...
+                  </Text>
+
+                  <Text
+                    style={styles.recordingTime}
+                  >
+                    {Math.round(
+                      recorderState.durationMillis /
+                        1000
+                    )}
+                    s
+                  </Text>
+                </View>
+              )}
+
+              {recordedAudio && !recording && (
+                <View
+                  style={styles.voicePreview}
+                >
+                  <Text style={styles.voiceTitle}>
+                    🎙️ Recording ready
+                  </Text>
+
+                  <Text
+                    style={styles.voiceDuration}
+                  >
+                    {Math.round(
+                      recorderState.durationMillis /
+                        1000
+                    )}{" "}
+                    seconds
+                  </Text>
+
+                  <Pressable
+                    style={styles.saveButton}
+                    onPress={saveMemory}
+                    disabled={saving}
+                  >
+                    {saving ? (
+                      <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                      <Text
+                        style={
+                          styles.saveButtonText
+                        }
+                      >
+                        Save Voice Memory
+                      </Text>
+                    )}
+                  </Pressable>
+                </View>
+              )}
+            </>
+          )}
+        </View>
+
+        {/* SAVED MEMORIES */}
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>
+            Saved memories
+          </Text>
+
+          <Pressable onPress={loadMemories}>
+            <Text style={styles.refreshText}>
+              Refresh
+            </Text>
+          </Pressable>
+        </View>
+
+        {loading ? (
+          <ActivityIndicator
+            size="large"
+            color="#00450D"
+            style={styles.loader}
+          />
+        ) : memories.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyIcon}>
+              💚
+            </Text>
+
+            <Text style={styles.emptyTitle}>
+              No memories yet
+            </Text>
+
+            <Text style={styles.emptyText}>
+              Add your first memory using text,
+              a photo or a voice recording.
+            </Text>
+          </View>
+        ) : (
+          memories.map((memory) => (
+            <View
+              key={memory.id}
+              style={styles.memoryCard}
+            >
+              {/* PHOTO */}
+
+              {memory.imageUrl && (
+                <Image
+                  source={{
+                    uri: memory.imageUrl,
+                  }}
+                  style={styles.memoryImage}
+                />
+              )}
+
+              <View style={styles.memoryBody}>
+                <View style={styles.memoryHeader}>
+                  <View style={styles.memoryTitleRow}>
+                    <Text style={styles.memoryTypeIcon}>
+                      {memory.type === "photo"
+                        ? "📷"
+                        : memory.type === "voice"
+                        ? "🎙️"
+                        : "📝"}
+                    </Text>
+
+                    <Text
+                      style={styles.memoryTitle}
+                    >
+                      {memory.title}
+                    </Text>
+                  </View>
+
+                  <Pressable
+                    onPress={() =>
+                      deleteMemory(memory.id)
+                    }
+                  >
+                    <Text
+                      style={styles.deleteText}
+                    >
+                      Delete
+                    </Text>
+                  </Pressable>
+                </View>
+
+                {/* CATEGORY */}
+
+                {memory.category && (
+                  <Text style={styles.category}>
+                    {memory.category}
+                  </Text>
+                )}
+
+                {/* DESCRIPTION */}
+
+                {memory.description && (
+                  <Text
+                    style={styles.description}
+                  >
+                    {memory.description}
+                  </Text>
+                )}
+
+                {/* VOICE */}
+
+                {memory.type === "voice" &&
+                  memory.audioUrl && (
+                    <Pressable
+                      style={styles.playButton}
+                      onPress={() =>
+                        openAudio(
+                          memory.audioUrl!
+                        )
+                      }
+                    >
+                      <Text
+                        style={styles.playText}
+                      >
+                        ▶ Play voice memory
+                      </Text>
+                    </Pressable>
+                  )}
+
+                {/* DATE */}
+
+                <Text style={styles.date}>
+                  {new Date(
+                    memory.createdAt
+                  ).toLocaleDateString()}
+                </Text>
+              </View>
+            </View>
+          ))
+        )}
+
+        <View style={styles.bottomSpace} />
+      </ScrollView>
+
+      {/* BOTTOM NAVIGATION */}
+
+      <View style={styles.bottomNav}>
+        <NavButton
+          label="Home"
+          icon="⌂"
+          onPress={onHome}
+        />
+
+        <NavButton
+          label="Games"
+          icon="🎮"
+          onPress={onGames}
+        />
+
+        <NavButton
+          label="Schedule"
+          icon="📅"
+          onPress={onSchedule}
+        />
+
+        <NavButton
+          label="Memories"
+          icon="💚"
+          active
+          onPress={onMemory}
+        />
+
+        <NavButton
+          label="Profile"
+          icon="👤"
+          onPress={onProfile}
+        />
+      </View>
+    </View>
   );
 }
 
-/* =========================================================
-   STYLES
-========================================================= */
+// ------------------------------------------------------------
+// MEMORY TYPE BUTTON
+// ------------------------------------------------------------
+
+function TypeButton({
+  icon,
+  label,
+  active,
+  onPress,
+}: {
+  icon: string;
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={[
+        styles.typeButton,
+        active && styles.typeButtonActive,
+      ]}
+      onPress={onPress}
+    >
+      <Text style={styles.typeIcon}>
+        {icon}
+      </Text>
+
+      <Text
+        style={[
+          styles.typeButtonText,
+          active &&
+            styles.typeButtonTextActive,
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+// ------------------------------------------------------------
+// NAV BUTTON
+// ------------------------------------------------------------
+
+function NavButton({
+  label,
+  icon,
+  active,
+  onPress,
+}: {
+  label: string;
+  icon: string;
+  active?: boolean;
+  onPress?: () => void;
+}) {
+  return (
+    <Pressable
+      style={styles.navButton}
+      onPress={onPress}
+    >
+      <Text
+        style={[
+          styles.navIcon,
+          active && styles.navActive,
+        ]}
+      >
+        {icon}
+      </Text>
+
+      <Text
+        style={[
+          styles.navLabel,
+          active && styles.navActive,
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+// ------------------------------------------------------------
+// STYLES
+// ------------------------------------------------------------
 
 const styles = StyleSheet.create({
-
-  safeArea: {
-    flex: 1,
-    backgroundColor: COLORS.surface,
-  },
-
   container: {
     flex: 1,
-    backgroundColor: COLORS.surface,
-  },
-
-  /* =======================================================
-     HEADER
-  ======================================================= */
-
-  header: {
-    height: 64,
-    width: '100%',
-
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    paddingHorizontal: 12,
-
-    backgroundColor: COLORS.surface,
-
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.outlineVariant,
-
-    zIndex: 50,
-  },
-
-  backButton: {
-    width: 48,
-    height: 48,
-
-    borderRadius: 24,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    zIndex: 10,
-  },
-
-  backButtonPressed: {
-    backgroundColor: COLORS.surfaceContainerHigh,
-  },
-
-  headerTitle: {
-    flex: 1,
-
-    textAlign: 'center',
-
-    fontSize: 28,
-    lineHeight: 34,
-
-    fontWeight: '700',
-
-    color: COLORS.primary,
-
-    marginHorizontal: 8,
-  },
-
-  headerProfile: {
-    width: 48,
-    height: 48,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    zIndex: 10,
-  },
-
-  profileCircle: {
-    width: 32,
-    height: 32,
-
-    borderRadius: 16,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    backgroundColor: COLORS.primary,
-  },
-
-  /* =======================================================
-     CONTENT
-  ======================================================= */
-
-  scrollView: {
-    flex: 1,
+    backgroundColor: "#F4FAFF",
   },
 
   content: {
-    width: '100%',
-    maxWidth: 448,
-
-    alignSelf: 'center',
-
-    paddingHorizontal: 20,
+    padding: 20,
     paddingTop: 28,
-    paddingBottom: 30,
   },
 
-  /* =======================================================
-     INTRO
-  ======================================================= */
-
-  introSection: {
-    marginBottom: 24,
-  },
-
-  archiveBadge: {
-    alignSelf: 'flex-start',
-
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    gap: 8,
-
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-
-    borderRadius: 999,
-
-    backgroundColor: COLORS.secondaryContainer,
-
-    marginBottom: 8,
-  },
-
-  archiveText: {
-    fontSize: 18,
-    lineHeight: 24,
-
-    fontWeight: '600',
-
-    color: COLORS.onSecondaryContainer,
-  },
-
-  pageTitle: {
-    fontSize: 28,
-    lineHeight: 34,
-
-    fontWeight: '700',
-
-    color: COLORS.primary,
-  },
-
-  pageSubtitle: {
-    marginTop: 4,
-
-    fontSize: 20,
-    lineHeight: 28,
-
-    color: COLORS.secondary,
-  },
-
-  /* =======================================================
-     INPUT MODES
-  ======================================================= */
-
-  inputModes: {
-    width: '100%',
-
-    flexDirection: 'row',
-
-    gap: 10,
-
+  header: {
     marginBottom: 20,
   },
 
-  modeCard: {
-    flex: 1,
-
-    minHeight: 108,
-
-    borderRadius: 12,
-
-    backgroundColor:
-      COLORS.surfaceContainer,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    padding: 10,
-
-    position: 'relative',
-
-    elevation: 1,
+  backButton: {
+    alignSelf: "flex-start",
+    marginBottom: 12,
+    minHeight: 40,
+    justifyContent: "center",
   },
 
-  modeCardActive: {
-    backgroundColor: COLORS.primary,
-
-    elevation: 4,
+  backText: {
+    color: "#00450D",
+    fontSize: 15,
+    fontWeight: "700",
   },
 
-  modeCardPressed: {
-    transform: [{ scale: 0.97 }],
-  },
-
-  checkBadge: {
-    position: 'absolute',
-
-    top: -6,
-    right: -6,
-
-    width: 24,
-    height: 24,
-
-    borderRadius: 12,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    backgroundColor:
-      COLORS.primaryFixed,
-
-    zIndex: 5,
-  },
-
-  modeIcon: {
-    width: 48,
-    height: 48,
-
-    borderRadius: 24,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    backgroundColor:
-      COLORS.surfaceContainerHighest,
-
+  title: {
+    fontSize: 30,
+    fontWeight: "800",
+    color: "#00450D",
     marginBottom: 6,
   },
 
-  voiceIcon: {
-    backgroundColor:
-      COLORS.surfaceContainerHighest,
+  subtitle: {
+    fontSize: 16,
+    color: "#41493E",
+    lineHeight: 23,
   },
 
-  modeIconActive: {
-    backgroundColor:
-      COLORS.primaryContainer,
-  },
-
-  modeTitle: {
-    fontSize: 17,
-    lineHeight: 22,
-
-    fontWeight: '600',
-
-    color: COLORS.onSurface,
-  },
-
-  modeTitleActive: {
-    color: COLORS.onPrimary,
-  },
-
-  modeSubtitle: {
-    fontSize: 13,
-    lineHeight: 17,
-
-    color: COLORS.secondary,
-
-    textAlign: 'center',
-  },
-
-  modeSubtitleActive: {
-    color: COLORS.primaryFixedDim,
-  },
-
-  /* =======================================================
-     VOICE BANNER
-  ======================================================= */
-
-  voiceBanner: {
-    width: '100%',
-
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    padding: 14,
-
-    borderRadius: 12,
-
-    backgroundColor:
-      COLORS.secondaryContainer,
-
-    marginBottom: 24,
-
-    elevation: 1,
-  },
-
-  voiceBannerIcon: {
-    width: 40,
-    height: 40,
-
+  card: {
+    backgroundColor: "#FFFFFF",
     borderRadius: 20,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    backgroundColor: COLORS.surface,
-
-    marginRight: 12,
+    padding: 18,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "#E5E2E1",
   },
 
-  voiceBannerText: {
+  cardTitle: {
+    fontSize: 21,
+    fontWeight: "700",
+    color: "#1B1C1C",
+    marginBottom: 14,
+  },
+
+  typeLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#41493E",
+    marginBottom: 8,
+  },
+
+  typeRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 16,
+  },
+
+  typeButton: {
+    flex: 1,
+    minHeight: 68,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#C0C9BB",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  typeButtonActive: {
+    backgroundColor: "#D9E6DA",
+    borderColor: "#00450D",
+  },
+
+  typeIcon: {
+    fontSize: 22,
+    marginBottom: 4,
+  },
+
+  typeButtonText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#556158",
+  },
+
+  typeButtonTextActive: {
+    color: "#00450D",
+  },
+
+  input: {
+    backgroundColor: "#F6F3F2",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: "#1B1C1C",
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#E5E2E1",
+  },
+
+  textArea: {
+    minHeight: 90,
+    textAlignVertical: "top",
+  },
+
+  actionRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 2,
+  },
+
+  actionButton: {
+    flex: 1,
+    minHeight: 72,
+    backgroundColor: "#D9E6DA",
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 8,
+  },
+
+  actionIcon: {
+    fontSize: 22,
+    marginBottom: 4,
+  },
+
+  actionText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#00450D",
+  },
+
+  previewContainer: {
+    marginTop: 16,
+  },
+
+  previewImage: {
+    width: "100%",
+    height: 210,
+    borderRadius: 14,
+  },
+
+  previewText: {
+    fontSize: 14,
+    color: "#556158",
+    marginTop: 8,
+  },
+
+  saveButton: {
+    backgroundColor: "#00450D",
+    borderRadius: 12,
+    minHeight: 52,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 14,
+  },
+  saveButtonDisabled: {
+  backgroundColor: "#AEB8AE",
+},
+
+  saveButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+
+  voiceButton: {
+    backgroundColor: "#D9E6DA",
+    borderRadius: 14,
+    minHeight: 72,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
+  },
+
+  voiceButtonRecording: {
+    backgroundColor: "#FFDAD6",
+  },
+
+  voiceIcon: {
+    fontSize: 24,
+    marginBottom: 4,
+  },
+
+  voiceButtonText: {
+    color: "#00450D",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+
+  recordingStatus: {
+    marginTop: 14,
+    backgroundColor: "#FFDAD6",
+    borderRadius: 12,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  recordingDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#BA1A1A",
+    marginRight: 8,
+  },
+
+  recordingText: {
+    color: "#BA1A1A",
+    fontSize: 15,
+    fontWeight: "700",
     flex: 1,
   },
 
-  voiceBannerTitle: {
-    fontSize: 18,
-    lineHeight: 24,
-
-    fontWeight: '600',
-
-    color: COLORS.onSecondaryFixed,
-  },
-
-  voiceBannerSubtitle: {
-    marginTop: 2,
-
+  recordingTime: {
+    color: "#BA1A1A",
     fontSize: 15,
-    lineHeight: 20,
-
-    color: COLORS.onSecondaryContainer,
+    fontWeight: "800",
   },
 
-  /* =======================================================
-     STORY
-  ======================================================= */
-
-  storySection: {
-    marginBottom: 28,
-  },
-
-  storyLabel: {
-    fontSize: 20,
-    lineHeight: 26,
-
-    fontWeight: '700',
-
-    color: COLORS.onSurface,
-
-    marginBottom: 10,
-  },
-
-  textBox: {
-    width: '100%',
-
-    borderRadius: 12,
-
-    backgroundColor:
-      COLORS.surfaceLowest,
-
+  voicePreview: {
+    marginTop: 14,
+    backgroundColor: "#F6F3F2",
+    borderRadius: 14,
     padding: 16,
-
-    elevation: 3,
-
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
   },
 
-  textInput: {
-    width: '100%',
-
-    minHeight: 120,
-
-    fontSize: 20,
-    lineHeight: 28,
-
-    color: COLORS.onSurface,
-
-    padding: 0,
+  voiceTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#00450D",
   },
 
-  textBoxFooter: {
-    flexDirection: 'row',
-
-    alignItems: 'center',
-    justifyContent: 'space-between',
-
-    paddingTop: 12,
-
-    marginTop: 8,
-
-    borderTopWidth: 1,
-    borderTopColor:
-      COLORS.surfaceContainerHigh,
-  },
-
-  languageButton: {
-    flexDirection: 'row',
-
-    alignItems: 'center',
-
-    gap: 6,
-
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-
-    borderRadius: 999,
-
-    backgroundColor:
-      COLORS.surfaceContainer,
-  },
-
-  languageText: {
-    fontSize: 15,
-
-    fontWeight: '600',
-
-    color: COLORS.primary,
-  },
-
-  charCount: {
+  voiceDuration: {
     fontSize: 14,
-
-    color: COLORS.secondary,
+    color: "#556158",
+    marginTop: 5,
   },
 
-  /* =======================================================
-     CONTEXT
-  ======================================================= */
-
-  contextSection: {
-    marginBottom: 28,
-  },
-
-  contextHeader: {
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 12,
   },
 
-  contextTitle: {
-    fontSize: 18,
-    lineHeight: 24,
-
-    fontWeight: '600',
-
-    color: COLORS.onSurface,
+  sectionTitle: {
+    fontSize: 21,
+    fontWeight: "800",
+    color: "#1B1C1C",
   },
 
-  contextSubtitle: {
-    marginTop: 3,
-
+  refreshText: {
+    color: "#00450D",
+    fontWeight: "700",
     fontSize: 14,
-    lineHeight: 20,
-
-    color: COLORS.secondary,
   },
 
-  tagList: {
-    flexDirection: 'row',
-
-    flexWrap: 'wrap',
-
-    gap: 10,
+  loader: {
+    marginTop: 30,
   },
 
-  tagChip: {
-    minHeight: 44,
-
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    gap: 6,
-
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-
-    borderRadius: 999,
-
-    backgroundColor:
-      COLORS.surfaceContainerHigh,
-
-    elevation: 1,
+  emptyCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 28,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E5E2E1",
   },
 
-  tagChipSelected: {
-    backgroundColor:
-      COLORS.primaryFixed,
+  emptyIcon: {
+    fontSize: 34,
+    marginBottom: 10,
   },
 
-  tagText: {
-    fontSize: 17,
-    lineHeight: 22,
-
-    fontWeight: '600',
-
-    color: COLORS.onSurface,
+  emptyTitle: {
+    fontSize: 19,
+    fontWeight: "800",
+    color: "#1B1C1C",
+    marginBottom: 6,
   },
 
-  tagTextSelected: {
-    color: COLORS.onPrimaryFixed,
-  },
-
-  /* =======================================================
-     STORY ANCHOR
-  ======================================================= */
-
-  storyAnchor: {
-    flexDirection: 'row',
-
-    alignItems: 'center',
-
-    padding: 16,
-
-    borderRadius: 12,
-
-    backgroundColor:
-      COLORS.surfaceContainerLow,
-
-    marginBottom: 24,
-
-    elevation: 1,
-  },
-
-  storyAnchorIcon: {
-    width: 64,
-    height: 64,
-
-    borderRadius: 10,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    backgroundColor:
-      COLORS.secondaryContainer,
-
-    marginRight: 14,
-  },
-
-  storyAnchorText: {
-    flex: 1,
-  },
-
-  storyAnchorTitle: {
-    fontSize: 18,
-    lineHeight: 24,
-
-    fontWeight: '600',
-
-    color: COLORS.onSurface,
-  },
-
-  storyAnchorDescription: {
-    marginTop: 3,
-
+  emptyText: {
+    textAlign: "center",
     fontSize: 15,
-    lineHeight: 21,
-
-    color: COLORS.secondary,
+    lineHeight: 22,
+    color: "#556158",
   },
 
-  /* =======================================================
-     CONTINUE
-  ======================================================= */
-
-  continueSection: {
-    gap: 12,
+  memoryCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    overflow: "hidden",
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#E5E2E1",
   },
 
-  continueButton: {
-    width: '100%',
+  memoryImage: {
+    width: "100%",
+    height: 190,
+  },
 
-    minHeight: 56,
+  memoryBody: {
+    padding: 16,
+  },
 
-    borderRadius: 12,
-
-    backgroundColor: COLORS.primary,
-
-    flexDirection: 'row',
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
+  memoryHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     gap: 10,
-
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-
-    elevation: 5,
   },
 
-  continueButtonPressed: {
-    backgroundColor:
-      COLORS.primaryContainer,
-
-    transform: [{ scale: 0.98 }],
+  memoryTitleRow: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
   },
 
-  continueText: {
+  memoryTypeIcon: {
     fontSize: 18,
-    lineHeight: 24,
-
-    fontWeight: '600',
-
-    color: COLORS.onPrimary,
   },
 
-  privateNotice: {
-    flexDirection: 'row',
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    gap: 6,
-
-    paddingHorizontal: 10,
+  memoryTitle: {
+    flex: 1,
+    fontSize: 19,
+    fontWeight: "800",
+    color: "#1B1C1C",
   },
 
-  privateText: {
-    flexShrink: 1,
-
-    textAlign: 'center',
-
+  deleteText: {
+    color: "#BA1A1A",
+    fontWeight: "700",
     fontSize: 13,
-    lineHeight: 18,
-
-    color: COLORS.secondary,
   },
 
-  bottomSpacing: {
-    height: 10,
+  category: {
+    color: "#00450D",
+    fontWeight: "700",
+    fontSize: 13,
+    marginTop: 6,
   },
 
-  /* =======================================================
-     BOTTOM NAVIGATION
-  ======================================================= */
+  description: {
+    fontSize: 15,
+    color: "#41493E",
+    lineHeight: 22,
+    marginTop: 9,
+  },
+
+  playButton: {
+    backgroundColor: "#D9E6DA",
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    alignSelf: "flex-start",
+    marginTop: 12,
+  },
+
+  playText: {
+    color: "#00450D",
+    fontWeight: "700",
+  },
+
+  date: {
+    color: "#717A6D",
+    fontSize: 12,
+    marginTop: 12,
+  },
+
+  bottomSpace: {
+    height: 90,
+  },
 
   bottomNav: {
-    height: 80,
-
-    width: '100%',
-
-    flexDirection: 'row',
-
-    alignItems: 'center',
-    justifyContent: 'space-around',
-
-    paddingHorizontal: 4,
-
-    backgroundColor:
-      COLORS.surface,
-
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 72,
+    backgroundColor: "#FFFFFF",
     borderTopWidth: 1,
-    borderTopColor:
-      COLORS.outlineVariant,
-
-    zIndex: 50,
+    borderTopColor: "#E5E2E1",
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
   },
 
-  navItem: {
-    width: 64,
-
+  navButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 55,
     minHeight: 56,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    borderRadius: 12,
-
-    paddingVertical: 5,
   },
 
-  activeNavItem: {
-    backgroundColor:
-      COLORS.primaryFixed,
+  navIcon: {
+    fontSize: 21,
+    color: "#717A6D",
+    marginBottom: 2,
   },
 
-  navText: {
-    marginTop: 2,
-
-    fontSize: 14,
-    lineHeight: 18,
-
-    fontWeight: '600',
-
-    color: COLORS.onSurfaceVariant,
+  navLabel: {
+    fontSize: 11,
+    color: "#717A6D",
+    fontWeight: "600",
   },
 
-  activeNavText: {
-    color: COLORS.primary,
-    fontWeight: '700',
+  navActive: {
+    color: "#00450D",
+    fontWeight: "800",
   },
 });
