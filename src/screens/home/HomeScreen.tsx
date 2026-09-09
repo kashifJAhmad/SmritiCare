@@ -1,60 +1,63 @@
-import React, { useState } from 'react';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-
+import React, { useState } from "react";
 import {
-  View,
-  Text,
   Pressable,
   ScrollView,
   StyleSheet,
-} from 'react-native';
+  Text,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 
-import { SafeAreaView } from 'react-native-safe-area-context';
+import QuickAssist from "../../components/QuickAssist";
 
-import {
-  MaterialIcons,
-  Ionicons,
-} from '@expo/vector-icons';
-
-import QuickAssist from '../../components/QuickAssist';
-
-// =========================================================
+// ============================================================
 // COLORS
-// =========================================================
+// Matches the Patient Login / SmritiCare design system
+// ============================================================
 
 const COLORS = {
-  background: '#F4FAFF',
+  background: "#F4FAFF",
 
-  surface: '#FFFFFF',
-  surfaceLowest: '#FFFFFF',
-  surfaceLow: '#F6F3F2',
-  surfaceVariant: '#EAE7E7',
+  surface: "#FFFFFF",
+  surfaceSoft: "#F6F3F2",
 
-  primary: '#00450D',
-  primaryContainer: '#1B5E20',
-  onPrimary: '#FFFFFF',
-  onPrimaryContainer: '#90D689',
+  primary: "#00450D",
+  primaryContainer: "#1B5E20",
+  onPrimary: "#FFFFFF",
+  onPrimaryContainer: "#90D689",
 
-  secondary: '#556158',
-  secondaryContainer: '#D9E6DA',
+  secondary: "#556158",
+  secondaryContainer: "#D9E6DA",
 
-  tertiary: '#8B3A3A',
-  tertiaryContainer: '#C40018',
-  onTertiary: '#FFFFFF',
+  outline: "#717A6D",
+  outlineVariant: "#C0C9BB",
 
-  outline: '#717A6D',
-  outlineVariant: '#C0C9BB',
+  text: "#1B1C1C",
+  textSecondary: "#41493E",
 
-  onSurface: '#1B1C1C',
-  onSurfaceVariant: '#41493E',
+  navy: "#102A56",
+
+  medicalBlue: "#005B96",
+  medicalBlueSoft: "#EAF4FB",
+
+  cognitiveGreen: "#1B5E20",
+  cognitiveGreenSoft: "#EAF5EA",
+
+  scheduleGold: "#8A6500",
+  scheduleGoldSoft: "#FFF6D9",
+
+  familyRed: "#A00015",
+  familyRedSoft: "#FDEBEC",
 };
 
-// =========================================================
+// ============================================================
 // TYPES
-// =========================================================
+// ============================================================
 
 type HomeScreenProps = {
   onLogout: () => void;
+
   onMedicalHelp: () => void;
   onSchedule: () => void;
   onCallFamily: () => void;
@@ -64,13 +67,12 @@ type HomeScreenProps = {
   onGames?: () => void;
   onMemory?: () => void;
 
-  onPatientDashboard?: () => void;
   onVoiceAssistant?: () => void;
 };
 
-// =========================================================
+// ============================================================
 // HOME SCREEN
-// =========================================================
+// ============================================================
 
 export default function HomeScreen({
   onLogout,
@@ -81,669 +83,494 @@ export default function HomeScreen({
   onProfile,
   onGames,
   onMemory,
-  onPatientDashboard,
   onVoiceAssistant,
 }: HomeScreenProps) {
-
-  const [activeTab, setActiveTab] = useState('Home');
+  const [activeTab, setActiveTab] = useState("Home");
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-
-        {/* =====================================================
-            TOP APP BAR
-        ====================================================== */}
+        {/* ======================================================
+            HEADER
+        ======================================================= */}
 
         <View style={styles.header}>
-
-          <View style={styles.headerRow}>
-
-            <View style={styles.headerLeft}>
-
-              <Pressable
-                style={({ pressed }) => [
-                  styles.backButton,
-                  pressed && styles.pressed,
-                ]}
-                onPress={onLogout}
-                accessibilityRole="button"
-                accessibilityLabel="Back"
-              >
-
-                <Ionicons
-                  name="arrow-back"
-                  size={32}
-                  color={COLORS.primary}
-                />
-
-              </Pressable>
-
-              <Text style={styles.appTitle}>
-                SmritiCare
-              </Text>
-
+          <View style={styles.headerLeft}>
+            <View style={styles.logoMark}>
+              <Text style={styles.logoLetter}>S</Text>
             </View>
 
+            <View>
+              <Text style={styles.appTitle}>SmritiCare</Text>
+              <Text style={styles.appSubtitle}>Your care companion</Text>
+            </View>
           </View>
 
-          {/* Decorative line */}
+          <View style={styles.headerActions}>
+            <Pressable
+              onPress={onProfile}
+              style={({ pressed }) => [
+                styles.headerButton,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Open profile"
+            >
+              <MaterialIcons
+                name="person-outline"
+                size={27}
+                color={COLORS.primary}
+              />
+            </Pressable>
 
-          <View style={styles.decorativeLine}>
-
-            <View style={styles.lineTertiary} />
-
-            <View style={styles.linePrimary} />
-
-            <View style={styles.lineSecondary} />
-
+            <Pressable
+              onPress={onLogout}
+              style={({ pressed }) => [
+                styles.headerButton,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Sign out"
+            >
+              <MaterialIcons
+                name="logout"
+                size={25}
+                color={COLORS.primary}
+              />
+            </Pressable>
           </View>
-
         </View>
 
-        {/* =====================================================
+        {/* Decorative line */}
+
+        <View style={styles.decorativeLine}>
+          <View style={styles.linePrimary} />
+          <View style={styles.lineSecondary} />
+          <View style={styles.lineLight} />
+        </View>
+
+        {/* ======================================================
             MAIN CONTENT
-        ====================================================== */}
+        ======================================================= */}
 
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
+          {/* ====================================================
+              WELCOME
+          ===================================================== */}
 
-          {/* ===================================================
-              GREETING
-          ==================================================== */}
+          <View style={styles.welcomeSection}>
+            <Text style={styles.welcomeTitle}>Welcome back</Text>
 
-          <View style={styles.greeting}>
-
-            <Text style={styles.greetingTitle}>
-              Hello, Aita
-            </Text>
-
-            <Text style={styles.greetingSubtitle}>
+            <Text style={styles.welcomeSubtitle}>
               What would you like to do today?
             </Text>
-
           </View>
 
-          {/* ===================================================
-              2 × 2 ACTION GRID
-          ==================================================== */}
+          {/* ====================================================
+              MAIN ACTIONS
+          ===================================================== */}
 
-          <View style={styles.grid}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Quick Actions</Text>
+          </View>
 
-            {/* =================================================
+          <View style={styles.actionGrid}>
+            {/* --------------------------------------------------
                 MEDICAL HELP
-            ================================================== */}
+            --------------------------------------------------- */}
 
             <Pressable
+              onPress={onMedicalHelp}
               style={({ pressed }) => [
                 styles.actionCard,
-                styles.medicalHelpCard,
                 pressed && styles.cardPressed,
               ]}
-              onPress={onMedicalHelp}
+              accessibilityRole="button"
+              accessibilityLabel="Medical help"
             >
-
               <View
                 style={[
-                  styles.iconCircle,
-                  styles.medicalIconCircle,
+                  styles.actionIcon,
+                  {
+                    backgroundColor: COLORS.medicalBlueSoft,
+                  },
                 ]}
               >
-
                 <MaterialIcons
                   name="medical-services"
-                  size={42}
-                  color="#005B96"
+                  size={36}
+                  color={COLORS.medicalBlue}
                 />
-
               </View>
 
-              <Text
-                style={[
-                  styles.cardTitle,
-                  styles.medicalCardTitle,
-                ]}
-              >
-                Medical{'\n'}Help
-              </Text>
+              <Text style={styles.actionTitle}>Medical Help</Text>
 
+              <Text style={styles.actionDescription}>
+                Get help when you need it
+              </Text>
             </Pressable>
 
-            {/* =================================================
+            {/* --------------------------------------------------
                 COGNITIVE SCORE
-            ================================================== */}
+            --------------------------------------------------- */}
 
             <Pressable
+              onPress={onCognitiveScore}
               style={({ pressed }) => [
                 styles.actionCard,
-                styles.cognitiveScoreCard,
                 pressed && styles.cardPressed,
               ]}
-              onPress={onCognitiveScore}
+              accessibilityRole="button"
+              accessibilityLabel="Cognitive score"
             >
-
               <View
                 style={[
-                  styles.iconCircle,
-                  styles.cognitiveIconCircle,
+                  styles.actionIcon,
+                  {
+                    backgroundColor: COLORS.cognitiveGreenSoft,
+                  },
                 ]}
               >
-
                 <MaterialIcons
                   name="assessment"
-                  size={42}
-                  color="#1B5E20"
+                  size={36}
+                  color={COLORS.cognitiveGreen}
                 />
-
               </View>
 
-              <Text
-                style={[
-                  styles.cardTitle,
-                  styles.cognitiveCardTitle,
-                ]}
-              >
-                Cognitive{'\n'}Score
-              </Text>
+              <Text style={styles.actionTitle}>Cognitive Score</Text>
 
+              <Text style={styles.actionDescription}>
+                View your progress
+              </Text>
             </Pressable>
 
-            {/* =================================================
-                MY SCHEDULE
-            ================================================== */}
+            {/* --------------------------------------------------
+                SCHEDULE
+            --------------------------------------------------- */}
 
             <Pressable
+              onPress={onSchedule}
               style={({ pressed }) => [
                 styles.actionCard,
-                styles.scheduleActionCard,
                 pressed && styles.cardPressed,
               ]}
-              onPress={onSchedule}
+              accessibilityRole="button"
+              accessibilityLabel="My schedule"
             >
-
               <View
                 style={[
-                  styles.iconCircle,
-                  styles.scheduleIconCircle,
+                  styles.actionIcon,
+                  {
+                    backgroundColor: COLORS.scheduleGoldSoft,
+                  },
                 ]}
               >
-
                 <MaterialIcons
                   name="calendar-today"
-                  size={42}
-                  color="#4A3500"
+                  size={36}
+                  color={COLORS.scheduleGold}
                 />
-
               </View>
 
-              <Text
-                style={[
-                  styles.cardTitle,
-                  styles.scheduleCardTitle,
-                ]}
-              >
-                My{'\n'}Schedule
-              </Text>
+              <Text style={styles.actionTitle}>My Schedule</Text>
 
+              <Text style={styles.actionDescription}>
+                View your reminders
+              </Text>
             </Pressable>
 
-            {/* =================================================
+            {/* --------------------------------------------------
                 CALL FAMILY
-            ================================================== */}
+            --------------------------------------------------- */}
 
             <Pressable
+              onPress={onCallFamily}
               style={({ pressed }) => [
                 styles.actionCard,
-                styles.callFamilyCard,
                 pressed && styles.cardPressed,
               ]}
-              onPress={onCallFamily}
+              accessibilityRole="button"
+              accessibilityLabel="Call family"
             >
-
               <View
                 style={[
-                  styles.iconCircle,
-                  styles.familyIconCircle,
+                  styles.actionIcon,
+                  {
+                    backgroundColor: COLORS.familyRedSoft,
+                  },
                 ]}
               >
-
                 <MaterialIcons
                   name="phone-in-talk"
-                  size={42}
-                  color="#A00015"
+                  size={36}
+                  color={COLORS.familyRed}
                 />
-
               </View>
 
-              <Text
-                style={[
-                  styles.cardTitle,
-                  styles.familyCardTitle,
-                ]}
-              >
-                Call{'\n'}Family
+              <Text style={styles.actionTitle}>Call Family</Text>
+
+              <Text style={styles.actionDescription}>
+                Stay connected
               </Text>
-
             </Pressable>
-
           </View>
 
-          {/* ===================================================
-              PATIENT DASHBOARD
-          ==================================================== */}
+          {/* ====================================================
+              GAMES
+          ===================================================== */}
 
           <Pressable
+            onPress={onGames}
             style={({ pressed }) => [
-              styles.dashboardCard,
+              styles.featureCard,
               pressed && styles.cardPressed,
             ]}
-            onPress={onPatientDashboard}
+            accessibilityRole="button"
+            accessibilityLabel="Open games"
           >
-
-            <View style={styles.dashboardIcon}>
-
+            <View style={styles.featureIcon}>
               <MaterialIcons
-                name="people"
-                size={30}
+                name="psychology"
+                size={31}
+                color={COLORS.onPrimaryContainer}
+              />
+            </View>
+
+            <View style={styles.featureContent}>
+              <Text style={styles.featureTitle}>Memory & Brain Games</Text>
+
+              <Text style={styles.featureDescription}>
+                Exercise your memory with simple activities
+              </Text>
+            </View>
+
+            <MaterialIcons
+              name="chevron-right"
+              size={30}
+              color={COLORS.primary}
+            />
+          </Pressable>
+
+          {/* ====================================================
+              MEMORIES
+          ===================================================== */}
+
+          <Pressable
+            onPress={onMemory}
+            style={({ pressed }) => [
+              styles.featureCard,
+              pressed && styles.cardPressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Open memories"
+          >
+            <View style={styles.featureIcon}>
+              <MaterialIcons
+                name="auto-stories"
+                size={31}
+                color={COLORS.onPrimaryContainer}
+              />
+            </View>
+
+            <View style={styles.featureContent}>
+              <Text style={styles.featureTitle}>My Memories</Text>
+
+              <Text style={styles.featureDescription}>
+                Save and revisit special memories
+              </Text>
+            </View>
+
+            <MaterialIcons
+              name="chevron-right"
+              size={30}
+              color={COLORS.primary}
+            />
+          </Pressable>
+
+          {/* ====================================================
+              SIMPLE SUPPORT CARD
+          ===================================================== */}
+
+          <View style={styles.supportCard}>
+            <View style={styles.supportIcon}>
+              <MaterialIcons
+                name="favorite"
+                size={26}
                 color={COLORS.primary}
               />
-
             </View>
 
-            <View style={styles.dashboardContent}>
-
-              <Text style={styles.dashboardTitle}>
-                Patient Dashboard
+            <View style={styles.supportContent}>
+              <Text style={styles.supportTitle}>
+                We're here for you
               </Text>
 
-              <Text style={styles.dashboardSubtitle}>
-                Manage and monitor patient status.
+              <Text style={styles.supportText}>
+                SmritiCare helps you stay connected, organized,
+                and supported throughout your day.
               </Text>
-
             </View>
-
-            <MaterialIcons
-              name="chevron-right"
-              size={32}
-              color={COLORS.primary}
-            />
-
-          </Pressable>
-
-          {/* ===================================================
-              MY GAMES
-          ==================================================== */}
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.gamesCard,
-              pressed && styles.cardPressed,
-            ]}
-            onPress={() => {
-              console.log('GAMES PRESSED');
-              onGames?.();
-            }}
-          >
-
-            <View style={styles.gamesLeft}>
-
-              <View style={styles.gamesIconCircle}>
-
-                <MaterialIcons
-                  name="psychology"
-                  size={34}
-                  color={COLORS.onPrimaryContainer}
-                />
-
-              </View>
-
-              <View style={styles.gamesTextContainer}>
-
-                <Text style={styles.sectionTitle}>
-                  My Games
-                </Text>
-
-                <Text style={styles.sectionSubtitle}>
-                  Personalized Challenges
-                </Text>
-
-              </View>
-
-            </View>
-
-            <MaterialIcons
-              name="chevron-right"
-              size={32}
-              color={COLORS.primary}
-            />
-
-          </Pressable>
-
-          {/* ===================================================
-              TODAY'S SCHEDULE
-          ==================================================== */}
-
-          <View style={styles.scheduleCard}>
-
-            {/* Gamocha-style top border */}
-
-            <View style={styles.gamochaBorder}>
-
-              <View style={styles.gamochaRed} />
-
-              <View style={styles.gamochaGreen} />
-
-              <View style={styles.gamochaBlue} />
-
-            </View>
-
-            <View style={styles.scheduleContent}>
-
-              {/* Schedule Header */}
-
-              <View style={styles.scheduleHeader}>
-
-                <MaterialIcons
-                  name="today"
-                  size={26}
-                  color={COLORS.primary}
-                />
-
-                <Text style={styles.sectionTitle}>
-                  Today's Schedule
-                </Text>
-
-              </View>
-
-              {/* =================================================
-                  TASK 1
-              ================================================== */}
-
-              <View style={styles.taskCard}>
-
-                <View style={styles.taskLeft}>
-
-                  <MaterialIcons
-                    name="medication"
-                    size={30}
-                    color={COLORS.primary}
-                  />
-
-                  <View>
-
-                    <Text style={styles.taskTitle}>
-                      Morning Medicine
-                    </Text>
-
-                    <Text style={styles.taskTime}>
-                      9:00 AM
-                    </Text>
-
-                  </View>
-
-                </View>
-
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.doneButton,
-                    pressed && styles.pressed,
-                  ]}
-                  onPress={() =>
-                    console.log(
-                      'Morning Medicine completed'
-                    )
-                  }
-                >
-
-                  <Text style={styles.doneButtonText}>
-                    Done
-                  </Text>
-
-                </Pressable>
-
-              </View>
-
-              {/* =================================================
-                  TASK 2
-              ================================================== */}
-
-              <View style={styles.taskCard}>
-
-                <View style={styles.taskLeft}>
-
-                  <MaterialIcons
-                    name="local-drink"
-                    size={30}
-                    color={COLORS.primary}
-                  />
-
-                  <View>
-
-                    <Text style={styles.taskTitle}>
-                      Drink Water
-                    </Text>
-
-                    <Text style={styles.taskTime}>
-                      11:00 AM
-                    </Text>
-
-                  </View>
-
-                </View>
-
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.markButton,
-                    pressed && styles.pressed,
-                  ]}
-                  onPress={() =>
-                    console.log(
-                      'Drink Water marked'
-                    )
-                  }
-                >
-
-                  <Text style={styles.markButtonText}>
-                    Mark
-                  </Text>
-
-                </Pressable>
-
-              </View>
-
-            </View>
-
           </View>
 
           {/* Bottom spacing */}
 
           <View style={styles.bottomSpacing} />
-
         </ScrollView>
 
-        {/* =====================================================
+        {/* ======================================================
             BOTTOM NAVIGATION
-        ====================================================== */}
+        ======================================================= */}
 
         <View style={styles.bottomNav}>
-
-          {/* =================================================
-              HOME
-          ================================================== */}
+          {/* HOME */}
 
           <Pressable
             style={[
               styles.navItem,
-              activeTab === 'Home' &&
-                styles.activeNavItem,
+              activeTab === "Home" && styles.activeNavItem,
             ]}
-            onPress={() => {
-              setActiveTab('Home');
-            }}
+            onPress={() => setActiveTab("Home")}
+            accessibilityRole="button"
+            accessibilityLabel="Home"
           >
-
             <MaterialIcons
               name="home"
-              size={24}
+              size={25}
               color={
-                activeTab === 'Home'
+                activeTab === "Home"
                   ? COLORS.primary
-                  : COLORS.onSurfaceVariant
+                  : COLORS.textSecondary
               }
             />
 
             <Text
               style={[
                 styles.navText,
-                activeTab === 'Home' &&
-                  styles.activeNavText,
+                activeTab === "Home" && styles.activeNavText,
               ]}
             >
               Home
             </Text>
-
           </Pressable>
 
-          {/* =================================================
-              GAMES
-          ================================================== */}
+          {/* GAMES */}
 
           <Pressable
             style={styles.navItem}
             onPress={() => {
-              console.log('GAMES PRESSED');
+              setActiveTab("Games");
               onGames?.();
             }}
+            accessibilityRole="button"
+            accessibilityLabel="Games"
           >
-
             <MaterialIcons
               name="sports-esports"
-              size={24}
-              color={COLORS.onSurfaceVariant}
+              size={25}
+              color={COLORS.textSecondary}
             />
 
-            <Text style={styles.navText}>
-              Games
-            </Text>
-
+            <Text style={styles.navText}>Games</Text>
           </Pressable>
 
-          {/* =================================================
-              REMIND
-          ================================================== */}
-
-          <Pressable
-            style={styles.navItem}
-            onPress={onSchedule}
-          >
-
-            <MaterialIcons
-              name="notifications"
-              size={24}
-              color={COLORS.onSurfaceVariant}
-            />
-
-            <Text style={styles.navText}>
-              Remind
-            </Text>
-
-          </Pressable>
-
-          {/* =================================================
-              MEMORY
-          ================================================== */}
+          {/* REMIND */}
 
           <Pressable
             style={styles.navItem}
             onPress={() => {
-              console.log('MEMORY PRESSED');
-              onMemory?.();
+              setActiveTab("Remind");
+              onSchedule();
             }}
+            accessibilityRole="button"
+            accessibilityLabel="Reminders"
           >
-
             <MaterialIcons
-              name="auto-stories"
-              size={24}
-              color={COLORS.onSurfaceVariant}
+              name="notifications-none"
+              size={25}
+              color={COLORS.textSecondary}
             />
 
-            <Text style={styles.navText}>
-              Memory
-            </Text>
-
+            <Text style={styles.navText}>Remind</Text>
           </Pressable>
 
-          {/* =================================================
-              PROFILE
-          ================================================== */}
+          {/* MEMORY */}
+
+          <Pressable
+            style={styles.navItem}
+            onPress={() => {
+              setActiveTab("Memory");
+              onMemory?.();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Memories"
+          >
+            <MaterialIcons
+              name="auto-stories"
+              size={25}
+              color={COLORS.textSecondary}
+            />
+
+            <Text style={styles.navText}>Memory</Text>
+          </Pressable>
+
+          {/* PROFILE */}
 
           <Pressable
             style={[
               styles.navItem,
-              activeTab === 'Profile' &&
-                styles.activeNavItem,
+              activeTab === "Profile" && styles.activeNavItem,
             ]}
             onPress={() => {
-
-              console.log('PROFILE PRESSED');
-
-              setActiveTab('Profile');
-
+              setActiveTab("Profile");
               onProfile?.();
-
             }}
+            accessibilityRole="button"
+            accessibilityLabel="Profile"
           >
-
             <MaterialIcons
-              name="person"
-              size={24}
+              name="person-outline"
+              size={25}
               color={
-                activeTab === 'Profile'
+                activeTab === "Profile"
                   ? COLORS.primary
-                  : COLORS.onSurfaceVariant
+                  : COLORS.textSecondary
               }
             />
 
             <Text
               style={[
                 styles.navText,
-                activeTab === 'Profile' &&
-                  styles.activeNavText,
+                activeTab === "Profile" && styles.activeNavText,
               ]}
             >
               Profile
             </Text>
-
           </Pressable>
-
         </View>
 
-        {/* =====================================================
+        {/* ======================================================
             QUICK ASSIST
-        ====================================================== */}
+        ======================================================= */}
 
         <QuickAssist
-          bottomOffset={100}
+          bottomOffset={88}
           onVoiceAssistant={onVoiceAssistant}
         />
-
       </View>
     </SafeAreaView>
   );
 }
-// =========================================================
+
+// ============================================================
 // STYLES
-// =========================================================
+// ============================================================
 
 const styles = StyleSheet.create({
-
-  // =========================================================
-  // MAIN
-  // =========================================================
-
   safeArea: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -759,92 +586,96 @@ const styles = StyleSheet.create({
   },
 
   content: {
-    width: '100%',
+    width: "100%",
     maxWidth: 800,
-    alignSelf: 'center',
+    alignSelf: "center",
 
     paddingHorizontal: 22,
-    paddingTop: 100,
+    paddingTop: 20,
     paddingBottom: 24,
   },
 
-  // =========================================================
+  // ==========================================================
   // HEADER
-  // =========================================================
+  // ==========================================================
 
   header: {
-    position: 'absolute',
-
-    top: 0,
-    left: 0,
-    right: 0,
-
-    zIndex: 50,
+    width: "100%",
+    minHeight: 72,
 
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 8,
 
     backgroundColor: COLORS.surface,
 
-    borderBottomWidth: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+
+    borderBottomWidth: 1,
     borderBottomColor: COLORS.outlineVariant,
   },
 
-  headerRow: {
-    minHeight: 48,
-
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-
   headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    gap: 12,
+    flexDirection: "row",
+    alignItems: "center",
   },
 
-  backButton: {
+  logoMark: {
+    width: 46,
+    height: 46,
+
+    borderRadius: 23,
+
+    backgroundColor: COLORS.primaryContainer,
+
+    alignItems: "center",
+    justifyContent: "center",
+
+    marginRight: 12,
+  },
+
+  logoLetter: {
+    fontSize: 25,
+    fontWeight: "800",
+    color: COLORS.onPrimaryContainer,
+  },
+
+  appTitle: {
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: "800",
+    color: COLORS.primary,
+  },
+
+  appSubtitle: {
+    marginTop: 1,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+  },
+
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+
+  headerButton: {
     width: 48,
     height: 48,
 
     borderRadius: 24,
 
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  appTitle: {
-    fontFamily: 'sans-serif',
-
-    fontSize: 28,
-    lineHeight: 34,
-
-    fontWeight: '700',
-
-    color: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   decorativeLine: {
-    width: '100%',
-    height: 7,
+    height: 5,
+    width: "100%",
 
-    marginTop: 8,
+    flexDirection: "row",
 
-    borderRadius: 4,
-
-    overflow: 'hidden',
-
-    flexDirection: 'row',
-
-    opacity: 0.2,
-  },
-
-  lineTertiary: {
-    flex: 1,
-    backgroundColor: COLORS.tertiary,
+    opacity: 0.18,
   },
 
   linePrimary: {
@@ -857,195 +688,153 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.secondary,
   },
 
-  // =========================================================
-  // GREETING
-  // =========================================================
-
-  greeting: {
-    paddingVertical: 10,
-    marginBottom: 14,
+  lineLight: {
+    flex: 1,
+    backgroundColor: COLORS.primaryContainer,
   },
 
-  greetingTitle: {
-    fontFamily: 'sans-serif',
+  // ==========================================================
+  // WELCOME
+  // ==========================================================
 
-    fontSize: 26,
-    lineHeight: 32,
-
-    fontWeight: '700',
-
-    color: COLORS.onSurface,
+  welcomeSection: {
+    paddingTop: 10,
+    paddingBottom: 22,
   },
 
-  greetingSubtitle: {
+  welcomeTitle: {
+    fontSize: 29,
+    lineHeight: 37,
+    fontWeight: "800",
+    color: COLORS.navy,
+  },
+
+  welcomeSubtitle: {
     marginTop: 6,
-
-    fontFamily: 'sans-serif',
-
-    fontSize: 20,
-    lineHeight: 28,
-
-    fontWeight: '400',
-
-    color: COLORS.onSurfaceVariant,
+    fontSize: 17,
+    lineHeight: 25,
+    color: COLORS.textSecondary,
   },
 
-  // =========================================================
+  // ==========================================================
+  // SECTION HEADER
+  // ==========================================================
+
+  sectionHeader: {
+    marginBottom: 12,
+  },
+
+  sectionTitle: {
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: "800",
+    color: COLORS.text,
+  },
+
+  // ==========================================================
   // ACTION GRID
-  // =========================================================
+  // ==========================================================
 
-  grid: {
-    width: '100%',
+  actionGrid: {
+    width: "100%",
 
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
 
-    gap: 16,
+    gap: 14,
   },
 
   actionCard: {
-    width: '47%',
+    width: "48%",
 
-    aspectRatio: 1,
+    minHeight: 170,
 
-    minHeight: 140,
+    padding: 18,
 
-    borderWidth: 2,
-    borderRadius: 12,
+    backgroundColor: COLORS.surface,
 
-    padding: 12,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
 
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: 20,
 
-    gap: 12,
+    alignItems: "flex-start",
+    justifyContent: "center",
+
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+
+    elevation: 2,
   },
 
-  // =========================================================
-  // MEDICAL HELP - BLUE
-  // =========================================================
+  actionIcon: {
+    width: 58,
+    height: 58,
 
-  medicalHelpCard: {
-    backgroundColor: '#2196F3',
-    borderColor: '#2196F3',
+    borderRadius: 29,
+
+    alignItems: "center",
+    justifyContent: "center",
+
+    marginBottom: 13,
   },
 
-  medicalCardTitle: {
-    color: '#FFFFFF',
+  actionTitle: {
+    fontSize: 17,
+    lineHeight: 23,
+    fontWeight: "800",
+    color: COLORS.text,
   },
 
-  // =========================================================
-  // COGNITIVE SCORE - GREEN
-  // =========================================================
+  actionDescription: {
+    marginTop: 4,
 
-  cognitiveScoreCard: {
-    backgroundColor: '#1B5E20',
-    borderColor: '#1B5E20',
+    fontSize: 13.5,
+    lineHeight: 19,
+
+    color: COLORS.textSecondary,
   },
 
-  cognitiveCardTitle: {
-    color: '#FFFFFF',
-  },
+  // ==========================================================
+  // FEATURE CARDS
+  // ==========================================================
 
-  // =========================================================
-  // MY SCHEDULE - YELLOW
-  // =========================================================
+  featureCard: {
+    width: "100%",
 
-  scheduleActionCard: {
-    backgroundColor: '#FFC107',
-    borderColor: '#FFC107',
-  },
+    minHeight: 92,
 
-  scheduleCardTitle: {
-    color: '#000000',
-  },
-
-  // =========================================================
-  // CALL FAMILY - RED
-  // =========================================================
-
-  callFamilyCard: {
-    backgroundColor: '#C40018',
-    borderColor: '#C40018',
-  },
-
-  familyCardTitle: {
-    color: '#FFFFFF',
-  },
-
-  // =========================================================
-  // ACTION CARD ICONS
-  // =========================================================
-
-  iconCircle: {
-    width: 60,
-    height: 60,
-
-    borderRadius: 30,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    backgroundColor: '#FFFFFF',
-  },
-
-  medicalIconCircle: {
-    backgroundColor: '#FFFFFF',
-  },
-
-  cognitiveIconCircle: {
-    backgroundColor: '#FFFFFF',
-  },
-
-  scheduleIconCircle: {
-    backgroundColor: '#FFFFFF',
-  },
-
-  familyIconCircle: {
-    backgroundColor: '#FFFFFF',
-  },
-
-  cardTitle: {
-    fontFamily: 'sans-serif',
-
-    fontSize: 18,
-    lineHeight: 22,
-
-    fontWeight: '700',
-
-    textAlign: 'center',
-
-    color: '#FFFFFF',
-  },
-
-  // =========================================================
-  // PATIENT DASHBOARD
-  // =========================================================
-
-  dashboardCard: {
-    width: '100%',
-
-    marginTop: 18,
-
-    minHeight: 100,
+    marginTop: 16,
 
     padding: 16,
 
-    backgroundColor: COLORS.surfaceLowest,
+    backgroundColor: COLORS.surface,
 
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: COLORS.outlineVariant,
 
-    borderRadius: 12,
+    borderRadius: 20,
 
-    flexDirection: 'row',
+    flexDirection: "row",
+    alignItems: "center",
 
-    alignItems: 'center',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
 
-    justifyContent: 'space-between',
+    elevation: 2,
   },
 
-  dashboardIcon: {
+  featureIcon: {
     width: 56,
     height: 56,
 
@@ -1053,379 +842,151 @@ const styles = StyleSheet.create({
 
     backgroundColor: COLORS.primaryContainer,
 
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 
-  dashboardContent: {
+  featureContent: {
     flex: 1,
 
     marginLeft: 14,
     marginRight: 8,
   },
 
-  dashboardTitle: {
-    fontFamily: 'sans-serif',
-
-    fontSize: 20,
-    lineHeight: 25,
-
-    fontWeight: '700',
-
-    color: COLORS.onSurface,
+  featureTitle: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: "800",
+    color: COLORS.text,
   },
 
-  dashboardSubtitle: {
+  featureDescription: {
     marginTop: 3,
-
-    fontFamily: 'sans-serif',
 
     fontSize: 14,
     lineHeight: 20,
 
-    color: COLORS.onSurfaceVariant,
+    color: COLORS.textSecondary,
   },
 
-  // =========================================================
-  // MY GAMES
-  // =========================================================
+  // ==========================================================
+  // SUPPORT
+  // ==========================================================
 
-  gamesCard: {
-    width: '100%',
+  supportCard: {
+    width: "100%",
 
-    marginTop: 20,
-
-    minHeight: 100,
+    marginTop: 18,
 
     padding: 16,
 
-    backgroundColor: COLORS.surfaceLowest,
+    borderRadius: 20,
 
-    borderWidth: 2,
-    borderColor: COLORS.outlineVariant,
+    backgroundColor: "#EDF7F0",
 
-    borderRadius: 12,
-
-    flexDirection: 'row',
-
-    alignItems: 'center',
-
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "flex-start",
   },
 
-  gamesLeft: {
-    flexDirection: 'row',
-
-    alignItems: 'center',
-
-    flex: 1,
-
-    gap: 14,
-  },
-
-  gamesIconCircle: {
-    width: 56,
-    height: 56,
-
-    borderRadius: 28,
-
-    backgroundColor: COLORS.primaryContainer,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  gamesTextContainer: {
-    flex: 1,
-  },
-
-  sectionTitle: {
-    fontFamily: 'sans-serif',
-
-    fontSize: 20,
-    lineHeight: 25,
-
-    fontWeight: '700',
-
-    color: COLORS.onSurface,
-  },
-
-  sectionSubtitle: {
-    marginTop: 3,
-
-    fontFamily: 'sans-serif',
-
-    fontSize: 14,
-    lineHeight: 20,
-
-    color: COLORS.onSurfaceVariant,
-  },
-
-  // =========================================================
-  // TODAY'S SCHEDULE
-  // =========================================================
-
-  scheduleCard: {
-    width: '100%',
-
-    marginTop: 20,
-
-    backgroundColor: COLORS.surfaceLowest,
-
-    borderWidth: 2,
-    borderColor: COLORS.outlineVariant,
-
-    borderRadius: 12,
-
-    overflow: 'hidden',
-  },
-
-  gamochaBorder: {
-    width: '100%',
-    height: 7,
-
-    flexDirection: 'row',
-  },
-
-  gamochaRed: {
-    flex: 1,
-
-    backgroundColor: COLORS.tertiaryContainer,
-  },
-
-  gamochaGreen: {
-    flex: 1,
-
-    backgroundColor: COLORS.primary,
-  },
-
-  gamochaBlue: {
-    flex: 1,
-
-    backgroundColor: '#2196F3',
-  },
-
-  scheduleContent: {
-    padding: 16,
-  },
-
-  scheduleHeader: {
-    flexDirection: 'row',
-
-    alignItems: 'center',
-
-    gap: 8,
-
-    marginBottom: 18,
-  },
-
-  // =========================================================
-  // TASK CARDS
-  // =========================================================
-
-  taskCard: {
-    width: '100%',
-
-    minHeight: 72,
-
-    padding: 12,
-
-    marginBottom: 12,
-
-    backgroundColor: COLORS.surfaceLow,
-
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-
-    borderRadius: 8,
-
-    flexDirection: 'row',
-
-    alignItems: 'center',
-
-    justifyContent: 'space-between',
-  },
-
-  taskLeft: {
-    flexDirection: 'row',
-
-    alignItems: 'center',
-
-    gap: 12,
-
-    flex: 1,
-  },
-
-  taskTitle: {
-    fontFamily: 'sans-serif',
-
-    fontSize: 17,
-    lineHeight: 22,
-
-    fontWeight: '700',
-
-    color: COLORS.onSurface,
-  },
-
-  taskTime: {
-    marginTop: 3,
-
-    fontFamily: 'sans-serif',
-
-    fontSize: 15,
-    lineHeight: 20,
-
-    color: COLORS.onSurfaceVariant,
-  },
-
-  // =========================================================
-  // DONE BUTTON
-  // =========================================================
-
-  doneButton: {
-    minHeight: 44,
-
-    paddingHorizontal: 18,
-
-    borderRadius: 22,
-
-    backgroundColor: COLORS.primary,
-
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  doneButtonText: {
-    fontFamily: 'sans-serif',
-
-    fontSize: 16,
-    lineHeight: 20,
-
-    fontWeight: '700',
-
-    color: COLORS.onPrimary,
-  },
-
-  // =========================================================
-  // MARK BUTTON
-  // =========================================================
-
-  markButton: {
-    minHeight: 44,
-
-    paddingHorizontal: 18,
-
-    borderRadius: 22,
-
-    backgroundColor: COLORS.surfaceLowest,
-
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  markButtonText: {
-    fontFamily: 'sans-serif',
-
-    fontSize: 16,
-    lineHeight: 20,
-
-    fontWeight: '700',
-
-    color: COLORS.primary,
-  },
-
-  // =========================================================
-  // BOTTOM NAVIGATION
-  // =========================================================
-
-  bottomNav: {
-    height: 78,
-
-    width: '100%',
-
-    flexDirection: 'row',
-
-    alignItems: 'center',
-
-    justifyContent: 'space-around',
-
-    paddingHorizontal: 4,
-    paddingVertical: 8,
+  supportIcon: {
+    width: 46,
+    height: 46,
+
+    borderRadius: 23,
 
     backgroundColor: COLORS.surface,
 
-    borderTopWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  supportContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+
+  supportTitle: {
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: "800",
+    color: COLORS.primary,
+  },
+
+  supportText: {
+    marginTop: 4,
+
+    fontSize: 13.5,
+    lineHeight: 20,
+
+    color: COLORS.textSecondary,
+  },
+
+  // ==========================================================
+  // BOTTOM NAV
+  // ==========================================================
+
+  bottomNav: {
+    width: "100%",
+    minHeight: 76,
+
+    paddingHorizontal: 4,
+    paddingVertical: 7,
+
+    backgroundColor: COLORS.surface,
+
+    borderTopWidth: 1,
     borderTopColor: COLORS.outlineVariant,
+
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
   },
 
   navItem: {
     width: 64,
+    minHeight: 58,
 
-    minHeight: 56,
+    paddingVertical: 6,
 
-    padding: 6,
+    borderRadius: 14,
 
-    borderRadius: 12,
-
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   activeNavItem: {
-    backgroundColor: COLORS.primaryContainer,
-
-    transform: [
-      {
-        scale: 0.95,
-      },
-    ],
+    backgroundColor: "#EAF5EA",
   },
 
   navText: {
     marginTop: 3,
 
-    fontFamily: 'sans-serif',
-
     fontSize: 12,
     lineHeight: 16,
 
-    fontWeight: '700',
+    fontWeight: "700",
 
-    color: COLORS.onSurfaceVariant,
+    color: COLORS.textSecondary,
   },
 
   activeNavText: {
-    color: COLORS.onPrimaryContainer,
+    color: COLORS.primary,
   },
 
-  // =========================================================
-  // BOTTOM SPACING
-  // =========================================================
+  // ==========================================================
+  // OTHER
+  // ==========================================================
 
   bottomSpacing: {
-    height: 24,
+    height: 20,
   },
-
-  // =========================================================
-  // PRESSED STATES
-  // =========================================================
 
   pressed: {
     opacity: 0.75,
   },
 
   cardPressed: {
-    transform: [
-      {
-        scale: 0.98,
-      },
-    ],
+    transform: [{ scale: 0.98 }],
+    opacity: 0.92,
   },
-
 });
