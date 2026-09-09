@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   Image,
   Modal,
   Platform,
@@ -15,6 +16,7 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as Clipboard from "expo-clipboard";
+import * as Location from "expo-location";
 
 import {
   getMyProfile,
@@ -196,6 +198,10 @@ export default function ProfileScreen({
   const [caregiverAccess, setCaregiverAccess] = useState(false);
   const [gpsSharing, setGpsSharing] = useState(false);
 
+  const locationSubscriptionRef =
+    useRef<Location.LocationSubscription | null>(null);
+  const gpsStartingRef = useRef(false);
+
   const [caregiverConnection, setCaregiverConnection] = useState<{
     id: string;
     name: string;
@@ -213,6 +219,247 @@ export default function ProfileScreen({
   const [contactName, setContactName] = useState("");
   const [contactRelationship, setContactRelationship] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+
+  const stopLocationSharing = useCallback(() => {
+    if (locationSubscriptionRef.current) {
+      locationSubscriptionRef.current.remove();
+      locationSubscriptionRef.current = null;
+    }
+  }, []);
+
+  const sendLocationToServer = useCallback(
+    async (location: Location.LocationObject) => {
+      const token = await getToken();
+
+      if (!token) {
+        throw new Error("Please log in again.");
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/location`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          accuracy: location.coords.accuracy,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.message || "Unable to share your location."
+        );
+      }
+    },
+    []
+  );
+
+  const removeLocationFromServer = useCallback(async () => {
+    const token = await getToken();
+
+    if (!token) {
+      throw new Error("Please log in again.");
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/location`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+      },
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(
+        result.message || "Unable to stop location sharing."
+      );
+    }
+  }, []);
+
+  const startLocationSharing = useCallback(
+    async (showErrors = true) => {
+      if (gpsStartingRef.current || locationSubscriptionRef.current) {
+        return true;
+      }
+
+      if (Platform.OS === "web") {
+        if (showErrors) {
+          showMessage(
+            "GPS unavailable",
+            "GPS location sharing is currently supported on Android and iOS."
+          );
+        }
+        return false;
+      }
+
+      try {
+        gpsStartingRef.current = true;
+
+        const permission =
+          await Location.requestForegroundPermissionsAsync();
+
+        if (!permission.granted) {
+          if (showErrors) {
+            showMessage(
+              "Location permission required",
+              "Please allow SmritiCare to access your location so your connected caregiver can see your current location."
+            );
+          }
+          return false;
+        }
+
+        const currentLocation =
+          await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+
+        await sendLocationToServer(currentLocation);
+
+        locationSubscriptionRef.current =
+          await Location.watchPositionAsync(
+            {
+              accuracy: Location.Accuracy.Balanced,
+              timeInterval: 60000,
+              distanceInterval: 50,
+            },
+            async (location) => {
+              try {
+                await sendLocationToServer(location);
+              } catch (error) {
+                console.warn(
+                  "SmritiCare GPS update failed:",
+                  error
+                );
+              }
+            }
+          );
+
+        return true;
+      } catch (error) {
+        if (showErrors) {
+          showMessage(
+            "Unable to share location",
+            error instanceof Error
+              ? error.message
+              : "Unable to get or share your current location."
+          );
+        }
+        return false;
+      } finally {
+        gpsStartingRef.current = false;
+      }
+    },
+    [sendLocationToServer]
+  );
+
+  const handleGpsSharingChange = useCallback(
+    async (value: boolean) => {
+      if (!value) {
+        stopLocationSharing();
+        setGpsSharing(false);
+
+        try {
+          const updated = await updateMyProfile({
+            gpsSharing: false,
+          });
+
+          setProfile(updated);
+          await removeLocationFromServer();
+
+          showMessage(
+            "GPS sharing disabled",
+            "Your location is no longer being shared with your caregiver."
+          );
+        } catch (error) {
+          showMessage(
+            "Unable to disable GPS sharing",
+            error instanceof Error
+              ? error.message
+              : "Could not disable location sharing."
+          );
+        }
+
+        return;
+      }
+
+      try {
+        const permission =
+          await Location.requestForegroundPermissionsAsync();
+
+        if (!permission.granted) {
+          setGpsSharing(false);
+
+          showMessage(
+            "Location permission required",
+            "GPS sharing was not enabled because location permission was not granted."
+          );
+          return;
+        }
+
+        const updated = await updateMyProfile({
+          gpsSharing: true,
+        });
+
+        setProfile(updated);
+        setGpsSharing(true);
+
+        const started = await startLocationSharing(true);
+
+        if (!started) {
+          stopLocationSharing();
+
+          await updateMyProfile({
+            gpsSharing: false,
+          });
+
+          setGpsSharing(false);
+
+          try {
+            await removeLocationFromServer();
+          } catch {
+            // No location may have been stored.
+          }
+        } else {
+          showMessage(
+            "GPS sharing enabled",
+            "Your current location is now being shared with your connected caregiver."
+          );
+        }
+      } catch (error) {
+        stopLocationSharing();
+        setGpsSharing(false);
+
+        try {
+          const reverted = await updateMyProfile({
+            gpsSharing: false,
+          });
+          setProfile(reverted);
+        } catch {
+          // Keep local state disabled if rollback fails.
+        }
+
+        showMessage(
+          "Unable to enable GPS",
+          error instanceof Error
+            ? error.message
+            : "Could not enable location sharing."
+        );
+      }
+    },
+    [
+      removeLocationFromServer,
+      startLocationSharing,
+      stopLocationSharing,
+    ]
+  );
 
   const loadConnectedCaregiver = async (token?: string) => {
     try {
@@ -416,6 +663,33 @@ export default function ProfileScreen({
   useEffect(() => {
     loadProfile();
   }, [loadProfile]);
+
+  useEffect(() => {
+    if (!profile?.gpsSharing) {
+      stopLocationSharing();
+      return;
+    }
+
+    startLocationSharing(false);
+
+    const subscription = AppState.addEventListener(
+      "change",
+      (nextState) => {
+        if (nextState === "active" && profile.gpsSharing) {
+          startLocationSharing(false);
+        }
+      }
+    );
+
+    return () => {
+      subscription.remove();
+      stopLocationSharing();
+    };
+  }, [
+    profile?.gpsSharing,
+    startLocationSharing,
+    stopLocationSharing,
+  ]);
 
   const initials = useMemo(
     () => getInitials(profile?.fullName || fullName || "SmritiCare"),
@@ -1386,28 +1660,9 @@ export default function ProfileScreen({
           {renderSwitchRow(
             "location-on",
             "GPS Location Sharing",
-            "Allow trusted caregivers to access your location.",
+            "Allow trusted caregivers to access your current location.",
             profile.gpsSharing,
-            async (value) => {
-              setGpsSharing(value);
-
-              try {
-                const updated = await updateMyProfile({
-                  gpsSharing: value,
-                });
-
-                setProfile(updated);
-              } catch (error) {
-                setGpsSharing(!value);
-
-                showMessage(
-                  "Unable to update",
-                  error instanceof Error
-                    ? error.message
-                    : "Could not update location sharing."
-                );
-              }
-            }
+            handleGpsSharingChange
           )}
 
           <View style={styles.gpsStatus}>
@@ -1421,7 +1676,7 @@ export default function ProfileScreen({
             />
 
             <Text style={styles.gpsStatusText}>
-              {profile.gpsSharing
+              {gpsSharing
                 ? "Location sharing is enabled"
                 : "Location sharing is disabled"}
             </Text>

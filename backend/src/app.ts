@@ -9,10 +9,12 @@ import emergencyContactRoutes from "./routes/emergencyContact.routes";
 import memoryRoutes from "./routes/memory.routes";
 import memoryUploadRoutes from "./routes/memoryUpload.routes";
 import profileImageRoutes from "./routes/profileImage.routes";
+import locationRoutes from "./routes/location.routes";
 
 const app = express();
 
 app.use(cors());
+
 app.use(express.json());
 
 app.use(
@@ -53,6 +55,11 @@ app.use(
 app.use(
   "/api/auth/profile-image",
   profileImageRoutes,
+);
+
+app.use(
+  "/api/location",
+  locationRoutes,
 );
 
 export default app;

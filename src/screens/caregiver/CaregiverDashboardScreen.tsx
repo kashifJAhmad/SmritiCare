@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -64,6 +65,18 @@ type CaregiverDashboardScreenProps = {
   onCognitiveProgress?: () => void;
   onAIAdaptation?: () => void;
   onRoutine?: () => void;
+  onLogout?: () => void;
+};
+
+type PatientLocation = {
+  available: boolean;
+  message: string;
+  location: {
+    latitude: number;
+    longitude: number;
+    accuracy: number | null;
+    updatedAt: string;
+  } | null;
 };
 
 type ConnectedPatient = {
@@ -236,6 +249,7 @@ export default function CaregiverDashboardScreen({
   onCognitiveProgress,
   onAIAdaptation,
   onRoutine,
+  onLogout,
 }: CaregiverDashboardScreenProps) {
   const insets = useSafeAreaInsets();
 
@@ -473,6 +487,43 @@ export default function CaregiverDashboardScreen({
     return `${patients.length} connected patients`;
   }, [patients.length]);
 
+  const handleLogout = () => {
+    if (!onLogout) {
+      showMessage(
+        "Sign Out",
+        "The sign-out action is not connected yet. Pass onLogout from App.tsx to finish the sign-out flow."
+      );
+      return;
+    }
+
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm(
+        "Sign out of your caregiver account?"
+      );
+
+      if (confirmed) {
+        onLogout();
+      }
+      return;
+    }
+
+    Alert.alert(
+      "Sign Out",
+      "Are you sure you want to sign out of your caregiver account?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Sign Out",
+          style: "destructive",
+          onPress: onLogout,
+        },
+      ]
+    );
+  };
+
   return (
     <View style={styles.screen}>
       {/* Header */}
@@ -511,21 +562,39 @@ export default function CaregiverDashboardScreen({
             </Text>
           </View>
 
-          <Pressable
-            onPress={onProfile}
-            style={({ pressed }) => [
-              styles.profileCircle,
-              pressed && styles.pressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Open caregiver profile"
-          >
-            <MaterialIcons
-              name="person"
-              size={19}
-              color={COLORS.onPrimary}
-            />
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable
+              onPress={handleLogout}
+              style={({ pressed }) => [
+                styles.signOutButton,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Sign out"
+            >
+              <MaterialIcons
+                name="logout"
+                size={19}
+                color={COLORS.error}
+              />
+            </Pressable>
+
+            <Pressable
+              onPress={onProfile}
+              style={({ pressed }) => [
+                styles.profileCircle,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Open caregiver profile"
+            >
+              <MaterialIcons
+                name="person"
+                size={19}
+                color={COLORS.onPrimary}
+              />
+            </Pressable>
+          </View>
         </View>
       </View>
 
@@ -1015,6 +1084,101 @@ function PatientCard({
     [patient.name]
   );
 
+  const [patientLocation, setPatientLocation] =
+    useState<PatientLocation | null>(null);
+  const [locationLoading, setLocationLoading] =
+    useState(true);
+
+  const loadPatientLocation = useCallback(async () => {
+    try {
+      const token = await getToken();
+
+      if (!token) {
+        setPatientLocation(null);
+        return;
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/location/patient/${patient.id}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        setPatientLocation({
+          available: false,
+          message: result.message || "Unable to load location.",
+          location: null,
+        });
+        return;
+      }
+
+      setPatientLocation({
+        available: Boolean(result.available),
+        message: result.message || "No location available.",
+        location: result.location || null,
+      });
+    } catch {
+      setPatientLocation({
+        available: false,
+        message: "Unable to load the patient's location.",
+        location: null,
+      });
+    } finally {
+      setLocationLoading(false);
+    }
+  }, [patient.id]);
+
+  useEffect(() => {
+    loadPatientLocation();
+
+    const interval = setInterval(() => {
+      loadPatientLocation();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [loadPatientLocation]);
+
+  const formatLocationTime = (value: string) => {
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return "Recently updated";
+    }
+
+    return date.toLocaleString([], {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const openPatientLocation = async () => {
+    if (!patientLocation?.location) {
+      return;
+    }
+
+    const { latitude, longitude } = patientLocation.location;
+    const url = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+
+    try {
+      await Linking.openURL(url);
+    } catch {
+      showMessage(
+        "Maps",
+        "Unable to open the map on this device."
+      );
+    }
+  };
+
   return (
     <View style={styles.patientCard}>
       <View style={styles.patientHeader}>
@@ -1090,6 +1254,102 @@ function PatientCard({
       </View>
 
       <View style={styles.patientDivider} />
+
+      {/* GPS Location */}
+      <View
+        style={[
+          styles.locationCard,
+          patientLocation?.available &&
+            styles.locationCardActive,
+        ]}
+      >
+        <View
+          style={[
+            styles.locationIcon,
+            patientLocation?.available &&
+              styles.locationIconActive,
+          ]}
+        >
+          {locationLoading ? (
+            <ActivityIndicator
+              size="small"
+              color={COLORS.secondary}
+            />
+          ) : (
+            <MaterialIcons
+              name={
+                patientLocation?.available
+                  ? "location-on"
+                  : "location-off"
+              }
+              size={22}
+              color={
+                patientLocation?.available
+                  ? COLORS.primary
+                  : COLORS.outline
+              }
+            />
+          )}
+        </View>
+
+        <View style={styles.locationContent}>
+          <Text style={styles.locationTitle}>
+            GPS Location
+          </Text>
+
+          {locationLoading ? (
+            <Text style={styles.locationText}>
+              Checking location sharing...
+            </Text>
+          ) : patientLocation?.available &&
+            patientLocation.location ? (
+            <>
+              <Text style={styles.locationActiveText}>
+                Live location available
+              </Text>
+
+              <Text style={styles.locationMetaText}>
+                Updated {formatLocationTime(
+                  patientLocation.location.updatedAt
+                )}
+                {patientLocation.location.accuracy !== null
+                  ? ` • ±${Math.round(
+                      patientLocation.location.accuracy
+                    )} m`
+                  : ""}
+              </Text>
+            </>
+          ) : (
+            <Text style={styles.locationText}>
+              {patientLocation?.message ||
+                "GPS location is not available."}
+            </Text>
+          )}
+        </View>
+
+        {patientLocation?.available &&
+        patientLocation.location ? (
+          <Pressable
+            onPress={openPatientLocation}
+            style={({ pressed }) => [
+              styles.mapButton,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={`Open ${patient.name} location in maps`}
+          >
+            <MaterialIcons
+              name="map"
+              size={18}
+              color={COLORS.onPrimary}
+            />
+
+            <Text style={styles.mapButtonText}>
+              Map
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
 
       <View style={styles.patientConnectionInfo}>
         <MaterialIcons
@@ -1333,6 +1593,21 @@ const styles = StyleSheet.create({
 
   headerBrand: {
     flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+
+  signOutButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: COLORS.errorContainer,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1652,6 +1927,86 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: COLORS.surfaceContainer,
     marginVertical: 14,
+  },
+
+  locationCard: {
+    minHeight: 72,
+    borderRadius: 15,
+    backgroundColor: COLORS.surfaceContainer,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    padding: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    marginBottom: 10,
+  },
+
+  locationCardActive: {
+    backgroundColor: COLORS.greenSoft,
+    borderColor: COLORS.greenBorder,
+  },
+
+  locationIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: COLORS.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  locationIconActive: {
+    backgroundColor: COLORS.surface,
+  },
+
+  locationContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  locationTitle: {
+    color: COLORS.onSurface,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+
+  locationText: {
+    color: COLORS.onSurfaceVariant,
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 2,
+  },
+
+  locationActiveText: {
+    color: COLORS.primary,
+    fontSize: 12,
+    fontWeight: "800",
+    marginTop: 2,
+  },
+
+  locationMetaText: {
+    color: COLORS.onSurfaceVariant,
+    fontSize: 10,
+    lineHeight: 15,
+    marginTop: 1,
+  },
+
+  mapButton: {
+    minHeight: 38,
+    paddingHorizontal: 11,
+    borderRadius: 11,
+    backgroundColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+
+  mapButtonText: {
+    color: COLORS.onPrimary,
+    fontSize: 11,
+    fontWeight: "800",
   },
 
   patientConnectionInfo: {

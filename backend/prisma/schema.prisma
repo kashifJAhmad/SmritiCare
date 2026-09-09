@@ -63,6 +63,7 @@ model User {
   memories          Memory[]
   gameResults       GameResult[]
   cognitiveScores   CognitiveScore[]
+  patientLocation   PatientLocation?
 
   // Caregiver ↔ Patient relationships
   caregiverConnections CaregiverPatient[] @relation("CaregiverConnections")
@@ -230,4 +231,24 @@ model CognitiveScore {
 
   @@index([userId])
   @@index([recordedAt])
+}
+
+// ============================================================
+// PATIENT GPS LOCATION
+// ============================================================
+
+model PatientLocation {
+  id        String   @id @default(cuid())
+  patientId String   @unique
+
+  latitude  Float
+  longitude Float
+  accuracy  Float?
+
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  patient User @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
 }
