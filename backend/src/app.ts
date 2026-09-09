@@ -3,6 +3,7 @@ import cors from "cors";
 import path from "path";
 
 import authRoutes from "./routes/auth.routes";
+import caregiverConnectionRoutes from "./routes/caregiverConnection.routes";
 import taskRoutes from "./routes/task.routes";
 import emergencyContactRoutes from "./routes/emergencyContact.routes";
 import memoryRoutes from "./routes/memory.routes";
@@ -29,6 +30,11 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+
+app.use(
+  "/api/caregiver-connections",
+  caregiverConnectionRoutes,
+);
 
 app.use("/api/tasks", taskRoutes);
 

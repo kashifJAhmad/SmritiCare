@@ -7,13 +7,17 @@ datasource db {
 }
 
 // ============================================================
-// USER
+// USER ROLE
 // ============================================================
 
 enum UserRole {
   PATIENT
   CAREGIVER
 }
+
+// ============================================================
+// USER
+// ============================================================
 
 model User {
   id       String @id @default(cuid())
@@ -22,6 +26,10 @@ model User {
   password String
 
   role UserRole @default(PATIENT)
+
+  // Patient connection code
+  // Example: SC-PAT-7K4P9X
+  patientCode String? @unique
 
   // Basic profile
   age         Int?
@@ -49,12 +57,63 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relationships
+  // Existing relationships
   emergencyContacts EmergencyContact[]
   tasks             Task[]
   memories          Memory[]
   gameResults       GameResult[]
   cognitiveScores   CognitiveScore[]
+
+  // Caregiver ↔ Patient relationships
+  caregiverConnections CaregiverPatient[] @relation("CaregiverConnections")
+  patientConnections   CaregiverPatient[] @relation("PatientConnections")
+
+  // Caregiver invitations
+  caregiverInvites CaregiverInvite[] @relation("CaregiverInvites")
+}
+
+// ============================================================
+// CAREGIVER ↔ PATIENT CONNECTION
+// ============================================================
+
+model CaregiverPatient {
+  id String @id @default(cuid())
+
+  caregiverId String
+  patientId   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  caregiver User @relation("CaregiverConnections", fields: [caregiverId], references: [id], onDelete: Cascade)
+  patient   User @relation("PatientConnections", fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@unique([caregiverId, patientId])
+  @@index([caregiverId])
+  @@index([patientId])
+}
+
+// ============================================================
+// CAREGIVER INVITE
+// ============================================================
+
+model CaregiverInvite {
+  id String @id @default(cuid())
+
+  caregiverId String
+  code        String @unique
+
+  expiresAt DateTime?
+  used      Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  caregiver User @relation("CaregiverInvites", fields: [caregiverId], references: [id], onDelete: Cascade)
+
+  @@index([caregiverId])
+  @@index([code])
+  @@index([expiresAt])
 }
 
 // ============================================================

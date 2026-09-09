@@ -19,18 +19,22 @@ type OfflineSyncStatusScreenProps = {
 };
 
 const COLORS = {
-    background: '#FCF9F8',
-    surface: '#FCF9F8',
+    background: '#F4FAFF',
+
+    surface: '#FFFFFF',
     surfaceLowest: '#FFFFFF',
-    surfaceLow: '#F6F3F2',
-    surfaceContainer: '#F0EDED',
-    surfaceHigh: '#EAE7E7',
-    surfaceHighest: '#E5E2E1',
+    surfaceLow: '#E9F6FD',
+    surfaceContainer: '#EAF3F7',
+    surfaceHigh: '#E2EEF4',
+    surfaceHighest: '#DDE9EF',
 
     primary: '#00450D',
     primaryContainer: '#1B5E20',
+    primaryFixed: '#ACF4A4',
     primaryFixedDim: '#91D78A',
     onPrimary: '#FFFFFF',
+    onPrimaryContainer: '#90D689',
+    onPrimaryFixed: '#002203',
 
     secondary: '#556158',
     secondaryContainer: '#D9E6DA',
@@ -38,8 +42,11 @@ const COLORS = {
     onSecondaryFixed: '#131E17',
     onSecondaryFixedVariant: '#3E4A41',
 
-    onSurface: '#1B1C1C',
+    onSurface: '#111D23',
     onSurfaceVariant: '#41493E',
+
+    outline: '#717A6D',
+    outlineVariant: '#C0C9BB',
 };
 
 const SYNC_HISTORY = [
@@ -105,7 +112,14 @@ export default function OfflineSyncStatusScreen({
     return (
         <View style={styles.screen}>
             {/* Header */}
-            <View style={[styles.header, { paddingTop: insets.top }]}>
+            <View
+                style={[
+                    styles.header,
+                    {
+                        paddingTop: insets.top,
+                    },
+                ]}
+            >
                 <View style={styles.headerInner}>
                     <Pressable
                         accessibilityRole="button"
@@ -146,7 +160,8 @@ export default function OfflineSyncStatusScreen({
                 contentContainerStyle={[
                     styles.content,
                     {
-                        paddingBottom: 120 + insets.bottom,
+                        paddingTop: insets.top + 88,
+                        paddingBottom: insets.bottom + 120,
                     },
                 ]}
             >
@@ -154,8 +169,8 @@ export default function OfflineSyncStatusScreen({
                 <View style={styles.headingBlock}>
                     <View style={styles.headingRow}>
                         <MaterialIcons
-                            name="sync-saved-locally"
-                            size={22}
+                            name="cloud-done"
+                            size={24}
                             color={COLORS.primary}
                         />
 
@@ -197,8 +212,8 @@ export default function OfflineSyncStatusScreen({
 
                     <View style={styles.infoBox}>
                         <Text style={styles.infoText}>
-                            All 18 activities and care logs are synchronized between
-                            Ramani&apos;s device and Caregiver portal.
+                            All 18 activities and care logs are synchronized
+                            between Ramani&apos;s device and Caregiver portal.
                         </Text>
                     </View>
 
@@ -210,7 +225,9 @@ export default function OfflineSyncStatusScreen({
                         style={({ pressed }) => [
                             styles.syncButton,
                             syncing && styles.syncButtonDisabled,
-                            pressed && !syncing && styles.buttonPressed,
+                            pressed &&
+                                !syncing &&
+                                styles.buttonPressed,
                         ]}
                     >
                         <MaterialIcons
@@ -314,8 +331,8 @@ export default function OfflineSyncStatusScreen({
                     </View>
 
                     <Text style={styles.flowDescription}>
-                        Activities, games, and reminders operate 100% offline and
-                        automatically sync once network is restored.
+                        Activities, games, and reminders operate 100% offline
+                        and automatically sync once network is restored.
                     </Text>
                 </View>
 
@@ -375,8 +392,9 @@ export default function OfflineSyncStatusScreen({
                         </Text>
 
                         <Text style={styles.resilienceText}>
-                            Even during rural network outages, reminders and speech
-                            anchors will trigger on time with zero delay.
+                            Even during rural network outages, reminders and
+                            speech anchors will trigger on time with zero
+                            delay.
                         </Text>
                     </View>
                 </View>
@@ -408,14 +426,31 @@ export default function OfflineSyncStatusScreen({
                                         />
                                     </View>
 
-                                    {index < SYNC_HISTORY.length - 1 && (
-                                        <View style={styles.timelineLine} />
+                                    {index <
+                                        SYNC_HISTORY.length - 1 && (
+                                        <View
+                                            style={
+                                                styles.timelineLine
+                                            }
+                                        />
                                     )}
                                 </View>
 
-                                <View style={styles.historyContent}>
-                                    <View style={styles.historyTopRow}>
-                                        <Text style={styles.historyTime}>
+                                <View
+                                    style={
+                                        styles.historyContent
+                                    }
+                                >
+                                    <View
+                                        style={
+                                            styles.historyTopRow
+                                        }
+                                    >
+                                        <Text
+                                            style={
+                                                styles.historyTime
+                                            }
+                                        >
                                             {item.time}
                                         </Text>
 
@@ -426,7 +461,11 @@ export default function OfflineSyncStatusScreen({
                                         />
                                     </View>
 
-                                    <Text style={styles.historyText}>
+                                    <Text
+                                        style={
+                                            styles.historyText
+                                        }
+                                    >
                                         {item.text}
                                     </Text>
                                 </View>
@@ -441,7 +480,10 @@ export default function OfflineSyncStatusScreen({
                 style={[
                     styles.bottomNav,
                     {
-                        paddingBottom: Math.max(insets.bottom, 8),
+                        paddingBottom: Math.max(
+                            insets.bottom,
+                            8
+                        ),
                     },
                 ]}
             >
@@ -520,7 +562,9 @@ function MetricCard({
             <Text
                 style={[
                     styles.metricValue,
-                    { color: valueColor },
+                    {
+                        color: valueColor,
+                    },
                 ]}
             >
                 {value}
@@ -529,7 +573,11 @@ function MetricCard({
             <Text
                 style={[
                     styles.metricDetail,
-                    detailColor ? { color: detailColor } : null,
+                    detailColor
+                        ? {
+                              color: detailColor,
+                          }
+                        : null,
                 ]}
             >
                 {detail}
@@ -584,7 +632,9 @@ function NavItem({
                 {label}
             </Text>
 
-            {active && <View style={styles.activeIndicator} />}
+            {active && (
+                <View style={styles.activeIndicator} />
+            )}
         </Pressable>
     );
 }
@@ -600,13 +650,14 @@ const styles = StyleSheet.create({
     },
 
     /* Header */
+
     header: {
         position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
         zIndex: 20,
-        backgroundColor: 'rgba(252, 249, 248, 0.96)',
+        backgroundColor: 'rgba(244,250,255,0.96)',
         shadowColor: '#000000',
         shadowOpacity: 0.04,
         shadowRadius: 8,
@@ -638,7 +689,6 @@ const styles = StyleSheet.create({
         marginHorizontal: 8,
         textAlign: 'center',
         color: COLORS.primary,
-        fontFamily: 'Plus Jakarta Sans',
         fontSize: 28,
         lineHeight: 34,
         fontWeight: '700',
@@ -655,11 +705,11 @@ const styles = StyleSheet.create({
     },
 
     /* Main */
+
     content: {
         width: '100%',
         maxWidth: 448,
         alignSelf: 'center',
-        paddingTop: 88,
         paddingHorizontal: 20,
     },
 
@@ -676,7 +726,6 @@ const styles = StyleSheet.create({
     pageTitle: {
         flex: 1,
         color: COLORS.onSurface,
-        fontFamily: 'Plus Jakarta Sans',
         fontSize: 28,
         lineHeight: 34,
         fontWeight: '700',
@@ -686,13 +735,13 @@ const styles = StyleSheet.create({
     subtitle: {
         marginTop: 4,
         color: COLORS.onSurfaceVariant,
-        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 20,
         lineHeight: 28,
         fontWeight: '400',
     },
 
     /* Cards */
+
     card: {
         width: '100%',
         backgroundColor: COLORS.surfaceLowest,
@@ -737,7 +786,6 @@ const styles = StyleSheet.create({
 
     onlineText: {
         color: COLORS.onSecondaryContainer,
-        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 18,
         lineHeight: 24,
         fontWeight: '600',
@@ -745,7 +793,6 @@ const styles = StyleSheet.create({
 
     syncTime: {
         color: COLORS.primary,
-        fontFamily: 'Plus Jakarta Sans',
         fontSize: 28,
         lineHeight: 34,
         fontWeight: '700',
@@ -753,7 +800,6 @@ const styles = StyleSheet.create({
 
     syncLabel: {
         color: COLORS.onSurfaceVariant,
-        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 18,
         lineHeight: 24,
         fontWeight: '600',
@@ -768,7 +814,6 @@ const styles = StyleSheet.create({
 
     infoText: {
         color: COLORS.onSurface,
-        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 20,
         lineHeight: 28,
         fontWeight: '400',
@@ -800,7 +845,6 @@ const styles = StyleSheet.create({
 
     syncButtonText: {
         color: COLORS.onPrimary,
-        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 18,
         lineHeight: 24,
         fontWeight: '600',
@@ -808,7 +852,11 @@ const styles = StyleSheet.create({
     },
 
     buttonPressed: {
-        transform: [{ scale: 0.98 }],
+        transform: [
+            {
+                scale: 0.98,
+            },
+        ],
     },
 
     pressed: {
@@ -816,6 +864,7 @@ const styles = StyleSheet.create({
     },
 
     /* Sections */
+
     sectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -825,13 +874,13 @@ const styles = StyleSheet.create({
 
     sectionTitle: {
         color: COLORS.onSurface,
-        fontFamily: 'Plus Jakarta Sans',
         fontSize: 20,
         lineHeight: 26,
         fontWeight: '700',
     },
 
     /* Flow */
+
     flowRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -852,7 +901,6 @@ const styles = StyleSheet.create({
     flowLabel: {
         marginTop: 4,
         color: COLORS.onSurface,
-        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 13,
         lineHeight: 17,
         fontWeight: '600',
@@ -883,7 +931,6 @@ const styles = StyleSheet.create({
     autoSyncText: {
         marginTop: 4,
         color: COLORS.onSecondaryFixed,
-        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 13,
         lineHeight: 17,
         fontWeight: '700',
@@ -903,7 +950,6 @@ const styles = StyleSheet.create({
     dashboardText: {
         marginLeft: 8,
         color: COLORS.onSurface,
-        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 14,
         lineHeight: 19,
         fontWeight: '600',
@@ -913,7 +959,6 @@ const styles = StyleSheet.create({
     flowDescription: {
         marginTop: 12,
         color: COLORS.onSurfaceVariant,
-        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 15,
         lineHeight: 22,
         fontWeight: '400',
@@ -921,6 +966,7 @@ const styles = StyleSheet.create({
     },
 
     /* Metrics */
+
     metricsSection: {
         marginBottom: 20,
     },
@@ -960,14 +1006,12 @@ const styles = StyleSheet.create({
     metricLabel: {
         flex: 1,
         color: COLORS.onSurfaceVariant,
-        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 14,
         lineHeight: 19,
         fontWeight: '600',
     },
 
     metricValue: {
-        fontFamily: 'Plus Jakarta Sans',
         fontSize: 22,
         lineHeight: 28,
         fontWeight: '700',
@@ -976,13 +1020,13 @@ const styles = StyleSheet.create({
     metricDetail: {
         marginTop: 2,
         color: COLORS.onSurfaceVariant,
-        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 13,
         lineHeight: 18,
         fontWeight: '400',
     },
 
     /* Resilience */
+
     resilienceCard: {
         marginBottom: 20,
         backgroundColor: COLORS.secondaryContainer,
@@ -1007,7 +1051,6 @@ const styles = StyleSheet.create({
 
     resilienceTitle: {
         color: COLORS.onSecondaryFixed,
-        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 18,
         lineHeight: 24,
         fontWeight: '700',
@@ -1016,13 +1059,13 @@ const styles = StyleSheet.create({
     resilienceText: {
         marginTop: 4,
         color: COLORS.onSecondaryFixedVariant,
-        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 15,
         lineHeight: 21,
         fontWeight: '400',
     },
 
     /* History */
+
     historyHeader: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -1032,7 +1075,6 @@ const styles = StyleSheet.create({
 
     todayText: {
         color: COLORS.onSurfaceVariant,
-        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 13,
         lineHeight: 18,
         fontWeight: '600',
@@ -1086,7 +1128,6 @@ const styles = StyleSheet.create({
 
     historyTime: {
         color: COLORS.primary,
-        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 13,
         lineHeight: 18,
         fontWeight: '700',
@@ -1095,20 +1136,20 @@ const styles = StyleSheet.create({
     historyText: {
         marginTop: 4,
         color: COLORS.onSurface,
-        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 15,
         lineHeight: 21,
         fontWeight: '400',
     },
 
     /* Bottom navigation */
+
     bottomNav: {
         position: 'absolute',
         left: 0,
         right: 0,
         bottom: 0,
         zIndex: 30,
-        backgroundColor: 'rgba(252, 249, 248, 0.96)',
+        backgroundColor: 'rgba(244,250,255,0.96)',
         shadowColor: '#000000',
         shadowOpacity: 0.04,
         shadowRadius: 16,
@@ -1140,7 +1181,6 @@ const styles = StyleSheet.create({
     navLabel: {
         marginTop: 2,
         color: COLORS.onSurfaceVariant,
-        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 14,
         lineHeight: 18,
         fontWeight: '600',

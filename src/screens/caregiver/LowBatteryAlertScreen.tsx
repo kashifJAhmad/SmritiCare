@@ -11,13 +11,14 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const COLORS = {
-    background: '#FCF9F8',
+    background: '#F4FAFF',
 
     primary: '#00450D',
     primaryContainer: '#1B5E20',
     onPrimary: '#FFFFFF',
     primaryFixed: '#ACF4A4',
     onPrimaryFixed: '#002203',
+    onPrimaryContainer: '#90D689',
 
     error: '#BA1A1A',
     errorContainer: '#FFDAD6',
@@ -28,15 +29,17 @@ const COLORS = {
     secondaryFixed: '#D9E6DA',
     onSecondaryFixed: '#131E17',
 
-    surface: '#FCF9F8',
+    surface: '#FFFFFF',
     surfaceLowest: '#FFFFFF',
-    surfaceContainer: '#F0EDED',
-    surfaceContainerLow: '#F6F3F2',
-    surfaceContainerHigh: '#EAE7E7',
-    surfaceContainerHighest: '#E5E2E1',
+    surfaceContainer: '#EAF3F7',
+    surfaceContainerLow: '#E9F6FD',
+    surfaceContainerHigh: '#E2EEF4',
+    surfaceContainerHighest: '#E5EEF3',
 
-    onSurface: '#1B1C1C',
+    onSurface: '#111D23',
     onSurfaceVariant: '#41493E',
+    outline: '#717A6D',
+    outlineVariant: '#C0C9BB',
 };
 
 type MaterialIconName = keyof typeof MaterialIcons.glyphMap;
@@ -192,9 +195,9 @@ export default function LowBatteryAlertScreen({
                             </Text>
 
                             <Text style={styles.criticalDescription}>
-                                Ramani&apos;s tablet has dropped to 9% battery. Voice
-                                assistance and scheduled reminders will suspend if device
-                                powers down.
+                                Ramani&apos;s tablet has dropped to 9% battery.
+                                Voice assistance and scheduled reminders will
+                                suspend if device powers down.
                             </Text>
                         </View>
                     </View>
@@ -202,7 +205,7 @@ export default function LowBatteryAlertScreen({
                     {/* Status Grid */}
                     <View style={styles.statusGrid}>
                         <StatusCard
-                            icon="battery-very-low"
+                            icon="battery-alert"
                             iconBackground={COLORS.errorContainer}
                             iconColor={COLORS.error}
                             label="Battery Level"
@@ -371,7 +374,7 @@ export default function LowBatteryAlertScreen({
                 {/* Reserve Power Protocol */}
                 <View style={styles.protocolCard}>
                     <MaterialIcons
-                        name="shield-with-heart"
+                        name="verified-user"
                         size={24}
                         color={COLORS.primary}
                     />
@@ -382,8 +385,9 @@ export default function LowBatteryAlertScreen({
                         </Text>
 
                         <Text style={styles.protocolText}>
-                            Pillbox reminder sensor and emergency audio SOS remain queued
-                            offline for up to 3 hours on emergency reserve power.
+                            Pillbox reminder sensor and emergency audio SOS
+                            remain queued offline for up to 3 hours on
+                            emergency reserve power.
                         </Text>
                     </View>
                 </View>
@@ -481,7 +485,9 @@ function StatusCard({
             <View
                 style={[
                     styles.statusIconCircle,
-                    { backgroundColor: iconBackground },
+                    {
+                        backgroundColor: iconBackground,
+                    },
                 ]}
             >
                 <MaterialIcons
@@ -499,7 +505,9 @@ function StatusCard({
                 <Text
                     style={[
                         styles.statusValue,
-                        { color: valueColor },
+                        {
+                            color: valueColor,
+                        },
                     ]}
                     numberOfLines={1}
                 >
@@ -674,7 +682,7 @@ const styles = StyleSheet.create({
     },
 
     liveBadge: {
-        backgroundColor: 'rgba(252,249,248,0.8)',
+        backgroundColor: 'rgba(255,255,255,0.8)',
         borderRadius: 10,
         paddingHorizontal: 8,
         paddingVertical: 2,

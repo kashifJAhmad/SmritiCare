@@ -1,1551 +1,2072 @@
-import React, { useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
-    Alert,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
-} from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+  ActivityIndicator,
+  Alert,
+  Image,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { API_BASE_URL } from "../../constants/api";
+import { getToken } from "../../services/authStorage";
 
 const COLORS = {
-    background: '#FCF9F8',
-    primary: '#00450D',
-    primaryContainer: '#1B5E20',
-    onPrimary: '#FFFFFF',
-    onPrimaryContainer: '#90D689',
+  background: "#F4FAFF",
+  primary: "#00450D",
+  primaryContainer: "#1B5E20",
+  onPrimary: "#FFFFFF",
+  onPrimaryContainer: "#90D689",
 
-    surfaceContainer: '#F0EDED',
-    surfaceContainerLow: '#F6F3F2',
-    surfaceContainerHigh: '#EAE7E7',
-    surfaceContainerHighest: '#E5E2E1',
-    surfaceLowest: '#FFFFFF',
+  secondary: "#00629E",
+  secondaryContainer: "#D7EEFF",
+  secondaryFixed: "#D9E6DA",
 
-    secondary: '#556158',
-    secondaryFixed: '#D9E6DA',
-    onSecondaryFixed: '#131E17',
+  surface: "#FFFFFF",
+  surfaceContainer: "#EAF3F7",
+  surfaceContainerLow: "#E9F6FD",
+  surfaceContainerHigh: "#E2EEF4",
 
-    error: '#BA1A1A',
-    errorContainer: '#FFDAD6',
-    onErrorContainer: '#93000A',
+  greenSoft: "#E2F3E0",
+  greenBorder: "#B7DDB3",
 
-    onSurface: '#1B1C1C',
-    onSurfaceVariant: '#41493E',
-    outline: '#717A6D',
+  error: "#BA1A1A",
+  errorContainer: "#FFE8E5",
+  onErrorContainer: "#7A1010",
+
+  onSurface: "#111D23",
+  onSurfaceVariant: "#41493E",
+  outline: "#717A6D",
+  outlineVariant: "#C0C9BB",
 };
 
 type MaterialIconName = keyof typeof MaterialIcons.glyphMap;
 
 type CaregiverDashboardScreenProps = {
-    onBack?: () => void;
-    onHome?: () => void;
-    onGames?: () => void;
-    onSchedule?: () => void;
-    onMemory?: () => void;
-    onProfile?: () => void;
-    onCognitiveProgress?: () => void;
-    onAIAdaptation?: () => void;
-    onRoutine?: () => void;
+  onBack?: () => void;
+  onHome?: () => void;
+  onGames?: () => void;
+  onSchedule?: () => void;
+  onMemory?: () => void;
+  onProfile?: () => void;
+  onCognitiveProgress?: () => void;
+  onAIAdaptation?: () => void;
+  onRoutine?: () => void;
 };
+
+type ConnectedPatient = {
+  id: string;
+  name: string;
+  email: string;
+  age: string;
+  phone: string;
+  city: string;
+  profileImageUrl: string | null;
+  connectionId: string;
+  connectedAt: string | null;
+};
+
+function showMessage(title: string, message: string) {
+  if (Platform.OS === "web") {
+    window.alert(`${title}\n\n${message}`);
+    return;
+  }
+
+  Alert.alert(title, message);
+}
+
+function confirmDisconnect(
+  patientName: string,
+  onConfirm: () => void
+) {
+  if (Platform.OS === "web") {
+    const confirmed = window.confirm(
+      `Disconnect ${patientName}?\n\nThey will no longer appear in your connected patients.`
+    );
+
+    if (confirmed) {
+      onConfirm();
+    }
+
+    return;
+  }
+
+  Alert.alert(
+    "Disconnect Patient",
+    `Are you sure you want to disconnect ${patientName}?`,
+    [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Disconnect",
+        style: "destructive",
+        onPress: onConfirm,
+      },
+    ]
+  );
+}
+
+function getInitials(name: string): string {
+  const words = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (words.length === 0) {
+    return "SC";
+  }
+
+  if (words.length === 1) {
+    return words[0].slice(0, 2).toUpperCase();
+  }
+
+  return `${words[0][0]}${
+    words[words.length - 1][0]
+  }`.toUpperCase();
+}
+
+function getString(
+  value: unknown,
+  fallback = ""
+): string {
+  return typeof value === "string" && value.trim()
+    ? value.trim()
+    : fallback;
+}
+
+function getPatientFromConnection(
+  item: any
+): ConnectedPatient | null {
+  const patient =
+    item?.patient ||
+    item?.user ||
+    item?.Patient ||
+    item?.User ||
+    item;
+
+  if (!patient) {
+    return null;
+  }
+
+  const id =
+    getString(patient.id) ||
+    getString(patient.userId) ||
+    getString(item?.patientId);
+
+  if (!id) {
+    return null;
+  }
+
+  const name =
+    getString(patient.fullName) ||
+    getString(patient.name) ||
+    "Patient";
+
+  const email = getString(patient.email);
+
+  const age =
+    patient.age !== null &&
+    patient.age !== undefined
+      ? String(patient.age)
+      : "";
+
+  const connectionId =
+    getString(item?.id) ||
+    getString(item?.connectionId) ||
+    id;
+
+  return {
+    id,
+    name,
+    email,
+    age,
+    phone: getString(patient.phone),
+    city: getString(patient.city),
+    profileImageUrl:
+      getString(patient.profileImageUrl) || null,
+    connectionId,
+    connectedAt:
+      getString(item?.createdAt) ||
+      getString(item?.connectedAt) ||
+      null,
+  };
+}
+
+function extractPatients(result: any): ConnectedPatient[] {
+  const possibleArrays = [
+    result?.data,
+    result?.data?.patients,
+    result?.patients,
+    result?.data?.connections,
+    result?.connections,
+  ];
+
+  for (const candidate of possibleArrays) {
+    if (Array.isArray(candidate)) {
+      return candidate
+        .map(getPatientFromConnection)
+        .filter(Boolean) as ConnectedPatient[];
+    }
+  }
+
+  return [];
+}
 
 export default function CaregiverDashboardScreen({
-    onBack,
-    onHome,
-    onGames,
-    onSchedule,
-    onMemory,
-    onProfile,
-    onCognitiveProgress,
-    onAIAdaptation,
-    onRoutine,
+  onBack,
+  onHome,
+  onGames,
+  onSchedule,
+  onMemory,
+  onProfile,
+  onCognitiveProgress,
+  onAIAdaptation,
+  onRoutine,
 }: CaregiverDashboardScreenProps) {
-    const insets = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
 
-    const [syncing, setSyncing] = useState(false);
-    const [reminderSent, setReminderSent] = useState(false);
+  const [patients, setPatients] = useState<
+    ConnectedPatient[]
+  >([]);
 
-    const handleSync = () => {
-        if (syncing) return;
+  const [loadingPatients, setLoadingPatients] =
+    useState(true);
 
-        setSyncing(true);
+  const [refreshing, setRefreshing] =
+    useState(false);
 
-        setTimeout(() => {
-            setSyncing(false);
-            Alert.alert(
-                'Sync Complete',
-                'Ramani Barman’s tablet is now synchronized.'
-            );
-        }, 800);
-    };
+  const [addPatientVisible, setAddPatientVisible] =
+    useState(false);
 
-    const handleReminder = () => {
-        if (reminderSent) return;
+  const [patientCode, setPatientCode] =
+    useState("");
 
-        setReminderSent(true);
+  const [connecting, setConnecting] =
+    useState(false);
 
-        Alert.alert(
-            'Reminder Sent',
-            'A medication reminder has been sent to Ramani’s tablet.'
+  const [disconnectingId, setDisconnectingId] =
+    useState<string | null>(null);
+
+  const loadPatients = useCallback(
+    async (showRefreshing = false) => {
+      try {
+        if (showRefreshing) {
+          setRefreshing(true);
+        } else {
+          setLoadingPatients(true);
+        }
+
+        const token = await getToken();
+
+        if (!token) {
+          throw new Error("Please log in again.");
+        }
+
+        const response = await fetch(
+          `${API_BASE_URL}/api/caregiver-connections/patients`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: "application/json",
+            },
+          }
         );
-    };
 
-    const handleCallCompanion = () => {
-        Alert.alert(
-            'Call Companion',
-            'The companion call feature will be connected during backend integration.'
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          throw new Error(
+            result.message ||
+              "Unable to load connected patients."
+          );
+        }
+
+        setPatients(extractPatients(result));
+      } catch (error) {
+        showMessage(
+          "Patients",
+          error instanceof Error
+            ? error.message
+            : "Unable to load connected patients."
         );
-    };
+      } finally {
+        setLoadingPatients(false);
+        setRefreshing(false);
+      }
+    },
+    []
+  );
 
-    const handleCognitiveProgress = () => {
-        if (onCognitiveProgress) {
-            onCognitiveProgress();
+  useEffect(() => {
+    loadPatients();
+  }, [loadPatients]);
+
+  const openAddPatient = () => {
+    setPatientCode("");
+    setAddPatientVisible(true);
+  };
+
+  const closeAddPatient = () => {
+    if (connecting) {
+      return;
+    }
+
+    setPatientCode("");
+    setAddPatientVisible(false);
+  };
+
+  const connectPatient = async () => {
+    const code = patientCode
+      .trim()
+      .toUpperCase();
+
+    if (!code) {
+      showMessage(
+        "Patient Code Required",
+        "Please enter the Patient Code shown in the patient's SmritiCare Profile."
+      );
+      return;
+    }
+
+    if (!code.startsWith("SC-PAT-")) {
+      showMessage(
+        "Invalid Patient Code",
+        "Please enter the complete Patient Code. It should start with SC-PAT-."
+      );
+      return;
+    }
+
+    try {
+      setConnecting(true);
+
+      const token = await getToken();
+
+      if (!token) {
+        throw new Error("Please log in again.");
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/caregiver-connections/connect-patient`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            patientCode: code,
+          }),
         }
-    };
+      );
 
-    const handleAIAdaptation = () => {
-        if (onAIAdaptation) {
-            onAIAdaptation();
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.message ||
+            "Unable to connect this patient."
+        );
+      }
+
+      setPatientCode("");
+      setAddPatientVisible(false);
+
+      await loadPatients();
+
+      showMessage(
+        "Patient Connected",
+        "The patient has been successfully added to your care list."
+      );
+    } catch (error) {
+      showMessage(
+        "Unable to Connect",
+        error instanceof Error
+          ? error.message
+          : "Something went wrong while connecting the patient."
+      );
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const disconnectPatient = (
+    patient: ConnectedPatient
+  ) => {
+    confirmDisconnect(patient.name, async () => {
+      try {
+        setDisconnectingId(
+          patient.connectionId
+        );
+
+        const token = await getToken();
+
+        if (!token) {
+          throw new Error("Please log in again.");
         }
-    };
 
-    const handleRoutine = () => {
-        if (onRoutine) {
-            onRoutine();
+        const response = await fetch(
+          `${API_BASE_URL}/api/caregiver-connections/${patient.connectionId}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: "application/json",
+            },
+          }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          throw new Error(
+            result.message ||
+              "Unable to disconnect this patient."
+          );
         }
-    };
 
-    return (
-        <View style={styles.screen}>
-            {/* Header */}
-            <View style={[styles.header, { paddingTop: insets.top }]}>
-                <View style={styles.headerInner}>
-                    <Pressable
-                        onPress={onBack}
-                        style={({ pressed }) => [
-                            styles.headerButton,
-                            pressed && styles.pressed,
-                        ]}
-                        accessibilityLabel="Go back"
-                    >
-                        <MaterialIcons
-                            name="arrow-back"
-                            size={28}
-                            color={COLORS.onSurface}
-                        />
-                    </Pressable>
-
-                    <Text style={styles.headerTitle} numberOfLines={1}>
-                        SmritiCare
-                    </Text>
-
-                    <View style={styles.profileCircle}>
-                        <MaterialIcons
-                            name="person"
-                            size={18}
-                            color={COLORS.onPrimary}
-                        />
-                    </View>
-                </View>
-            </View>
-
-            {/* Main */}
-            <ScrollView
-                style={styles.scrollView}
-                contentContainerStyle={[
-                    styles.content,
-                    {
-                        paddingTop: insets.top + 82,
-                        paddingBottom: insets.bottom + 120,
-                    },
-                ]}
-                showsVerticalScrollIndicator={false}
-            >
-                {/* Portal Heading */}
-                <View style={styles.headingSection}>
-                    <Text style={styles.portalTitle}>Caregiver Portal</Text>
-
-                    <View style={styles.locationRow}>
-                        <MaterialIcons
-                            name="location-on"
-                            size={18}
-                            color={COLORS.secondary}
-                        />
-
-                        <Text style={styles.locationText}>
-                            Guwahati, Assam
-                        </Text>
-                    </View>
-                </View>
-
-                {/* Patient Card */}
-                <View style={styles.patientCard}>
-                    <View style={styles.patientHeader}>
-                        <View style={styles.patientAvatar}>
-                            <MaterialIcons
-                                name="person"
-                                size={38}
-                                color={COLORS.onPrimaryContainer}
-                            />
-
-                            <View style={styles.onlineDot} />
-                        </View>
-
-                        <View style={styles.patientDetails}>
-                            <View style={styles.nameRow}>
-                                <Text style={styles.patientName}>
-                                    Ramani Barman
-                                </Text>
-
-                                <View style={styles.primaryBadge}>
-                                    <Text style={styles.primaryBadgeText}>
-                                        Primary
-                                    </Text>
-                                </View>
-                            </View>
-
-                            <Text style={styles.patientAge}>
-                                72 years old
-                            </Text>
-
-                            <View style={styles.activeRow}>
-                                <View style={styles.activeDot} />
-
-                                <Text style={styles.activeText}>
-                                    Active now
-                                </Text>
-
-                                <Text style={styles.lastActive}>
-                                    Last active 10m ago
-                                </Text>
-                            </View>
-                        </View>
-                    </View>
-
-                    <View style={styles.divider} />
-
-                    {/* Sync Information */}
-                    <View style={styles.syncInfoRow}>
-                        <View style={styles.syncInfo}>
-                            <MaterialIcons
-                                name="cloud-done"
-                                size={20}
-                                color={COLORS.primary}
-                            />
-
-                            <View>
-                                <Text style={styles.syncLabel}>
-                                    Last Synced
-                                </Text>
-
-                                <Text style={styles.syncValue}>
-                                    10:42 AM via Tab-Assam
-                                </Text>
-                            </View>
-                        </View>
-
-                        <Pressable
-                            onPress={handleSync}
-                            disabled={syncing}
-                            style={({ pressed }) => [
-                                styles.syncButton,
-                                syncing && styles.disabledButton,
-                                pressed && !syncing && styles.pressed,
-                            ]}
-                        >
-                            <MaterialIcons
-                                name={syncing ? 'sync' : 'sync'}
-                                size={19}
-                                color={COLORS.primary}
-                            />
-
-                            <Text style={styles.syncButtonText}>
-                                {syncing ? 'Syncing...' : 'Sync Now'}
-                            </Text>
-                        </Pressable>
-                    </View>
-
-                    <View style={styles.statusBanner}>
-                        <MaterialIcons
-                            name="verified"
-                            size={19}
-                            color={COLORS.primary}
-                        />
-
-                        <Text style={styles.statusBannerText}>
-                            Biometrics &amp; Logs Up to Date
-                        </Text>
-                    </View>
-                </View>
-
-                {/* Action Required */}
-                <View style={styles.section}>
-                    <View style={styles.sectionHeadingRow}>
-                        <Text style={styles.sectionTitle}>
-                            Action Required
-                        </Text>
-
-                        <View style={styles.actionCountBadge}>
-                            <Text style={styles.actionCountText}>1</Text>
-                        </View>
-                    </View>
-
-                    <View style={styles.actionCard}>
-                        <View style={styles.actionIconCircle}>
-                            <MaterialIcons
-                                name="medication"
-                                size={25}
-                                color={COLORS.error}
-                            />
-                        </View>
-
-                        <View style={styles.actionContent}>
-                            <Text style={styles.actionTitle}>
-                                Morning Donepezil
-                            </Text>
-
-                            <Text style={styles.actionDose}>
-                                5mg Dose
-                            </Text>
-
-                            <View style={styles.actionTimeRow}>
-                                <MaterialIcons
-                                    name="schedule"
-                                    size={16}
-                                    color={COLORS.onSurfaceVariant}
-                                />
-
-                                <Text style={styles.actionTime}>
-                                    11:00 AM
-                                </Text>
-                            </View>
-
-                            <Text style={styles.actionDescription}>
-                                Pending patient confirmation on tablet
-                            </Text>
-                        </View>
-                    </View>
-
-                    <View style={styles.actionButtons}>
-                        <Pressable
-                            onPress={handleReminder}
-                            disabled={reminderSent}
-                            style={({ pressed }) => [
-                                styles.reminderButton,
-                                reminderSent && styles.reminderSentButton,
-                                pressed && !reminderSent && styles.pressed,
-                            ]}
-                        >
-                            <MaterialIcons
-                                name={
-                                    reminderSent
-                                        ? 'check'
-                                        : 'notifications-active'
-                                }
-                                size={21}
-                                color={
-                                    reminderSent
-                                        ? COLORS.primary
-                                        : COLORS.onPrimary
-                                }
-                            />
-
-                            <Text
-                                style={[
-                                    styles.reminderButtonText,
-                                    reminderSent && styles.reminderSentText,
-                                ]}
-                            >
-                                {reminderSent
-                                    ? 'Notification Sent'
-                                    : 'Remind Ramani'}
-                            </Text>
-                        </Pressable>
-
-                        <Pressable
-                            onPress={handleCallCompanion}
-                            style={({ pressed }) => [
-                                styles.callButton,
-                                pressed && styles.pressed,
-                            ]}
-                        >
-                            <MaterialIcons
-                                name="phone"
-                                size={21}
-                                color={COLORS.onSurface}
-                            />
-
-                            <Text style={styles.callButtonText}>
-                                Call Companion
-                            </Text>
-                        </Pressable>
-                    </View>
-                </View>
-
-                {/* Today's Overview */}
-                <View style={styles.section}>
-                    <View style={styles.sectionHeadingRow}>
-                        <View>
-                            <Text style={styles.sectionTitle}>
-                                Today&apos;s Overview
-                            </Text>
-
-                            <Text style={styles.dateText}>
-                                Wednesday, 24 Oct
-                            </Text>
-                        </View>
-                    </View>
-
-                    <View style={styles.overviewGrid}>
-                        <OverviewCard
-                            icon="psychology"
-                            title="Cognitive Activity"
-                            value="4/5"
-                            subtitle="80%"
-                            progress={80}
-                        />
-
-                        <OverviewCard
-                            icon="checklist"
-                            title="Daily Care"
-                            value="6/7"
-                            subtitle="Routine 85%"
-                            progress={85}
-                        />
-
-                        <OverviewCard
-                            icon="medication"
-                            title="Medications"
-                            value="2/3"
-                            subtitle="1 Pending"
-                            progress={67}
-                            warning
-                        />
-
-                        <OverviewCard
-                            icon="mood"
-                            title="Engagement"
-                            value="High"
-                            subtitle="Calm & Vocal"
-                            progress={90}
-                        />
-                    </View>
-
-                    <View style={styles.positiveVibe}>
-                        <MaterialIcons
-                            name="favorite"
-                            size={20}
-                            color={COLORS.primary}
-                        />
-
-                        <View style={styles.positiveVibeContent}>
-                            <Text style={styles.positiveVibeTitle}>
-                                Positive Vibe
-                            </Text>
-
-                            <Text style={styles.positiveVibeText}>
-                                Patient is showing positive engagement today.
-                            </Text>
-                        </View>
-                    </View>
-                </View>
-
-                {/* Health & Cognitive Reports */}
-                <View style={styles.section}>
-                    <View style={styles.sectionHeadingRow}>
-                        <Text style={styles.sectionTitle}>
-                            Health &amp; Cognitive Reports
-                        </Text>
-                    </View>
-
-                    {/* Cognitive Progress */}
-                    <ReportCard
-                        icon="psychology"
-                        title="Cognitive Progress"
-                        subtitle="Memory 82% • Attention 76%"
-                        detail="Stable"
-                        onPress={handleCognitiveProgress}
-                    />
-
-                    {/* AI Adaptation */}
-                    <ReportCard
-                        icon="smart-toy"
-                        title="AI Adaptation"
-                        subtitle="ADAPT-v2"
-                        detail="Level 3 Assamese Lore Quiz Suggested"
-                        onPress={handleAIAdaptation}
-                    />
-
-                    {/* Routine */}
-                    <ReportCard
-                        icon="water-drop"
-                        title="Daily Routine & Hydration"
-                        subtitle="Hydration 5/8 glasses"
-                        detail="Routine on track"
-                        onPress={handleRoutine}
-                    />
-
-                    {/* Device */}
-                    <View style={styles.deviceCard}>
-                        <View style={styles.reportIcon}>
-                            <MaterialIcons
-                                name="tablet-android"
-                                size={24}
-                                color={COLORS.onSecondaryFixed}
-                            />
-                        </View>
-
-                        <View style={styles.deviceContent}>
-                            <Text style={styles.reportTitle}>
-                                Patient Device Status
-                            </Text>
-
-                            <View style={styles.deviceStats}>
-                                <DeviceStat
-                                    icon="wifi"
-                                    label="Online"
-                                    value="4G Strong"
-                                />
-
-                                <DeviceStat
-                                    icon="battery-5-bar"
-                                    label="Battery"
-                                    value="68%"
-                                />
-
-                                <DeviceStat
-                                    icon="pending-actions"
-                                    label="Queue"
-                                    value="0 Pending"
-                                />
-                            </View>
-                        </View>
-                    </View>
-                </View>
-
-                {/* Assam Heritage Care Note */}
-                <View style={styles.heritageCard}>
-                    <View style={styles.heritageIcon}>
-                        <MaterialIcons
-                            name="music-note"
-                            size={25}
-                            color={COLORS.primary}
-                        />
-                    </View>
-
-                    <View style={styles.heritageContent}>
-                        <Text style={styles.heritageTitle}>
-                            Assam Heritage Care Note
-                        </Text>
-
-                        <Text style={styles.heritageText}>
-                            Dopamine stimulus: Ramani enjoyed listening to Borgeet
-                            melodies at 9:15 AM today.
-                        </Text>
-                    </View>
-                </View>
-            </ScrollView>
-
-            {/* Bottom Navigation */}
-            <View
-                style={[
-                    styles.bottomNav,
-                    {
-                        paddingBottom: Math.max(insets.bottom, 8),
-                    },
-                ]}
-            >
-                <BottomNavItem
-                    icon="home"
-                    label="Home"
-                    active
-                    onPress={onHome}
-                />
-
-                <BottomNavItem
-                    icon="sports-esports"
-                    label="Games"
-                    onPress={onGames}
-                />
-
-                <BottomNavItem
-                    icon="notifications-active"
-                    label="Remind"
-                    onPress={onSchedule}
-                />
-
-                <BottomNavItem
-                    icon="psychology"
-                    label="Memory"
-                    onPress={onMemory}
-                />
-
-                <BottomNavItem
-                    icon="person"
-                    label="Profile"
-                    onPress={onProfile}
-                />
-            </View>
-        </View>
-    );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Overview Card                                                              */
-/* -------------------------------------------------------------------------- */
-
-type OverviewCardProps = {
-    icon: MaterialIconName;
-    title: string;
-    value: string;
-    subtitle: string;
-    progress: number;
-    warning?: boolean;
-};
-
-function OverviewCard({
-    icon,
-    title,
-    value,
-    subtitle,
-    progress,
-    warning = false,
-}: OverviewCardProps) {
-    return (
-        <View style={styles.overviewCard}>
-            <View style={styles.overviewIcon}>
-                <MaterialIcons
-                    name={icon}
-                    size={23}
-                    color={warning ? COLORS.error : COLORS.primary}
-                />
-            </View>
-
-            <Text style={styles.overviewTitle}>
-                {title}
-            </Text>
-
-            <Text style={styles.overviewValue}>
-                {value}
-            </Text>
-
-            <Text
-                style={[
-                    styles.overviewSubtitle,
-                    warning && styles.warningText,
-                ]}
-            >
-                {subtitle}
-            </Text>
-
-            <View style={styles.overviewProgressTrack}>
-                <View
-                    style={[
-                        styles.overviewProgressFill,
-                        {
-                            width: `${progress}%`,
-                            backgroundColor: warning
-                                ? COLORS.error
-                                : COLORS.primary,
-                        },
-                    ]}
-                />
-            </View>
-        </View>
-    );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Report Card                                                                */
-/* -------------------------------------------------------------------------- */
-
-type ReportCardProps = {
-    icon: MaterialIconName;
-    title: string;
-    subtitle: string;
-    detail: string;
-    onPress?: () => void;
-};
-
-function ReportCard({
-    icon,
-    title,
-    subtitle,
-    detail,
-    onPress,
-}: ReportCardProps) {
-    return (
-        <Pressable
-            onPress={onPress}
+        setPatients((current) =>
+          current.filter(
+            (item) =>
+              item.connectionId !==
+              patient.connectionId
+          )
+        );
+
+        showMessage(
+          "Patient Removed",
+          `${patient.name} has been removed from your connected patients.`
+        );
+      } catch (error) {
+        showMessage(
+          "Unable to Disconnect",
+          error instanceof Error
+            ? error.message
+            : "Something went wrong."
+        );
+      } finally {
+        setDisconnectingId(null);
+      }
+    });
+  };
+
+  const patientCountText = useMemo(() => {
+    if (patients.length === 1) {
+      return "1 connected patient";
+    }
+
+    return `${patients.length} connected patients`;
+  }, [patients.length]);
+
+  return (
+    <View style={styles.screen}>
+      {/* Header */}
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: insets.top,
+          },
+        ]}
+      >
+        <View style={styles.headerInner}>
+          <Pressable
+            onPress={onBack}
             style={({ pressed }) => [
-                styles.reportCard,
-                pressed && styles.reportPressed,
+              styles.headerButton,
+              pressed && styles.pressed,
             ]}
-        >
-            <View style={styles.reportIcon}>
-                <MaterialIcons
-                    name={icon}
-                    size={24}
-                    color={COLORS.onSecondaryFixed}
-                />
-            </View>
-
-            <View style={styles.reportContent}>
-                <Text style={styles.reportTitle}>
-                    {title}
-                </Text>
-
-                <Text style={styles.reportSubtitle}>
-                    {subtitle}
-                </Text>
-
-                <Text style={styles.reportDetail}>
-                    {detail}
-                </Text>
-            </View>
-
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
             <MaterialIcons
-                name="chevron-right"
-                size={25}
-                color={COLORS.secondary}
+              name="arrow-back"
+              size={25}
+              color={COLORS.onSurface}
             />
-        </Pressable>
-    );
+          </Pressable>
+
+          <View style={styles.headerBrand}>
+            <Text style={styles.headerTitle}>
+              SmritiCare
+            </Text>
+
+            <Text style={styles.headerSubtitle}>
+              Caregiver
+            </Text>
+          </View>
+
+          <Pressable
+            onPress={onProfile}
+            style={({ pressed }) => [
+              styles.profileCircle,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Open caregiver profile"
+          >
+            <MaterialIcons
+              name="person"
+              size={19}
+              color={COLORS.onPrimary}
+            />
+          </Pressable>
+        </View>
+      </View>
+
+      {/* Main */}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: insets.top + 82,
+            paddingBottom: insets.bottom + 115,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Heading */}
+        <View style={styles.headingSection}>
+          <View style={styles.headingLabelRow}>
+            <View style={styles.statusDot} />
+
+            <Text style={styles.headingLabel}>
+              CAREGIVER DASHBOARD
+            </Text>
+          </View>
+
+          <Text style={styles.portalTitle}>
+            Caregiver Portal
+          </Text>
+
+          <Text style={styles.headingDescription}>
+            Manage the people connected to your care.
+          </Text>
+        </View>
+
+        {/* Patients Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeadingRow}>
+            <View style={styles.sectionHeadingText}>
+              <Text style={styles.sectionLabel}>
+                YOUR CARE LIST
+              </Text>
+
+              <Text style={styles.sectionTitle}>
+                Connected Patients
+              </Text>
+
+              <Text style={styles.sectionSubtitle}>
+                {patientCountText}
+              </Text>
+            </View>
+
+            <Pressable
+              onPress={openAddPatient}
+              style={({ pressed }) => [
+                styles.addPatientButton,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Add patient"
+            >
+              <MaterialIcons
+                name="person-add"
+                size={20}
+                color={COLORS.onPrimary}
+              />
+
+              <Text
+                style={styles.addPatientButtonText}
+              >
+                Add Patient
+              </Text>
+            </Pressable>
+          </View>
+
+          {loadingPatients ? (
+            <View style={styles.loadingCard}>
+              <ActivityIndicator
+                size="large"
+                color={COLORS.primary}
+              />
+
+              <Text style={styles.loadingTitle}>
+                Loading patients...
+              </Text>
+
+              <Text style={styles.loadingText}>
+                Getting your connected patients.
+              </Text>
+            </View>
+          ) : patients.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <View style={styles.emptyIcon}>
+                <MaterialIcons
+                  name="people-outline"
+                  size={38}
+                  color={COLORS.primary}
+                />
+              </View>
+
+              <Text style={styles.emptyTitle}>
+                No patients connected yet
+              </Text>
+
+              <Text style={styles.emptyText}>
+                Ask a patient for the permanent Patient
+                Code shown in their SmritiCare Profile.
+              </Text>
+
+              <Pressable
+                onPress={openAddPatient}
+                style={({ pressed }) => [
+                  styles.emptyButton,
+                  pressed && styles.pressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Add your first patient"
+              >
+                <MaterialIcons
+                  name="person-add"
+                  size={21}
+                  color={COLORS.onPrimary}
+                />
+
+                <Text style={styles.emptyButtonText}>
+                  Add Your First Patient
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.patientList}>
+              {patients.map((patient) => (
+                <PatientCard
+                  key={patient.connectionId}
+                  patient={patient}
+                  disconnecting={
+                    disconnectingId ===
+                    patient.connectionId
+                  }
+                  onDisconnect={() =>
+                    disconnectPatient(patient)
+                  }
+                  onCognitiveProgress={
+                    onCognitiveProgress
+                  }
+                />
+              ))}
+            </View>
+          )}
+
+          {!loadingPatients &&
+          patients.length > 0 ? (
+            <Pressable
+              onPress={() => loadPatients(true)}
+              disabled={refreshing}
+              style={({ pressed }) => [
+                styles.refreshButton,
+                refreshing &&
+                  styles.disabledButton,
+                pressed &&
+                  !refreshing &&
+                  styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Refresh patient list"
+            >
+              {refreshing ? (
+                <ActivityIndicator
+                  size="small"
+                  color={COLORS.primary}
+                />
+              ) : (
+                <MaterialIcons
+                  name="refresh"
+                  size={20}
+                  color={COLORS.primary}
+                />
+              )}
+
+              <Text style={styles.refreshButtonText}>
+                {refreshing
+                  ? "Refreshing..."
+                  : "Refresh Patient List"}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        {/* Care Tools */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>
+            CARE TOOLS
+          </Text>
+
+          <Text style={styles.sectionTitle}>
+            Patient Insights
+          </Text>
+
+          <Text style={styles.sectionSubtitle}>
+            Open the available care tools for your
+            connected patients.
+          </Text>
+
+          <CareToolCard
+            icon="psychology"
+            title="Cognitive Progress"
+            description="Review cognitive activity and progress."
+            onPress={onCognitiveProgress}
+          />
+
+          <CareToolCard
+            icon="smart-toy"
+            title="AI Adaptation"
+            description="Review adaptive cognitive recommendations."
+            onPress={onAIAdaptation}
+          />
+
+          <CareToolCard
+            icon="water-drop"
+            title="Daily Routine & Hydration"
+            description="Review routine and hydration information."
+            onPress={onRoutine}
+          />
+        </View>
+
+        {/* Account / Navigation Info */}
+        <View style={styles.infoCard}>
+          <View style={styles.infoIcon}>
+            <MaterialIcons
+              name="verified-user"
+              size={23}
+              color={COLORS.primary}
+            />
+          </View>
+
+          <View style={styles.infoContent}>
+            <Text style={styles.infoTitle}>
+              Connected care
+            </Text>
+
+            <Text style={styles.infoText}>
+              Only patients connected through the
+              caregiver connection system appear in your
+              care list.
+            </Text>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Bottom Navigation */}
+      <View
+        style={[
+          styles.bottomNav,
+          {
+            paddingBottom: Math.max(
+              insets.bottom,
+              8
+            ),
+          },
+        ]}
+      >
+        <BottomNavItem
+          icon="home"
+          label="Home"
+          active
+          onPress={onHome}
+        />
+
+        <BottomNavItem
+          icon="sports-esports"
+          label="Games"
+          onPress={onGames}
+        />
+
+        <BottomNavItem
+          icon="notifications-active"
+          label="Remind"
+          onPress={onSchedule}
+        />
+
+        <BottomNavItem
+          icon="psychology"
+          label="Memory"
+          onPress={onMemory}
+        />
+
+        <BottomNavItem
+          icon="person"
+          label="Profile"
+          onPress={onProfile}
+        />
+      </View>
+
+      {/* Add Patient Modal */}
+      <Modal
+        visible={addPatientVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={closeAddPatient}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <View
+                style={styles.modalTitleContainer}
+              >
+                <View style={styles.modalIcon}>
+                  <MaterialIcons
+                    name="person-add"
+                    size={24}
+                    color={COLORS.primary}
+                  />
+                </View>
+
+                <View style={styles.modalTitleText}>
+                  <Text style={styles.modalTitle}>
+                    Add Patient
+                  </Text>
+
+                  <Text
+                    style={styles.modalSubtitle}
+                  >
+                    Enter the Patient Code from their Profile
+                  </Text>
+                </View>
+              </View>
+
+              <Pressable
+                onPress={closeAddPatient}
+                style={styles.closeButton}
+                disabled={connecting}
+                accessibilityRole="button"
+                accessibilityLabel="Close add patient"
+              >
+                <MaterialIcons
+                  name="close"
+                  size={24}
+                  color={COLORS.onSurface}
+                />
+              </Pressable>
+            </View>
+
+            <View style={styles.modalBody}>
+              <View style={styles.instructionCard}>
+                <MaterialIcons
+                  name="info-outline"
+                  size={22}
+                  color={COLORS.secondary}
+                />
+
+                <Text
+                  style={styles.instructionText}
+                >
+                  Ask the patient to open their SmritiCare
+                  Profile. Their permanent Patient Code is
+                  displayed there.
+                </Text>
+              </View>
+
+              <Text style={styles.inputLabel}>
+                Patient Code
+              </Text>
+
+              <TextInput
+                value={patientCode}
+                onChangeText={(value) =>
+                  setPatientCode(
+                    value.toUpperCase()
+                  )
+                }
+                placeholder="SC-PAT-ABC123"
+                placeholderTextColor={
+                  COLORS.outline
+                }
+                autoCapitalize="characters"
+                autoCorrect={false}
+                editable={!connecting}
+                maxLength={20}
+                style={[
+                  styles.patientCodeInput,
+                  connecting &&
+                    styles.disabledInput,
+                ]}
+              />
+
+              <Text style={styles.inputHint}>
+                Enter the complete code exactly as shown
+                in the patient's Profile.
+              </Text>
+
+              <View style={styles.exampleCard}>
+                <MaterialIcons
+                  name="verified-user"
+                  size={19}
+                  color={COLORS.primary}
+                />
+
+                <View style={styles.exampleContent}>
+                  <Text
+                    style={styles.exampleLabel}
+                  >
+                    Example
+                  </Text>
+
+                  <Text
+                    style={styles.exampleCode}
+                  >
+                    SC-PAT-ABC123
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.modalButtons}>
+                <Pressable
+                  onPress={closeAddPatient}
+                  disabled={connecting}
+                  style={[
+                    styles.cancelButton,
+                    connecting &&
+                      styles.disabledButton,
+                  ]}
+                >
+                  <Text
+                    style={styles.cancelButtonText}
+                  >
+                    Cancel
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={connectPatient}
+                  disabled={connecting}
+                  style={[
+                    styles.connectButton,
+                    connecting &&
+                      styles.disabledButton,
+                  ]}
+                >
+                  {connecting ? (
+                    <ActivityIndicator
+                      size="small"
+                      color={COLORS.onPrimary}
+                    />
+                  ) : (
+                    <MaterialIcons
+                      name="link"
+                      size={21}
+                      color={COLORS.onPrimary}
+                    />
+                  )}
+
+                  <Text
+                    style={styles.connectButtonText}
+                  >
+                    {connecting
+                      ? "Connecting..."
+                      : "Connect Patient"}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Device Stat                                                                */
-/* -------------------------------------------------------------------------- */
+/* ========================================================================== */
+/* Patient Card                                                               */
+/* ========================================================================== */
 
-type DeviceStatProps = {
-    icon: MaterialIconName;
-    label: string;
-    value: string;
+type PatientCardProps = {
+  patient: ConnectedPatient;
+  disconnecting: boolean;
+  onDisconnect: () => void;
+  onCognitiveProgress?: () => void;
 };
 
-function DeviceStat({
-    icon,
-    label,
-    value,
-}: DeviceStatProps) {
-    return (
-        <View style={styles.deviceStat}>
-            <MaterialIcons
-                name={icon}
-                size={17}
-                color={COLORS.primary}
-            />
+function PatientCard({
+  patient,
+  disconnecting,
+  onDisconnect,
+  onCognitiveProgress,
+}: PatientCardProps) {
+  const initials = useMemo(
+    () => getInitials(patient.name),
+    [patient.name]
+  );
 
-            <View>
-                <Text style={styles.deviceStatLabel}>
-                    {label}
-                </Text>
+  return (
+    <View style={styles.patientCard}>
+      <View style={styles.patientHeader}>
+        {patient.profileImageUrl ? (
+          <Image
+            source={{
+              uri: patient.profileImageUrl,
+            }}
+            style={styles.patientAvatarImage}
+          />
+        ) : (
+          <View style={styles.patientAvatar}>
+            <Text style={styles.patientInitials}>
+              {initials}
+            </Text>
+          </View>
+        )}
 
-                <Text style={styles.deviceStatValue}>
-                    {value}
+        <View style={styles.patientDetails}>
+          <Text style={styles.patientName}>
+            {patient.name}
+          </Text>
+
+          {patient.email ? (
+            <Text
+              style={styles.patientEmail}
+              numberOfLines={1}
+            >
+              {patient.email}
+            </Text>
+          ) : null}
+
+          <View style={styles.patientMetaRow}>
+            {patient.age ? (
+              <View style={styles.metaItem}>
+                <MaterialIcons
+                  name="cake"
+                  size={15}
+                  color={COLORS.secondary}
+                />
+
+                <Text style={styles.metaText}>
+                  {patient.age} years
                 </Text>
-            </View>
+              </View>
+            ) : null}
+
+            {patient.city ? (
+              <View style={styles.metaItem}>
+                <MaterialIcons
+                  name="location-city"
+                  size={15}
+                  color={COLORS.secondary}
+                />
+
+                <Text style={styles.metaText}>
+                  {patient.city}
+                </Text>
+              </View>
+            ) : null}
+          </View>
         </View>
-    );
+
+        <View style={styles.connectedBadge}>
+          <View style={styles.connectedDot} />
+
+          <Text
+            style={styles.connectedBadgeText}
+          >
+            Connected
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.patientDivider} />
+
+      <View style={styles.patientConnectionInfo}>
+        <MaterialIcons
+          name="verified-user"
+          size={17}
+          color={COLORS.primary}
+        />
+
+        <Text
+          style={styles.patientConnectionInfoText}
+        >
+          Connected to your caregiver account
+        </Text>
+      </View>
+
+      <View style={styles.patientActions}>
+        <Pressable
+          onPress={onCognitiveProgress}
+          style={({ pressed }) => [
+            styles.patientActionButton,
+            pressed && styles.pressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={`View progress for ${patient.name}`}
+        >
+          <MaterialIcons
+            name="psychology"
+            size={19}
+            color={COLORS.primary}
+          />
+
+          <Text
+            style={styles.patientActionText}
+          >
+            Progress
+          </Text>
+        </Pressable>
+
+        <Pressable
+          onPress={onDisconnect}
+          disabled={disconnecting}
+          style={({ pressed }) => [
+            styles.disconnectButton,
+            disconnecting &&
+              styles.disabledButton,
+            pressed &&
+              !disconnecting &&
+              styles.pressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={`Disconnect ${patient.name}`}
+        >
+          {disconnecting ? (
+            <ActivityIndicator
+              size="small"
+              color={COLORS.error}
+            />
+          ) : (
+            <MaterialIcons
+              name="person-remove"
+              size={19}
+              color={COLORS.error}
+            />
+          )}
+
+          <Text style={styles.disconnectText}>
+            {disconnecting
+              ? "Removing..."
+              : "Disconnect"}
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  );
 }
 
-/* -------------------------------------------------------------------------- */
+/* ========================================================================== */
+/* Care Tool Card                                                             */
+/* ========================================================================== */
+
+type CareToolCardProps = {
+  icon: MaterialIconName;
+  title: string;
+  description: string;
+  onPress?: () => void;
+};
+
+function CareToolCard({
+  icon,
+  title,
+  description,
+  onPress,
+}: CareToolCardProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.careToolCard,
+        pressed && styles.reportPressed,
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+    >
+      <View style={styles.careToolIcon}>
+        <MaterialIcons
+          name={icon}
+          size={24}
+          color={COLORS.secondary}
+        />
+      </View>
+
+      <View style={styles.careToolContent}>
+        <Text style={styles.careToolTitle}>
+          {title}
+        </Text>
+
+        <Text
+          style={styles.careToolDescription}
+        >
+          {description}
+        </Text>
+      </View>
+
+      <MaterialIcons
+        name="chevron-right"
+        size={25}
+        color={COLORS.secondary}
+      />
+    </Pressable>
+  );
+}
+
+/* ========================================================================== */
 /* Bottom Navigation                                                          */
-/* -------------------------------------------------------------------------- */
+/* ========================================================================== */
 
 type BottomNavItemProps = {
-    icon: MaterialIconName;
-    label: string;
-    active?: boolean;
-    onPress?: () => void;
+  icon: MaterialIconName;
+  label: string;
+  active?: boolean;
+  onPress?: () => void;
 };
 
 function BottomNavItem({
-    icon,
-    label,
-    active = false,
-    onPress,
+  icon,
+  label,
+  active = false,
+  onPress,
 }: BottomNavItemProps) {
-    return (
-        <Pressable
-            onPress={onPress}
-            style={({ pressed }) => [
-                styles.navItem,
-                pressed && styles.pressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={label}
-        >
-            <MaterialIcons
-                name={icon}
-                size={28}
-                color={
-                    active
-                        ? COLORS.primary
-                        : COLORS.onSurfaceVariant
-                }
-            />
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.navItem,
+        pressed && styles.pressed,
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <View
+        style={[
+          styles.navIconContainer,
+          active &&
+            styles.navIconContainerActive,
+        ]}
+      >
+        <MaterialIcons
+          name={icon}
+          size={23}
+          color={
+            active
+              ? COLORS.primary
+              : COLORS.onSurfaceVariant
+          }
+        />
+      </View>
 
-            <Text
-                style={[
-                    styles.navLabel,
-                    active
-                        ? styles.navLabelActive
-                        : styles.navLabelInactive,
-                ]}
-            >
-                {label}
-            </Text>
+      <Text
+        style={[
+          styles.navLabel,
+          active
+            ? styles.navLabelActive
+            : styles.navLabelInactive,
+        ]}
+      >
+        {label}
+      </Text>
 
-            {active && <View style={styles.navIndicator} />}
-        </Pressable>
-    );
+      {active ? (
+        <View style={styles.navIndicator} />
+      ) : null}
+    </Pressable>
+  );
 }
 
-/* -------------------------------------------------------------------------- */
+/* ========================================================================== */
 /* Styles                                                                     */
-/* -------------------------------------------------------------------------- */
+/* ========================================================================== */
 
 const styles = StyleSheet.create({
-    screen: {
-        flex: 1,
-        backgroundColor: COLORS.background,
-    },
-
-    /* Header */
-
-    header: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 50,
-        backgroundColor: COLORS.background,
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 1,
-        },
-        shadowOpacity: 0.04,
-        shadowRadius: 8,
-        elevation: 3,
-    },
-
-    headerInner: {
-        height: 64,
-        width: '100%',
-        maxWidth: 560,
-        alignSelf: 'center',
-        paddingHorizontal: 16,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-
-    headerButton: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-
-    headerTitle: {
-        flex: 1,
-        textAlign: 'center',
-        paddingHorizontal: 8,
-        color: COLORS.primary,
-        fontSize: 28,
-        lineHeight: 34,
-        fontWeight: '700',
-    },
-
-    profileCircle: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: COLORS.primary,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginHorizontal: 8,
-    },
-
-    /* Main */
-
-    scrollView: {
-        flex: 1,
-    },
-
-    content: {
-        width: '100%',
-        maxWidth: 560,
-        alignSelf: 'center',
-        paddingHorizontal: 20,
-        gap: 24,
-    },
-
-    headingSection: {
-        gap: 5,
-    },
-
-    portalTitle: {
-        color: COLORS.onSurface,
-        fontSize: 32,
-        lineHeight: 40,
-        fontWeight: '700',
-    },
-
-    locationRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-    },
-
-    locationText: {
-        color: COLORS.onSurfaceVariant,
-        fontSize: 16,
-        lineHeight: 22,
-    },
-
-    /* Patient Card */
-
-    patientCard: {
-        backgroundColor: COLORS.surfaceLowest,
-        borderRadius: 16,
-        padding: 18,
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.05,
-        shadowRadius: 7,
-        elevation: 2,
-    },
-
-    patientHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-
-    patientAvatar: {
-        width: 68,
-        height: 68,
-        borderRadius: 34,
-        backgroundColor: COLORS.secondaryFixed,
-        alignItems: 'center',
-        justifyContent: 'center',
-        position: 'relative',
-        marginRight: 14,
-    },
-
-    onlineDot: {
-        position: 'absolute',
-        width: 15,
-        height: 15,
-        borderRadius: 8,
-        backgroundColor: COLORS.primary,
-        borderWidth: 3,
-        borderColor: COLORS.surfaceLowest,
-        right: 1,
-        bottom: 1,
-    },
-
-    patientDetails: {
-        flex: 1,
-        minWidth: 0,
-    },
-
-    nameRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        flexWrap: 'wrap',
-    },
-
-    patientName: {
-        color: COLORS.onSurface,
-        fontSize: 21,
-        lineHeight: 28,
-        fontWeight: '700',
-    },
-
-    primaryBadge: {
-        backgroundColor: COLORS.secondaryFixed,
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderRadius: 10,
-    },
-
-    primaryBadgeText: {
-        color: COLORS.onSecondaryFixed,
-        fontSize: 11,
-        lineHeight: 15,
-        fontWeight: '700',
-    },
-
-    patientAge: {
-        color: COLORS.onSurfaceVariant,
-        fontSize: 15,
-        lineHeight: 21,
-        marginTop: 2,
-    },
-
-    activeRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 6,
-        gap: 5,
-        flexWrap: 'wrap',
-    },
-
-    activeDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: COLORS.primary,
-    },
-
-    activeText: {
-        color: COLORS.primary,
-        fontSize: 14,
-        fontWeight: '700',
-    },
-
-    lastActive: {
-        color: COLORS.onSurfaceVariant,
-        fontSize: 13,
-    },
-
-    divider: {
-        height: 1,
-        backgroundColor: COLORS.surfaceContainer,
-        marginVertical: 16,
-    },
-
-    syncInfoRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 10,
-    },
-
-    syncInfo: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 9,
-    },
-
-    syncLabel: {
-        color: COLORS.onSurfaceVariant,
-        fontSize: 12,
-        lineHeight: 16,
-        fontWeight: '600',
-    },
-
-    syncValue: {
-        color: COLORS.onSurface,
-        fontSize: 14,
-        lineHeight: 19,
-        fontWeight: '600',
-        marginTop: 1,
-    },
-
-    syncButton: {
-        minHeight: 44,
-        paddingHorizontal: 13,
-        borderRadius: 22,
-        backgroundColor: COLORS.secondaryFixed,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 5,
-    },
-
-    syncButtonText: {
-        color: COLORS.primary,
-        fontSize: 14,
-        fontWeight: '700',
-    },
-
-    disabledButton: {
-        opacity: 0.6,
-    },
-
-    statusBanner: {
-        marginTop: 14,
-        minHeight: 42,
-        borderRadius: 9,
-        backgroundColor: '#EAF5E9',
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 12,
-        gap: 8,
-    },
-
-    statusBannerText: {
-        color: COLORS.primary,
-        fontSize: 14,
-        fontWeight: '600',
-    },
-
-    /* Sections */
-
-    section: {
-        gap: 12,
-    },
-
-    sectionHeadingRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-
-    sectionTitle: {
-        color: COLORS.onSurface,
-        fontSize: 23,
-        lineHeight: 30,
-        fontWeight: '700',
-    },
-
-    dateText: {
-        color: COLORS.onSurfaceVariant,
-        fontSize: 14,
-        lineHeight: 20,
-        marginTop: 2,
-    },
-
-    actionCountBadge: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        backgroundColor: COLORS.errorContainer,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-
-    actionCountText: {
-        color: COLORS.onErrorContainer,
-        fontSize: 13,
-        fontWeight: '700',
-    },
-
-    /* Action */
-
-    actionCard: {
-        backgroundColor: COLORS.errorContainer,
-        borderRadius: 12,
-        padding: 16,
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: 12,
-    },
-
-    actionIconCircle: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: COLORS.surfaceLowest,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-
-    actionContent: {
-        flex: 1,
-    },
-
-    actionTitle: {
-        color: COLORS.onSurface,
-        fontSize: 18,
-        lineHeight: 24,
-        fontWeight: '700',
-    },
-
-    actionDose: {
-        color: COLORS.onErrorContainer,
-        fontSize: 15,
-        lineHeight: 20,
-        fontWeight: '600',
-        marginTop: 1,
-    },
-
-    actionTimeRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        marginTop: 8,
-    },
-
-    actionTime: {
-        color: COLORS.onSurfaceVariant,
-        fontSize: 14,
-        fontWeight: '600',
-    },
-
-    actionDescription: {
-        color: COLORS.onSurfaceVariant,
-        fontSize: 13,
-        lineHeight: 18,
-        marginTop: 5,
-    },
-
-    actionButtons: {
-        flexDirection: 'row',
-        gap: 10,
-    },
-
-    reminderButton: {
-        flex: 1,
-        minHeight: 52,
-        borderRadius: 11,
-        backgroundColor: COLORS.primary,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-    },
-
-    reminderButtonText: {
-        color: COLORS.onPrimary,
-        fontSize: 15,
-        fontWeight: '700',
-    },
-
-    reminderSentButton: {
-        backgroundColor: COLORS.secondaryFixed,
-    },
-
-    reminderSentText: {
-        color: COLORS.primary,
-    },
-
-    callButton: {
-        flex: 1,
-        minHeight: 52,
-        borderRadius: 11,
-        backgroundColor: COLORS.surfaceContainerHigh,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-    },
-
-    callButtonText: {
-        color: COLORS.onSurface,
-        fontSize: 15,
-        fontWeight: '700',
-    },
-
-    /* Overview */
-
-    overviewGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 10,
-    },
-
-    overviewCard: {
-        width: '48%',
-        flexGrow: 1,
-        minWidth: 145,
-        backgroundColor: COLORS.surfaceLowest,
-        borderRadius: 12,
-        padding: 14,
-        gap: 4,
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 1,
-        },
-        shadowOpacity: 0.035,
-        shadowRadius: 4,
-        elevation: 1,
-    },
-
-    overviewIcon: {
-        width: 38,
-        height: 38,
-        borderRadius: 19,
-        backgroundColor: COLORS.secondaryFixed,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 3,
-    },
-
-    overviewTitle: {
-        color: COLORS.onSurfaceVariant,
-        fontSize: 13,
-        lineHeight: 18,
-        fontWeight: '600',
-    },
-
-    overviewValue: {
-        color: COLORS.onSurface,
-        fontSize: 22,
-        lineHeight: 28,
-        fontWeight: '700',
-    },
-
-    overviewSubtitle: {
-        color: COLORS.primary,
-        fontSize: 13,
-        lineHeight: 18,
-        fontWeight: '600',
-    },
-
-    warningText: {
-        color: COLORS.error,
-    },
-
-    overviewProgressTrack: {
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: COLORS.surfaceContainer,
-        overflow: 'hidden',
-        marginTop: 5,
-    },
-
-    overviewProgressFill: {
-        height: '100%',
-        borderRadius: 3,
-    },
-
-    positiveVibe: {
-        backgroundColor: COLORS.secondaryFixed,
-        borderRadius: 11,
-        minHeight: 58,
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-    },
-
-    positiveVibeContent: {
-        flex: 1,
-    },
-
-    positiveVibeTitle: {
-        color: COLORS.primary,
-        fontSize: 15,
-        lineHeight: 20,
-        fontWeight: '700',
-    },
-
-    positiveVibeText: {
-        color: COLORS.onSurfaceVariant,
-        fontSize: 13,
-        lineHeight: 18,
-        marginTop: 1,
-    },
-
-    /* Reports */
-
-    reportCard: {
-        backgroundColor: COLORS.surfaceLowest,
-        borderRadius: 12,
-        padding: 15,
-        minHeight: 86,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 1,
-        },
-        shadowOpacity: 0.035,
-        shadowRadius: 4,
-        elevation: 1,
-    },
-
-    reportPressed: {
-        opacity: 0.7,
-        transform: [{ scale: 0.99 }],
-    },
-
-    reportIcon: {
-        width: 46,
-        height: 46,
-        borderRadius: 23,
-        backgroundColor: COLORS.secondaryFixed,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-
-    reportContent: {
-        flex: 1,
-        minWidth: 0,
-    },
-
-    reportTitle: {
-        color: COLORS.onSurface,
-        fontSize: 17,
-        lineHeight: 22,
-        fontWeight: '700',
-    },
-
-    reportSubtitle: {
-        color: COLORS.onSurfaceVariant,
-        fontSize: 13,
-        lineHeight: 18,
-        marginTop: 2,
-    },
-
-    reportDetail: {
-        color: COLORS.primary,
-        fontSize: 13,
-        lineHeight: 18,
-        fontWeight: '600',
-        marginTop: 2,
-    },
-
-    /* Device */
-
-    deviceCard: {
-        backgroundColor: COLORS.surfaceLowest,
-        borderRadius: 12,
-        padding: 15,
-        minHeight: 100,
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: 12,
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 1,
-        },
-        shadowOpacity: 0.035,
-        shadowRadius: 4,
-        elevation: 1,
-    },
-
-    deviceContent: {
-        flex: 1,
-    },
-
-    deviceStats: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 12,
-        marginTop: 8,
-    },
-
-    deviceStat: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 5,
-    },
-
-    deviceStatLabel: {
-        color: COLORS.onSurfaceVariant,
-        fontSize: 10,
-        lineHeight: 13,
-    },
-
-    deviceStatValue: {
-        color: COLORS.onSurface,
-        fontSize: 12,
-        lineHeight: 16,
-        fontWeight: '700',
-    },
-
-    /* Heritage */
-
-    heritageCard: {
-        backgroundColor: COLORS.secondaryFixed,
-        borderRadius: 14,
-        padding: 16,
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: 12,
-    },
-
-    heritageIcon: {
-        width: 46,
-        height: 46,
-        borderRadius: 23,
-        backgroundColor: COLORS.surfaceLowest,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-
-    heritageContent: {
-        flex: 1,
-    },
-
-    heritageTitle: {
-        color: COLORS.primary,
-        fontSize: 17,
-        lineHeight: 23,
-        fontWeight: '700',
-    },
-
-    heritageText: {
-        color: COLORS.onSurfaceVariant,
-        fontSize: 14,
-        lineHeight: 21,
-        marginTop: 4,
-    },
-
-    /* Bottom Navigation */
-
-    bottomNav: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        minHeight: 80,
-        backgroundColor: COLORS.background,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-around',
-        paddingHorizontal: 4,
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: -4,
-        },
-        shadowOpacity: 0.04,
-        shadowRadius: 16,
-        elevation: 8,
-        zIndex: 50,
-    },
-
-    navItem: {
-        minWidth: 56,
-        minHeight: 56,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: 5,
-    },
-
-    navLabel: {
-        fontSize: 14,
-        lineHeight: 18,
-        marginTop: 2,
-    },
-
-    navLabelActive: {
-        color: COLORS.primary,
-        fontWeight: '700',
-    },
-
-    navLabelInactive: {
-        color: COLORS.onSurfaceVariant,
-        fontWeight: '500',
-    },
-
-    navIndicator: {
-        width: 32,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: COLORS.primary,
-        marginTop: 2,
-    },
-
-    pressed: {
-        opacity: 0.7,
-    },
+  screen: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+
+  header: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 50,
+    backgroundColor: COLORS.background,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+
+  headerInner: {
+    height: 64,
+    width: "100%",
+    maxWidth: 560,
+    alignSelf: "center",
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  headerButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  headerBrand: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  headerTitle: {
+    color: COLORS.primary,
+    fontSize: 23,
+    lineHeight: 29,
+    fontWeight: "700",
+  },
+
+  headerSubtitle: {
+    color: COLORS.onSurfaceVariant,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: "600",
+  },
+
+  profileCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  scrollView: {
+    flex: 1,
+  },
+
+  content: {
+    width: "100%",
+    maxWidth: 560,
+    alignSelf: "center",
+    paddingHorizontal: 20,
+    gap: 24,
+  },
+
+  headingSection: {
+    gap: 5,
+  },
+
+  headingLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    marginBottom: 2,
+  },
+
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.primary,
+  },
+
+  headingLabel: {
+    color: COLORS.primary,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+  },
+
+  portalTitle: {
+    color: COLORS.onSurface,
+    fontSize: 31,
+    lineHeight: 39,
+    fontWeight: "700",
+  },
+
+  headingDescription: {
+    color: COLORS.onSurfaceVariant,
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 1,
+  },
+
+  section: {
+    gap: 12,
+  },
+
+  sectionHeadingRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+
+  sectionHeadingText: {
+    flex: 1,
+  },
+
+  sectionLabel: {
+    color: COLORS.secondary,
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: "800",
+    letterSpacing: 0.9,
+  },
+
+  sectionTitle: {
+    color: COLORS.onSurface,
+    fontSize: 23,
+    lineHeight: 30,
+    fontWeight: "700",
+  },
+
+  sectionSubtitle: {
+    color: COLORS.onSurfaceVariant,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 2,
+  },
+
+  addPatientButton: {
+    minHeight: 46,
+    paddingHorizontal: 13,
+    borderRadius: 14,
+    backgroundColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+
+  addPatientButtonText: {
+    color: COLORS.onPrimary,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+
+  loadingCard: {
+    minHeight: 190,
+    borderRadius: 18,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 25,
+  },
+
+  loadingTitle: {
+    marginTop: 14,
+    color: COLORS.onSurface,
+    fontSize: 17,
+    fontWeight: "700",
+  },
+
+  loadingText: {
+    marginTop: 4,
+    color: COLORS.onSurfaceVariant,
+    fontSize: 13,
+    textAlign: "center",
+  },
+
+  emptyCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    padding: 25,
+    alignItems: "center",
+  },
+
+  emptyIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: COLORS.greenSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  emptyTitle: {
+    marginTop: 15,
+    color: COLORS.onSurface,
+    fontSize: 19,
+    lineHeight: 25,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+
+  emptyText: {
+    marginTop: 7,
+    maxWidth: 410,
+    color: COLORS.onSurfaceVariant,
+    fontSize: 14,
+    lineHeight: 21,
+    textAlign: "center",
+  },
+
+  emptyButton: {
+    minHeight: 52,
+    marginTop: 18,
+    paddingHorizontal: 18,
+    borderRadius: 15,
+    backgroundColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+
+  emptyButtonText: {
+    color: COLORS.onPrimary,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+
+  patientList: {
+    gap: 12,
+  },
+
+  patientCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    padding: 16,
+  },
+
+  patientHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  patientAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: COLORS.greenSoft,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 13,
+  },
+
+  patientAvatarImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    marginRight: 13,
+  },
+
+  patientInitials: {
+    color: COLORS.primary,
+    fontSize: 21,
+    fontWeight: "800",
+  },
+
+  patientDetails: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  patientName: {
+    color: COLORS.onSurface,
+    fontSize: 19,
+    lineHeight: 25,
+    fontWeight: "800",
+  },
+
+  patientEmail: {
+    color: COLORS.onSurfaceVariant,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 2,
+  },
+
+  patientMetaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 6,
+  },
+
+  metaItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+
+  metaText: {
+    color: COLORS.onSurfaceVariant,
+    fontSize: 12,
+  },
+
+  connectedBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 11,
+    backgroundColor: COLORS.greenSoft,
+    borderWidth: 1,
+    borderColor: COLORS.greenBorder,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+
+  connectedDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: COLORS.primary,
+  },
+
+  connectedBadgeText: {
+    color: COLORS.primary,
+    fontSize: 10,
+    fontWeight: "800",
+  },
+
+  patientDivider: {
+    height: 1,
+    backgroundColor: COLORS.surfaceContainer,
+    marginVertical: 14,
+  },
+
+  patientConnectionInfo: {
+    minHeight: 36,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: COLORS.greenSoft,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    marginBottom: 10,
+  },
+
+  patientConnectionInfoText: {
+    flex: 1,
+    color: COLORS.primary,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  patientActions: {
+    flexDirection: "row",
+    gap: 9,
+  },
+
+  patientActionButton: {
+    flex: 1,
+    minHeight: 45,
+    borderRadius: 13,
+    backgroundColor: COLORS.secondaryFixed,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+
+  patientActionText: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+
+  disconnectButton: {
+    flex: 1,
+    minHeight: 45,
+    borderRadius: 13,
+    backgroundColor: COLORS.errorContainer,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+
+  disconnectText: {
+    color: COLORS.error,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+
+  refreshButton: {
+    minHeight: 48,
+    borderRadius: 14,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+  },
+
+  refreshButtonText: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+
+  careToolCard: {
+    minHeight: 82,
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+  },
+
+  careToolIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: COLORS.secondaryContainer,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  careToolContent: {
+    flex: 1,
+  },
+
+  careToolTitle: {
+    color: COLORS.onSurface,
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: "700",
+  },
+
+  careToolDescription: {
+    color: COLORS.onSurfaceVariant,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 2,
+  },
+
+  reportPressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.99 }],
+  },
+
+  infoCard: {
+    backgroundColor: COLORS.secondaryFixed,
+    borderRadius: 17,
+    padding: 15,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 11,
+  },
+
+  infoIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  infoContent: {
+    flex: 1,
+  },
+
+  infoTitle: {
+    color: COLORS.primary,
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: "800",
+  },
+
+  infoText: {
+    color: COLORS.onSurfaceVariant,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 3,
+  },
+
+  /* Modal */
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.48)",
+    justifyContent: "flex-end",
+  },
+
+  modalContainer: {
+    width: "100%",
+    maxWidth: 560,
+    alignSelf: "center",
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 20,
+    paddingBottom: 28,
+  },
+
+  modalHeader: {
+    paddingHorizontal: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  modalTitleContainer: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+  },
+
+  modalTitleText: {
+    flex: 1,
+  },
+
+  modalIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 15,
+    backgroundColor: COLORS.greenSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  modalTitle: {
+    color: COLORS.onSurface,
+    fontSize: 21,
+    lineHeight: 27,
+    fontWeight: "800",
+  },
+
+  modalSubtitle: {
+    color: COLORS.onSurfaceVariant,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 2,
+  },
+
+  closeButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: COLORS.surfaceContainer,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 10,
+  },
+
+  modalBody: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+
+  instructionCard: {
+    backgroundColor: COLORS.secondaryContainer,
+    borderRadius: 15,
+    padding: 13,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 9,
+  },
+
+  instructionText: {
+    flex: 1,
+    color: COLORS.onSurfaceVariant,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+
+  inputLabel: {
+    marginTop: 20,
+    marginBottom: 8,
+    color: COLORS.onSurface,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+
+  patientCodeInput: {
+    minHeight: 58,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.surfaceContainerLow,
+    paddingHorizontal: 16,
+    color: COLORS.onSurface,
+    fontSize: 19,
+    fontWeight: "800",
+    letterSpacing: 1.5,
+  },
+
+  inputHint: {
+    marginTop: 7,
+    color: COLORS.onSurfaceVariant,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+
+  exampleCard: {
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: COLORS.greenSoft,
+    borderWidth: 1,
+    borderColor: COLORS.greenBorder,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+  },
+
+  exampleContent: {
+    flex: 1,
+  },
+
+  exampleLabel: {
+    color: COLORS.onSurfaceVariant,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+
+  exampleCode: {
+    marginTop: 2,
+    color: COLORS.primary,
+    fontSize: 15,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+
+  disabledInput: {
+    opacity: 0.6,
+  },
+
+  modalButtons: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 22,
+  },
+
+  cancelButton: {
+    flex: 1,
+    minHeight: 54,
+    borderRadius: 15,
+    backgroundColor: COLORS.surfaceContainer,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  cancelButtonText: {
+    color: COLORS.onSurfaceVariant,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+
+  connectButton: {
+    flex: 1,
+    minHeight: 54,
+    borderRadius: 15,
+    backgroundColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+  },
+
+  connectButtonText: {
+    color: COLORS.onPrimary,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+
+  disabledButton: {
+    opacity: 0.6,
+  },
+
+  /* Bottom Navigation */
+
+  bottomNav: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    minHeight: 80,
+    backgroundColor: COLORS.surface,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.outlineVariant,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    paddingHorizontal: 4,
+    zIndex: 50,
+  },
+
+  navItem: {
+    minWidth: 56,
+    minHeight: 58,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 5,
+  },
+
+  navIconContainer: {
+    width: 42,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  navIconContainerActive: {
+    backgroundColor: COLORS.greenSoft,
+  },
+
+  navLabel: {
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 2,
+  },
+
+  navLabelActive: {
+    color: COLORS.primary,
+    fontWeight: "700",
+  },
+
+  navLabelInactive: {
+    color: COLORS.onSurfaceVariant,
+    fontWeight: "500",
+  },
+
+  navIndicator: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: COLORS.primary,
+    marginTop: 2,
+  },
+
+  pressed: {
+    opacity: 0.7,
+  },
 });

@@ -1,41 +1,18 @@
-import { API_BASE_URL } from "../constants/api";
+import {
+  patientLogin as authPatientLogin,
+  patientSignup as authPatientSignup,
+  getCurrentPatient as authGetCurrentPatient,
+  AuthUser,
+} from "./auth";
 
-export type PatientUser = {
-  id: string;
-  fullName: string;
-  email: string;
-  age: number | null;
-  language: string;
-  caregiverName: string | null;
-  caregiverAccess: boolean;
-  gpsSharing: boolean;
-  textSize: string;
-  createdAt: string;
-  updatedAt: string;
-};
+export type PatientUser = AuthUser;
 
-type ApiResponse = {
+type PatientAuthResponse = {
   success: boolean;
   message?: string;
-  token?: string;
-  user?: PatientUser;
+  token: string;
+  user: PatientUser;
 };
-
-async function parseResponse(response: Response): Promise<ApiResponse> {
-  let result: ApiResponse;
-
-  try {
-    result = await response.json();
-  } catch {
-    throw new Error("The server returned an invalid response.");
-  }
-
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Something went wrong.");
-  }
-
-  return result;
-}
 
 export async function patientSignup(data: {
   fullName: string;
@@ -43,39 +20,48 @@ export async function patientSignup(data: {
   password: string;
   age?: number;
   language?: string;
-}) {
-  const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(data),
-  });
+}): Promise<PatientAuthResponse> {
+  const result = await authPatientSignup(
+    data.fullName,
+    data.email,
+    data.password,
+    data.age,
+    data.language,
+  );
 
-  return parseResponse(response);
+  return {
+    success: true,
+    token: result.token,
+    user: result.user,
+  };
 }
 
 export async function patientLogin(data: {
   email: string;
   password: string;
-}) {
-  const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(data),
-  });
+}): Promise<PatientAuthResponse> {
+  const result = await authPatientLogin(
+    data.email,
+    data.password,
+  );
 
-  return parseResponse(response);
+  return {
+    success: true,
+    token: result.token,
+    user: result.user,
+  };
 }
 
-export async function getCurrentPatient(token: string) {
-  const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+export async function getCurrentPatient(
+  token: string,
+): Promise<{
+  success: boolean;
+  user: PatientUser;
+}> {
+  const user = await authGetCurrentPatient(token);
 
-  return parseResponse(response);}
+  return {
+    success: true,
+    user,
+  };
+}

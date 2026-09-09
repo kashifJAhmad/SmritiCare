@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import * as Clipboard from "expo-clipboard";
 
 import {
   getMyProfile,
@@ -195,9 +196,142 @@ export default function ProfileScreen({
   const [caregiverAccess, setCaregiverAccess] = useState(false);
   const [gpsSharing, setGpsSharing] = useState(false);
 
+  const [caregiverConnection, setCaregiverConnection] = useState<{
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+  } | null>(null);
+  const [connectCaregiverVisible, setConnectCaregiverVisible] = useState(false);
+  const [inviteCode, setInviteCode] = useState("");
+  const [connectingCaregiver, setConnectingCaregiver] = useState(false);
+
+  const [patientCode, setPatientCode] = useState("");
+  const [loadingPatientCode, setLoadingPatientCode] = useState(false);
+  const [copyingPatientCode, setCopyingPatientCode] = useState(false);
+
   const [contactName, setContactName] = useState("");
   const [contactRelationship, setContactRelationship] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+
+  const loadConnectedCaregiver = async (token?: string) => {
+    try {
+      const authToken = token || (await getToken());
+
+      if (!authToken) return;
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/caregiver-connections/caregiver`,
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        setCaregiverConnection(null);
+        return;
+      }
+
+      const data = result.data;
+
+      const connection = data?.connection || data;
+      const caregiver = connection?.caregiver || data?.caregiver || connection;
+
+      if (caregiver && (caregiver.id || connection?.caregiverId)) {
+        setCaregiverConnection({
+          id: connection?.id || caregiver.id || connection.caregiverId,
+          name:
+            caregiver.fullName ||
+            caregiver.name ||
+            caregiver.caregiverName ||
+            "Connected Caregiver",
+          email: caregiver.email || undefined,
+          phone: caregiver.phone || undefined,
+        });
+      } else {
+        setCaregiverConnection(null);
+      }
+    } catch {
+      setCaregiverConnection(null);
+    }
+  };
+
+  const loadPatientCode = async (token?: string) => {
+    try {
+      setLoadingPatientCode(true);
+
+      const authToken = token || (await getToken());
+
+      if (!authToken) {
+        throw new Error("Please log in again.");
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/caregiver-connections/patient-code`,
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.message || "Unable to get your patient code."
+        );
+      }
+
+      setPatientCode(
+        result.patientCode ||
+          result.data?.patientCode ||
+          ""
+      );
+    } catch (error) {
+      setPatientCode("");
+
+      showMessage(
+        "Patient code",
+        error instanceof Error
+          ? error.message
+          : "Unable to get your patient code."
+      );
+    } finally {
+      setLoadingPatientCode(false);
+    }
+  };
+
+  const copyPatientCode = async () => {
+    if (!patientCode) {
+      await loadPatientCode();
+      return;
+    }
+
+    try {
+      setCopyingPatientCode(true);
+
+      await Clipboard.setStringAsync(patientCode);
+
+      showMessage(
+        "Code copied",
+        "Your patient code has been copied. Share it with your caregiver."
+      );
+    } catch (error) {
+      showMessage(
+        "Unable to copy",
+        error instanceof Error
+          ? error.message
+          : "Unable to copy your patient code."
+      );
+    } finally {
+      setCopyingPatientCode(false);
+    }
+  };
 
   const loadProfile = useCallback(async () => {
     try {
@@ -230,6 +364,8 @@ export default function ProfileScreen({
       setGpsSharing(Boolean(data.gpsSharing));
 
       await loadEmergencyContacts(token);
+      await loadConnectedCaregiver(token);
+      await loadPatientCode(token);
     } catch (error) {
       const message =
         error instanceof Error
@@ -343,6 +479,69 @@ export default function ProfileScreen({
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const connectCaregiver = async () => {
+    const code = inviteCode.trim().toUpperCase();
+
+    if (!code) {
+      showMessage(
+        "Invite code required",
+        "Please enter the invite code provided by your caregiver."
+      );
+      return;
+    }
+
+    try {
+      setConnectingCaregiver(true);
+
+      const token = await getToken();
+
+      if (!token) {
+        throw new Error("Please log in again.");
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/caregiver-connections/connect`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            inviteCode: code,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.message || "Unable to connect to the caregiver."
+        );
+      }
+
+      setInviteCode("");
+      setConnectCaregiverVisible(false);
+
+      await loadProfile();
+
+      showMessage(
+        "Caregiver connected",
+        "Your caregiver has been connected to your SmritiCare account successfully."
+      );
+    } catch (error) {
+      showMessage(
+        "Unable to connect",
+        error instanceof Error
+          ? error.message
+          : "Something went wrong while connecting your caregiver."
+      );
+    } finally {
+      setConnectingCaregiver(false);
     }
   };
 
@@ -925,6 +1124,91 @@ export default function ProfileScreen({
           </View>
         </View>
 
+        {/* Patient code */}
+        <View style={styles.card}>
+          {renderSectionHeader(
+            "badge",
+            "My Patient Code",
+            "Share this code with your caregiver"
+          )}
+
+          <View style={styles.divider} />
+
+          <View style={styles.patientCodeInfoBox}>
+            <MaterialIcons
+              name="info-outline"
+              size={22}
+              color={COLORS.secondary}
+            />
+
+            <Text style={styles.patientCodeInfoText}>
+              Your patient code identifies your SmritiCare account.
+              Give this code to your caregiver so they can add you
+              from their dashboard.
+            </Text>
+          </View>
+
+          <View style={styles.patientCodeBox}>
+            <View style={styles.patientCodeLabelRow}>
+              <Text style={styles.patientCodeLabel}>
+                Patient Code
+              </Text>
+
+              <MaterialIcons
+                name="verified-user"
+                size={20}
+                color={COLORS.primary}
+              />
+            </View>
+
+            {loadingPatientCode ? (
+              <View style={styles.patientCodeLoading}>
+                <ActivityIndicator
+                  size="small"
+                  color={COLORS.primary}
+                />
+
+                <Text style={styles.patientCodeLoadingText}>
+                  Generating your code...
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.patientCodeValue}>
+                {patientCode || "Unavailable"}
+              </Text>
+            )}
+          </View>
+
+          <Pressable
+            style={[
+              styles.copyPatientCodeButton,
+              (!patientCode || copyingPatientCode) &&
+                styles.disabledButton,
+            ]}
+            onPress={copyPatientCode}
+            disabled={!patientCode || copyingPatientCode}
+          >
+            {copyingPatientCode ? (
+              <ActivityIndicator
+                size="small"
+                color={COLORS.white}
+              />
+            ) : (
+              <MaterialIcons
+                name="content-copy"
+                size={21}
+                color={COLORS.white}
+              />
+            )}
+
+            <Text style={styles.copyPatientCodeButtonText}>
+              {copyingPatientCode
+                ? "Copying..."
+                : "Copy Patient Code"}
+            </Text>
+          </Pressable>
+        </View>
+
         {/* Caregiver */}
         <View style={styles.card}>
           {renderSectionHeader(
@@ -938,8 +1222,51 @@ export default function ProfileScreen({
           {renderInfoRow(
             "person",
             "Caregiver Name",
-            profile.caregiverName || "Not assigned"
+            caregiverConnection?.name ||
+              profile.caregiverName ||
+              "Not assigned"
           )}
+
+          {caregiverConnection ? (
+            <View style={styles.connectedCaregiverBox}>
+              <View style={styles.connectedCaregiverIcon}>
+                <MaterialIcons
+                  name="verified-user"
+                  size={22}
+                  color={COLORS.primary}
+                />
+              </View>
+
+              <View style={styles.connectedCaregiverText}>
+                <Text style={styles.connectedCaregiverTitle}>
+                  Caregiver connected
+                </Text>
+
+                <Text style={styles.connectedCaregiverSubtitle}>
+                  {caregiverConnection.email ||
+                    caregiverConnection.phone ||
+                    "Your trusted caregiver is connected to your account."}
+                </Text>
+              </View>
+            </View>
+          ) : null}
+
+          <Pressable
+            style={styles.connectCaregiverButton}
+            onPress={() => setConnectCaregiverVisible(true)}
+          >
+            <MaterialIcons
+              name="link"
+              size={22}
+              color={COLORS.white}
+            />
+
+            <Text style={styles.connectCaregiverButtonText}>
+              {caregiverConnection
+                ? "Change Caregiver"
+                : "Connect Caregiver"}
+            </Text>
+          </Pressable>
 
           {renderSwitchRow(
             "security",
@@ -1500,6 +1827,142 @@ export default function ProfileScreen({
                 </Pressable>
               </View>
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Connect caregiver modal */}
+      <Modal
+        visible={connectCaregiverVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => {
+          if (!connectingCaregiver) {
+            setConnectCaregiverVisible(false);
+          }
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.connectCaregiverModalContainer}>
+            <View style={styles.modalHeader}>
+              <View style={styles.connectCaregiverHeaderText}>
+                <View style={styles.connectCaregiverHeaderIcon}>
+                  <MaterialIcons
+                    name="link"
+                    size={24}
+                    color={COLORS.primary}
+                  />
+                </View>
+
+                <View style={styles.connectCaregiverHeaderCopy}>
+                  <Text style={styles.modalTitle}>
+                    Connect Caregiver
+                  </Text>
+
+                  <Text style={styles.modalSubtitle}>
+                    Enter the invite code provided by your caregiver.
+                  </Text>
+                </View>
+              </View>
+
+              <Pressable
+                onPress={() => {
+                  if (!connectingCaregiver) {
+                    setConnectCaregiverVisible(false);
+                  }
+                }}
+                style={styles.closeButton}
+                disabled={connectingCaregiver}
+              >
+                <MaterialIcons
+                  name="close"
+                  size={25}
+                  color={COLORS.onSurface}
+                />
+              </Pressable>
+            </View>
+
+            <View style={styles.connectCaregiverContent}>
+              <View style={styles.inviteInfoBox}>
+                <MaterialIcons
+                  name="info-outline"
+                  size={22}
+                  color={COLORS.secondary}
+                />
+
+                <Text style={styles.inviteInfoText}>
+                  Ask your caregiver for their SmritiCare invite code.
+                  Enter it below to connect your accounts.
+                </Text>
+              </View>
+
+              <Text style={styles.inputLabel}>
+                Invite Code *
+              </Text>
+
+              <TextInput
+                value={inviteCode}
+                onChangeText={(value) =>
+                  setInviteCode(value.toUpperCase())
+                }
+                placeholder="Enter invite code"
+                placeholderTextColor={COLORS.outline}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                maxLength={32}
+                style={[
+                  styles.input,
+                  styles.inviteCodeInput,
+                ]}
+              />
+
+              <Text style={styles.inputHint}>
+                The code is case-insensitive.
+              </Text>
+
+              <Pressable
+                style={[
+                  styles.connectSubmitButton,
+                  connectingCaregiver &&
+                    styles.disabledButton,
+                ]}
+                onPress={connectCaregiver}
+                disabled={connectingCaregiver}
+              >
+                {connectingCaregiver ? (
+                  <ActivityIndicator
+                    size="small"
+                    color={COLORS.white}
+                  />
+                ) : (
+                  <>
+                    <MaterialIcons
+                      name="link"
+                      size={22}
+                      color={COLORS.white}
+                    />
+
+                    <Text style={styles.connectSubmitButtonText}>
+                      Connect Caregiver
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+
+              <Pressable
+                style={styles.photoCancelButton}
+                onPress={() => {
+                  if (!connectingCaregiver) {
+                    setConnectCaregiverVisible(false);
+                  }
+                }}
+                disabled={connectingCaregiver}
+              >
+                <Text style={styles.photoCancelText}>
+                  Cancel
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>
@@ -2252,6 +2715,222 @@ const styles = StyleSheet.create({
   },
 
   primaryButtonText: {
+    fontFamily: BODY_FONT,
+    fontSize: 16,
+    fontWeight: "800",
+    color: COLORS.white,
+  },
+
+  patientCodeInfoBox: {
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: COLORS.surfaceLow,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+
+  patientCodeInfoText: {
+    flex: 1,
+    marginLeft: 10,
+    fontFamily: BODY_FONT,
+    fontSize: 14,
+    lineHeight: 20,
+    color: COLORS.onSurfaceVariant,
+  },
+
+  patientCodeBox: {
+    marginTop: 14,
+    padding: 17,
+    borderRadius: 18,
+    backgroundColor: COLORS.secondaryFixed,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+  },
+
+  patientCodeLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  patientCodeLabel: {
+    fontFamily: BODY_FONT,
+    fontSize: 13,
+    fontWeight: "800",
+    color: COLORS.secondary,
+  },
+
+  patientCodeValue: {
+    marginTop: 9,
+    fontFamily: HEADING_FONT,
+    fontSize: 25,
+    fontWeight: "900",
+    letterSpacing: 2,
+    color: COLORS.primary,
+  },
+
+  patientCodeLoading: {
+    marginTop: 12,
+    minHeight: 31,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  patientCodeLoadingText: {
+    marginLeft: 9,
+    fontFamily: BODY_FONT,
+    fontSize: 14,
+    color: COLORS.onSurfaceVariant,
+  },
+
+  copyPatientCodeButton: {
+    minHeight: 54,
+    marginTop: 14,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 9,
+  },
+
+  copyPatientCodeButtonText: {
+    fontFamily: BODY_FONT,
+    fontSize: 15,
+    fontWeight: "800",
+    color: COLORS.white,
+  },
+
+  connectedCaregiverBox: {
+    marginTop: 8,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: COLORS.secondaryFixed,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  connectedCaregiverIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    backgroundColor: COLORS.white,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  connectedCaregiverText: {
+    flex: 1,
+    marginLeft: 11,
+  },
+
+  connectedCaregiverTitle: {
+    fontFamily: BODY_FONT,
+    fontSize: 15,
+    fontWeight: "800",
+    color: COLORS.primary,
+  },
+
+  connectedCaregiverSubtitle: {
+    marginTop: 3,
+    fontFamily: BODY_FONT,
+    fontSize: 13,
+    lineHeight: 18,
+    color: COLORS.onSurfaceVariant,
+  },
+
+  connectCaregiverButton: {
+    minHeight: 54,
+    marginTop: 14,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 9,
+  },
+
+  connectCaregiverButtonText: {
+    fontFamily: BODY_FONT,
+    fontSize: 15,
+    fontWeight: "800",
+    color: COLORS.white,
+  },
+
+  connectCaregiverModalContainer: {
+    width: "100%",
+    maxHeight: "75%",
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    paddingTop: 20,
+  },
+
+  connectCaregiverHeaderText: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  connectCaregiverHeaderIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 15,
+    backgroundColor: COLORS.secondaryFixed,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  connectCaregiverHeaderCopy: {
+    flex: 1,
+    marginLeft: 11,
+  },
+
+  connectCaregiverContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 35,
+  },
+
+  inviteInfoBox: {
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: COLORS.surfaceLow,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+
+  inviteInfoText: {
+    flex: 1,
+    marginLeft: 10,
+    fontFamily: BODY_FONT,
+    fontSize: 14,
+    lineHeight: 20,
+    color: COLORS.onSurfaceVariant,
+  },
+
+  inviteCodeInput: {
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: 2,
+    textAlign: "center",
+  },
+
+  connectSubmitButton: {
+    minHeight: 56,
+    marginTop: 22,
+    borderRadius: 17,
+    backgroundColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 9,
+  },
+
+  connectSubmitButtonText: {
     fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: "800",
