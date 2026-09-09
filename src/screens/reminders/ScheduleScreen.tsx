@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Alert,
   Modal,
   Pressable,
@@ -15,6 +16,7 @@ import {
 } from 'react-native';
 
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 
 import QuickAssist from '../../components/QuickAssist';
 
@@ -35,6 +37,12 @@ type ScheduleScreenProps = {
   onVoiceAssistant?: () => void;
 };
 
+type RepeatType =
+  | 'NONE'
+  | 'DAILY'
+  | 'WEEKLY'
+  | 'MONTHLY';
+
 type ApiTask = {
   id: string;
   title: string;
@@ -43,6 +51,7 @@ type ApiTask = {
   scheduledAt: string;
   completed: boolean;
   reminderEnabled: boolean;
+  repeatType?: RepeatType | string;
   createdAt: string;
   updatedAt: string;
 };
@@ -58,6 +67,8 @@ type Task = {
   scheduledAt: string;
   description: string | null;
   category: string | null;
+  reminderEnabled: boolean;
+  repeatType: RepeatType;
 };
 
 // ============================================================
@@ -218,6 +229,44 @@ function getTaskIcon(
   return 'event';
 }
 
+function normalizeRepeatType(
+  value?: string,
+): RepeatType {
+  const normalized =
+    String(value || 'NONE')
+      .trim()
+      .toUpperCase();
+
+  if (
+    normalized === 'DAILY' ||
+    normalized === 'WEEKLY' ||
+    normalized === 'MONTHLY'
+  ) {
+    return normalized;
+  }
+
+  return 'NONE';
+}
+
+function getRepeatLabel(
+  repeatType: RepeatType,
+): string {
+  switch (repeatType) {
+    case 'DAILY':
+      return 'Every day';
+
+    case 'WEEKLY':
+      return 'Every week';
+
+    case 'MONTHLY':
+      return 'Every month';
+
+    case 'NONE':
+    default:
+      return 'Does not repeat';
+  }
+}
+
 function convertApiTask(
   task: ApiTask,
 ): Task {
@@ -236,6 +285,12 @@ function convertApiTask(
     scheduledAt: task.scheduledAt,
     description: task.description,
     category: task.category,
+    reminderEnabled:
+      Boolean(task.reminderEnabled),
+    repeatType:
+      normalizeRepeatType(
+        task.repeatType,
+      ),
   };
 }
 
@@ -259,8 +314,10 @@ function NavButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.navButton,
-        active && styles.navButtonActive,
-        pressed && styles.navPressed,
+        active &&
+          styles.navButtonActive,
+        pressed &&
+          styles.navPressed,
       ]}
       accessibilityRole="button"
       accessibilityLabel={label}
@@ -268,7 +325,8 @@ function NavButton({
       <Text
         style={[
           styles.navIcon,
-          active && styles.navIconActive,
+          active &&
+            styles.navIconActive,
         ]}
       >
         {icon}
@@ -277,7 +335,8 @@ function NavButton({
       <Text
         style={[
           styles.navLabel,
-          active && styles.navLabelActive,
+          active &&
+            styles.navLabelActive,
         ]}
       >
         {label}
@@ -299,13 +358,14 @@ export default function ScheduleScreen({
   onProfile,
   onVoiceAssistant,
 }: ScheduleScreenProps) {
-  const { width } = useWindowDimensions();
+  const { width } =
+    useWindowDimensions();
 
-  const isMobile = width < 768;
+  const isMobile =
+    width < 768;
 
-  const [tasks, setTasks] = useState<Task[]>(
-    [],
-  );
+  const [tasks, setTasks] =
+    useState<Task[]>([]);
 
   const [loading, setLoading] =
     useState(true);
@@ -313,19 +373,34 @@ export default function ScheduleScreen({
   const [
     updatingTaskId,
     setUpdatingTaskId,
-  ] = useState<string | null>(null);
+  ] = useState<string | null>(
+    null,
+  );
 
-  const [showAddModal, setShowAddModal] =
-    useState(false);
+  const [
+    deletingTaskId,
+    setDeletingTaskId,
+  ] = useState<string | null>(
+    null,
+  );
 
-  const [addingTask, setAddingTask] =
-    useState(false);
+  const [
+    showAddModal,
+    setShowAddModal,
+  ] = useState(false);
+
+  const [
+    addingTask,
+    setAddingTask,
+  ] = useState(false);
 
   const [title, setTitle] =
     useState('');
 
-  const [description, setDescription] =
-    useState('');
+  const [
+    description,
+    setDescription,
+  ] = useState('');
 
   const [category, setCategory] =
     useState('General');
@@ -341,6 +416,13 @@ export default function ScheduleScreen({
     setReminderEnabled,
   ] = useState(true);
 
+  const [
+    repeatType,
+    setRepeatType,
+  ] = useState<RepeatType>(
+    'NONE',
+  );
+
   // ==========================================================
   // LOAD TASKS
   // ==========================================================
@@ -349,7 +431,8 @@ export default function ScheduleScreen({
     try {
       setLoading(true);
 
-      const token = await getToken();
+      const token =
+        await getToken();
 
       if (!token) {
         Alert.alert(
@@ -360,16 +443,17 @@ export default function ScheduleScreen({
         return;
       }
 
-      const response = await fetch(
-        `${API_BASE_URL}/api/tasks`,
-        {
-          method: 'GET',
-          headers: {
-            Authorization:
-              `Bearer ${token}`,
+      const response =
+        await fetch(
+          `${API_BASE_URL}/api/tasks`,
+          {
+            method: 'GET',
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
           },
-        },
-      );
+        );
 
       const result =
         await response.json();
@@ -384,7 +468,8 @@ export default function ScheduleScreen({
         );
       }
 
-      const apiTasks: ApiTask[] =
+      const apiTasks:
+        ApiTask[] =
         result.tasks || [];
 
       const convertedTasks =
@@ -398,9 +483,13 @@ export default function ScheduleScreen({
                 b.scheduledAt,
               ).getTime(),
           )
-          .map(convertApiTask);
+          .map(
+            convertApiTask,
+          );
 
-      setTasks(convertedTasks);
+      setTasks(
+        convertedTasks,
+      );
     } catch (error) {
       console.error(
         'LOAD TASKS ERROR:',
@@ -409,7 +498,8 @@ export default function ScheduleScreen({
 
       Alert.alert(
         'Schedule Error',
-        error instanceof Error
+        error instanceof
+          Error
           ? error.message
           : 'Unable to load your schedule.',
       );
@@ -423,6 +513,60 @@ export default function ScheduleScreen({
   }, []);
 
   // ==========================================================
+  // RENEW REPEATING TASKS AFTER MIDNIGHT
+  // ==========================================================
+
+  useEffect(() => {
+    let midnightTimeout:
+      ReturnType<typeof setTimeout> | null =
+      null;
+
+    const scheduleNextRefresh =
+      () => {
+        const now =
+          new Date();
+
+        const nextMidnight =
+          new Date(now);
+
+        nextMidnight.setHours(
+          24,
+          0,
+          1,
+          0,
+        );
+
+        const delay =
+          Math.max(
+            1000,
+            nextMidnight.getTime() -
+              now.getTime(),
+          );
+
+        midnightTimeout =
+          setTimeout(
+            async () => {
+              await loadTasks();
+              scheduleNextRefresh();
+            },
+            delay,
+          );
+      };
+
+    scheduleNextRefresh();
+
+    return () => {
+      if (
+        midnightTimeout
+      ) {
+        clearTimeout(
+          midnightTimeout,
+        );
+      }
+    };
+  }, []);
+
+  // ==========================================================
   // RESET FORM
   // ==========================================================
 
@@ -432,7 +576,10 @@ export default function ScheduleScreen({
     setCategory('General');
     setDate('');
     setTime('');
-    setReminderEnabled(true);
+    setReminderEnabled(
+      true,
+    );
+    setRepeatType('NONE');
   };
 
   // ==========================================================
@@ -442,18 +589,21 @@ export default function ScheduleScreen({
   const openAddTask = () => {
     resetForm();
 
-    const today = new Date();
+    const today =
+      new Date();
 
     const yyyy =
       today.getFullYear();
 
-    const mm = String(
-      today.getMonth() + 1,
-    ).padStart(2, '0');
+    const mm =
+      String(
+        today.getMonth() + 1,
+      ).padStart(2, '0');
 
-    const dd = String(
-      today.getDate(),
-    ).padStart(2, '0');
+    const dd =
+      String(
+        today.getDate(),
+      ).padStart(2, '0');
 
     setDate(
       `${yyyy}-${mm}-${dd}`,
@@ -514,10 +664,24 @@ export default function ScheduleScreen({
       return;
     }
 
+    if (
+      reminderEnabled &&
+      scheduledAt.getTime() <=
+        Date.now()
+    ) {
+      Alert.alert(
+        'Invalid Reminder Time',
+        'Please choose a future time for the reminder.',
+      );
+
+      return;
+    }
+
     try {
       setAddingTask(true);
 
-      const token = await getToken();
+      const token =
+        await getToken();
 
       if (!token) {
         throw new Error(
@@ -525,30 +689,38 @@ export default function ScheduleScreen({
         );
       }
 
-      const response = await fetch(
-        `${API_BASE_URL}/api/tasks`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization:
-              `Bearer ${token}`,
-            'Content-Type':
-              'application/json',
+      const response =
+        await fetch(
+          `${API_BASE_URL}/api/tasks`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+              'Content-Type':
+                'application/json',
+            },
+            body: JSON.stringify({
+              title:
+                title.trim(),
+
+              description:
+                description.trim() ||
+                undefined,
+
+              category:
+                category.trim() ||
+                'General',
+
+              scheduledAt:
+                scheduledAt.toISOString(),
+
+              reminderEnabled,
+
+              repeatType,
+            }),
           },
-          body: JSON.stringify({
-            title: title.trim(),
-            description:
-              description.trim() ||
-              undefined,
-            category:
-              category.trim() ||
-              'General',
-            scheduledAt:
-              scheduledAt.toISOString(),
-            reminderEnabled,
-          }),
-        },
-      );
+        );
 
       const result =
         await response.json();
@@ -584,14 +756,96 @@ export default function ScheduleScreen({
           ),
       );
 
-      setShowAddModal(false);
+      // ======================================================
+      // SCHEDULE LOCAL NOTIFICATION
+      // ======================================================
+      //
+      // Do not import expo-notifications while running in Expo Go.
+      // Android Expo Go does not support the remote-push portion of
+      // expo-notifications, and loading the module can trigger the
+      // red-screen runtime error shown by Expo Go.
+      //
+      // The task itself is already saved successfully on the backend.
+      // A development build can schedule the local notification.
+
+      let notificationScheduled =
+        false;
+
+      let notificationUnavailable =
+        false;
+
+      if (
+        newTask.reminderEnabled
+      ) {
+        if (Constants.appOwnership === 'expo') {
+          notificationUnavailable =
+            true;
+        } else {
+          try {
+            const {
+              scheduleTaskReminder,
+            } = await import(
+              '../../services/notifications'
+            );
+
+            const notificationId =
+              await scheduleTaskReminder(
+                newTask.id,
+                newTask.title,
+                newTask.scheduledAt,
+                newTask.reminderEnabled,
+                newTask.repeatType,
+              );
+
+            notificationScheduled =
+              Boolean(
+                notificationId,
+              );
+          } catch (notificationError) {
+            console.warn(
+              'LOCAL NOTIFICATION COULD NOT BE SCHEDULED:',
+              notificationError,
+            );
+          }
+        }
+      }
+
+      setShowAddModal(
+        false,
+      );
 
       resetForm();
 
-      Alert.alert(
-        'Task Added',
-        `${newTask.title} has been added to your schedule.`,
-      );
+      if (
+        newTask.reminderEnabled &&
+        notificationScheduled
+      ) {
+        Alert.alert(
+          'Task Added',
+          `${newTask.title} has been added and the reminder is scheduled.`,
+        );
+      } else if (
+        newTask.reminderEnabled &&
+        notificationUnavailable
+      ) {
+        Alert.alert(
+          'Task Added',
+          `${newTask.title} was added successfully. Notification scheduling is disabled while testing in Expo Go. It will work in a development build.`,
+        );
+      } else if (
+        newTask.reminderEnabled &&
+        !notificationScheduled
+      ) {
+        Alert.alert(
+          'Task Added',
+          `${newTask.title} was added successfully, but the reminder could not be scheduled.`,
+        );
+      } else {
+        Alert.alert(
+          'Task Added',
+          `${newTask.title} has been added to your schedule.`,
+        );
+      }
     } catch (error) {
       console.error(
         'CREATE TASK ERROR:',
@@ -600,7 +854,8 @@ export default function ScheduleScreen({
 
       Alert.alert(
         'Add Task Error',
-        error instanceof Error
+        error instanceof
+          Error
           ? error.message
           : 'Unable to create task.',
       );
@@ -610,88 +865,281 @@ export default function ScheduleScreen({
   };
 
   // ==========================================================
-  // COMPLETE TASK
+  // SEND REMINDER NOW
   // ==========================================================
 
-  const toggleTask = async (
-    id: string,
+  const sendReminderNow = async (
+    task: Task,
   ) => {
-    const currentTask =
-      tasks.find(
-        (task) => task.id === id,
-      );
-
-    if (!currentTask) {
-      return;
-    }
-
-    if (currentTask.completed) {
-      return;
-    }
-
     try {
-      setUpdatingTaskId(id);
-
-      const token = await getToken();
-
-      if (!token) {
-        throw new Error(
-          'Please sign in again.',
-        );
-      }
-
-      const response = await fetch(
-        `${API_BASE_URL}/api/tasks/${id}/complete`,
-        {
-          method: 'PATCH',
-          headers: {
-            Authorization:
-              `Bearer ${token}`,
-          },
-        },
-      );
-
-      const result =
-        await response.json();
-
       if (
-        !response.ok ||
-        !result.success
+        Platform.OS === 'web' ||
+        Constants.appOwnership === 'expo'
       ) {
-        throw new Error(
-          result.message ||
-            'Unable to complete task.',
+        Alert.alert(
+          'Reminder',
+          `Reminder: ${task.title}`,
         );
+        return;
       }
 
-      setTasks(
-        (currentTasks) =>
-          currentTasks.map(
-            (task) =>
-              task.id === id
-                ? {
-                    ...task,
-                    completed: true,
-                  }
-                : task,
-          ),
+      const {
+        sendTaskReminderNow,
+      } = await import(
+        '../../services/notifications'
       );
+
+      const sent =
+        await sendTaskReminderNow(
+          task.id,
+          task.title,
+          task.description,
+        );
+
+      if (sent) {
+        Alert.alert(
+          'Reminder Sent',
+          `Reminder sent for "${task.title}".`,
+        );
+      } else {
+        Alert.alert(
+          'Reminder',
+          'The reminder could not be sent. Please make sure notification permission is enabled.',
+        );
+      }
     } catch (error) {
       console.error(
-        'COMPLETE TASK ERROR:',
+        'SEND REMINDER ERROR:',
         error,
       );
 
       Alert.alert(
-        'Task Error',
+        'Reminder Error',
         error instanceof Error
           ? error.message
-          : 'Unable to complete task.',
+          : 'Unable to send the reminder.',
       );
-    } finally {
-      setUpdatingTaskId(null);
     }
   };
+
+  // ==========================================================
+  // DELETE TASK
+  // ==========================================================
+
+  const deleteTask = async (
+    id: string,
+  ) => {
+    const taskToDelete =
+      tasks.find(
+        (task) =>
+          task.id === id,
+      );
+
+    if (!taskToDelete) {
+      return;
+    }
+
+    const performDelete =
+      async () => {
+        try {
+          setDeletingTaskId(id);
+
+          const token =
+            await getToken();
+
+          if (!token) {
+            throw new Error(
+              'Please sign in again.',
+            );
+          }
+
+          const response =
+            await fetch(
+              `${API_BASE_URL}/api/tasks/${id}`,
+              {
+                method: 'DELETE',
+                headers: {
+                  Authorization:
+                    `Bearer ${token}`,
+                },
+              },
+            );
+
+          const result =
+            await response.json();
+
+          if (
+            !response.ok ||
+            !result.success
+          ) {
+            throw new Error(
+              result.message ||
+                'Unable to delete task.',
+            );
+          }
+
+          setTasks(
+            (currentTasks) =>
+              currentTasks.filter(
+                (task) =>
+                  task.id !== id,
+              ),
+          );
+
+          Alert.alert(
+            'Task Deleted',
+            `${taskToDelete.title} has been removed from your schedule.`,
+          );
+        } catch (error) {
+          console.error(
+            'DELETE TASK ERROR:',
+            error,
+          );
+
+          Alert.alert(
+            'Delete Task Error',
+            error instanceof
+              Error
+              ? error.message
+              : 'Unable to delete task.',
+          );
+        } finally {
+          setDeletingTaskId(
+            null,
+          );
+        }
+      };
+
+    if (typeof globalThis !== 'undefined') {
+      Alert.alert(
+        'Delete Task',
+        `Are you sure you want to delete "${taskToDelete.title}"?`,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress:
+              performDelete,
+          },
+        ],
+      );
+    } else {
+      await performDelete();
+    }
+  };
+
+  // ==========================================================
+  // COMPLETE TASK
+  // ==========================================================
+
+  const toggleTask =
+    async (id: string) => {
+      const currentTask =
+        tasks.find(
+          (task) =>
+            task.id === id,
+        );
+
+      if (!currentTask) {
+        return;
+      }
+
+      try {
+        setUpdatingTaskId(
+          id,
+        );
+
+        const token =
+          await getToken();
+
+        if (!token) {
+          throw new Error(
+            'Please sign in again.',
+          );
+        }
+
+        const response =
+          currentTask.completed
+            ? await fetch(
+                `${API_BASE_URL}/api/tasks/${id}`,
+                {
+                  method: 'PUT',
+                  headers: {
+                    Authorization:
+                      `Bearer ${token}`,
+                    'Content-Type':
+                      'application/json',
+                  },
+                  body: JSON.stringify({
+                    completed: false,
+                  }),
+                },
+              )
+            : await fetch(
+                `${API_BASE_URL}/api/tasks/${id}/complete`,
+                {
+                  method: 'PATCH',
+                  headers: {
+                    Authorization:
+                      `Bearer ${token}`,
+                  },
+                },
+              );
+
+        const result =
+          await response.json();
+
+        if (
+          !response.ok ||
+          !result.success
+        ) {
+          throw new Error(
+            result.message ||
+              'Unable to complete task.',
+          );
+        }
+
+        const nextCompleted =
+          !currentTask.completed;
+
+        setTasks(
+          (currentTasks) =>
+            currentTasks.map(
+              (task) =>
+                task.id === id
+                  ? {
+                      ...task,
+                      completed:
+                        nextCompleted,
+                    }
+                  : task,
+            ),
+        );
+      } catch (error) {
+        console.error(
+          'COMPLETE TASK ERROR:',
+          error,
+        );
+
+        Alert.alert(
+          'Task Error',
+          error instanceof
+            Error
+            ? error.message
+            : currentTask.completed
+            ? 'Unable to mark task as not completed.'
+            : 'Unable to update task.',
+        );
+      } finally {
+        setUpdatingTaskId(
+          null,
+        );
+      }
+    };
 
   // ==========================================================
   // TASK CARD
@@ -701,7 +1149,8 @@ export default function ScheduleScreen({
     task: Task,
   ) => {
     const isUpdating =
-      updatingTaskId === task.id;
+      updatingTaskId ===
+      task.id;
 
     const iconBackground =
       task.style === 'red'
@@ -726,23 +1175,30 @@ export default function ScheduleScreen({
             styles.completedTaskCard,
         ]}
       >
-        {/* TOP DECORATIVE LINE */}
-
-        {task.style === 'red' && (
+        {task.style ===
+          'red' && (
           <View
-            style={styles.redStripe}
+            style={
+              styles.redStripe
+            }
           />
         )}
 
-        {task.style === 'blue' && (
+        {task.style ===
+          'blue' && (
           <View
-            style={styles.blueStripe}
+            style={
+              styles.blueStripe
+            }
           />
         )}
 
-        {task.style === 'green' && (
+        {task.style ===
+          'green' && (
           <View
-            style={styles.greenStripe}
+            style={
+              styles.greenStripe
+            }
           />
         )}
 
@@ -753,10 +1209,10 @@ export default function ScheduleScreen({
               styles.taskContentMobile,
           ]}
         >
-          {/* TASK INFORMATION */}
-
           <View
-            style={styles.taskInfo}
+            style={
+              styles.taskInfo
+            }
           >
             <View
               style={[
@@ -770,12 +1226,16 @@ export default function ScheduleScreen({
               <MaterialIcons
                 name={task.icon}
                 size={28}
-                color={iconColor}
+                color={
+                  iconColor
+                }
               />
             </View>
 
             <View
-              style={styles.taskText}
+              style={
+                styles.taskText
+              }
             >
               <Text
                 style={[
@@ -788,7 +1248,9 @@ export default function ScheduleScreen({
               </Text>
 
               <Text
-                style={styles.taskTime}
+                style={
+                  styles.taskTime
+                }
               >
                 {task.time}
               </Text>
@@ -813,49 +1275,227 @@ export default function ScheduleScreen({
                   {task.description}
                 </Text>
               )}
+
+              <View
+                style={
+                  styles.taskMetaRow
+                }
+              >
+                {task.reminderEnabled ? (
+                  <View
+                    style={
+                      styles.metaBadge
+                    }
+                  >
+                    <MaterialIcons
+                      name="notifications-active"
+                      size={15}
+                      color={
+                        COLORS.primary
+                      }
+                    />
+
+                    <Text
+                      style={
+                        styles.metaBadgeText
+                      }
+                    >
+                      Reminder on
+                    </Text>
+                  </View>
+                ) : (
+                  <View
+                    style={[
+                      styles.metaBadge,
+                      styles.metaBadgeOff,
+                    ]}
+                  >
+                    <MaterialIcons
+                      name="notifications-off"
+                      size={15}
+                      color={
+                        COLORS.outline
+                      }
+                    />
+
+                    <Text
+                      style={[
+                        styles.metaBadgeText,
+                        styles.metaBadgeTextOff,
+                      ]}
+                    >
+                      Reminder off
+                    </Text>
+                  </View>
+                )}
+
+                {task.repeatType !==
+                  'NONE' && (
+                  <View
+                    style={[
+                      styles.metaBadge,
+                      styles.repeatBadge,
+                    ]}
+                  >
+                    <MaterialIcons
+                      name="repeat"
+                      size={15}
+                      color={
+                        COLORS.secondary
+                      }
+                    />
+
+                    <Text
+                      style={[
+                        styles.metaBadgeText,
+                        styles.repeatBadgeText,
+                      ]}
+                    >
+                      {getRepeatLabel(
+                        task.repeatType,
+                      )}
+                    </Text>
+                  </View>
+                )}
+              </View>
             </View>
           </View>
 
-          {/* COMPLETE BUTTON */}
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.checkButton,
-              task.completed &&
-                styles.completedCheckButton,
-              pressed &&
-                styles.checkPressed,
+          <View
+            style={[
+              styles.taskActions,
               isMobile &&
-                styles.checkButtonMobile,
+                styles.taskActionsMobile,
             ]}
-            onPress={() =>
-              toggleTask(task.id)
-            }
-            disabled={isUpdating}
-            accessibilityRole="button"
-            accessibilityLabel={
-              task.completed
-                ? `${task.title} completed`
-                : `Mark ${task.title} as complete`
-            }
           >
-            {isUpdating ? (
-              <ActivityIndicator
-                size="small"
-                color={
-                  COLORS.primary
-                }
-              />
-            ) : task.completed ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.reminderButton,
+                pressed &&
+                  styles.reminderButtonPressed,
+                isMobile &&
+                  styles.reminderButtonMobile,
+              ]}
+              onPress={() =>
+                sendReminderNow(
+                  task,
+                )
+              }
+              disabled={
+                isUpdating ||
+                deletingTaskId === task.id
+              }
+              accessibilityRole="button"
+              accessibilityLabel={`Remind me about ${task.title}`}
+            >
               <MaterialIcons
-                name="check"
-                size={25}
+                name="notifications-active"
+                size={21}
                 color={
-                  COLORS.onPrimaryContainer
+                  COLORS.secondary
                 }
               />
-            ) : null}
-          </Pressable>
+
+              <Text
+                style={
+                  styles.reminderButtonText
+                }
+              >
+                Remind
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.checkButton,
+                task.completed &&
+                  styles.completedCheckButton,
+                pressed &&
+                  styles.checkPressed,
+                isMobile &&
+                  styles.checkButtonMobile,
+              ]}
+              onPress={() =>
+                toggleTask(
+                  task.id,
+                )
+              }
+              disabled={
+                isUpdating ||
+                deletingTaskId === task.id
+              }
+              accessibilityRole="button"
+              accessibilityLabel={
+                task.completed
+                  ? `Mark ${task.title} as not completed`
+                  : `Mark ${task.title} as complete`
+              }
+            >
+              {isUpdating ? (
+                <ActivityIndicator
+                  size="small"
+                  color={
+                    COLORS.primary
+                  }
+                />
+              ) : task.completed ? (
+                <MaterialIcons
+                  name="check"
+                  size={25}
+                  color={
+                    COLORS.onPrimaryContainer
+                  }
+                />
+              ) : (
+                <MaterialIcons
+                  name="check"
+                  size={24}
+                  color={
+                    COLORS.outline
+                  }
+                />
+              )}
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.deleteButton,
+                pressed &&
+                  styles.deleteButtonPressed,
+                isMobile &&
+                  styles.deleteButtonMobile,
+              ]}
+              onPress={() =>
+                deleteTask(
+                  task.id,
+                )
+              }
+              disabled={
+                isUpdating ||
+                deletingTaskId === task.id
+              }
+              accessibilityRole="button"
+              accessibilityLabel={`Delete ${task.title}`}
+            >
+              {deletingTaskId ===
+              task.id ? (
+                <ActivityIndicator
+                  size="small"
+                  color={
+                    COLORS.error
+                  }
+                />
+              ) : (
+                <MaterialIcons
+                  name="delete-outline"
+                  size={24}
+                  color={
+                    COLORS.error
+                  }
+                />
+              )}
+            </Pressable>
+          </View>
         </View>
       </View>
     );
@@ -884,16 +1524,21 @@ export default function ScheduleScreen({
         key={sectionName}
       >
         <Text
-          style={styles.sectionTitle}
+          style={
+            styles.sectionTitle
+          }
         >
           {sectionName}
         </Text>
 
         <View
-          style={styles.sectionDivider}
+          style={
+            styles.sectionDivider
+          }
         />
 
-        {sectionTasks.length > 0 ? (
+        {sectionTasks.length >
+        0 ? (
           <View
             style={
               styles.tasksContainer
@@ -905,12 +1550,16 @@ export default function ScheduleScreen({
           </View>
         ) : (
           <View
-            style={styles.emptySection}
+            style={
+              styles.emptySection
+            }
           >
             <MaterialIcons
               name="event-busy"
               size={23}
-              color={COLORS.outline}
+              color={
+                COLORS.outline
+              }
             />
 
             <Text
@@ -937,7 +1586,6 @@ export default function ScheduleScreen({
       <View
         style={styles.container}
       >
-
         {/* ====================================================
             HEADER
         ==================================================== */}
@@ -992,7 +1640,9 @@ export default function ScheduleScreen({
             style={
               styles.headerRefresh
             }
-            onPress={loadTasks}
+            onPress={
+              loadTasks
+            }
             accessibilityRole="button"
             accessibilityLabel="Refresh schedule"
           >
@@ -1011,7 +1661,9 @@ export default function ScheduleScreen({
         ==================================================== */}
 
         <ScrollView
-          style={styles.scrollView}
+          style={
+            styles.scrollView
+          }
           contentContainerStyle={[
             styles.content,
             isMobile &&
@@ -1029,7 +1681,9 @@ export default function ScheduleScreen({
             }
           >
             <Text
-              style={styles.pageTitle}
+              style={
+                styles.pageTitle
+              }
             >
               My Schedule
             </Text>
@@ -1047,7 +1701,9 @@ export default function ScheduleScreen({
           {/* TODAY SUMMARY */}
 
           <View
-            style={styles.summaryCard}
+            style={
+              styles.summaryCard
+            }
           >
             <View
               style={
@@ -1081,10 +1737,12 @@ export default function ScheduleScreen({
                   styles.summaryDescription
                 }
               >
-                {tasks.length === 0
+                {tasks.length ===
+                0
                   ? 'No activities added yet.'
                   : `${tasks.length} ${
-                      tasks.length === 1
+                      tasks.length ===
+                      1
                         ? 'activity'
                         : 'activities'
                     } in your schedule.`}
@@ -1162,10 +1820,10 @@ export default function ScheduleScreen({
             </Text>
           </Pressable>
 
-          {/* BOTTOM CONTENT SPACE */}
-
           <View
-            style={styles.bottomSpace}
+            style={
+              styles.bottomSpace
+            }
           />
         </ScrollView>
 
@@ -1179,37 +1837,47 @@ export default function ScheduleScreen({
           <NavButton
             label="Home"
             icon="⌂"
-            onPress={onHome}
+            onPress={
+              onHome
+            }
           />
 
           <NavButton
             label="Games"
             icon="🎮"
-            onPress={onGames}
+            onPress={
+              onGames
+            }
           />
 
           <NavButton
             label="Schedule"
             icon="📅"
             active
-            onPress={onSchedule}
+            onPress={
+              onSchedule
+            }
           />
 
           <NavButton
             label="Memories"
             icon="💚"
-            onPress={onMemory}
+            onPress={
+              onMemory
+            }
           />
 
           <NavButton
             label="Profile"
             icon="👤"
-            onPress={onProfile}
+            onPress={
+              onProfile
+            }
           />
         </View>
 
         {/* ====================================================
-            EXISTING QUICK ASSIST
+            QUICK ASSIST
         ==================================================== */}
 
         <QuickAssist
@@ -1224,12 +1892,18 @@ export default function ScheduleScreen({
         ==================================================== */}
 
         <Modal
-          visible={showAddModal}
+          visible={
+            showAddModal
+          }
           transparent
           animationType="slide"
           onRequestClose={() => {
-            if (!addingTask) {
-              setShowAddModal(false);
+            if (
+              !addingTask
+            ) {
+              setShowAddModal(
+                false,
+              );
             }
           }}
         >
@@ -1321,7 +1995,9 @@ export default function ScheduleScreen({
                 </Text>
 
                 <TextInput
-                  value={title}
+                  value={
+                    title
+                  }
                   onChangeText={
                     setTitle
                   }
@@ -1471,6 +2147,126 @@ export default function ScheduleScreen({
                     !addingTask
                   }
                 />
+
+                {/* ==================================================
+                    REPEAT
+                ================================================== */}
+
+                <Text
+                  style={
+                    styles.inputLabel
+                  }
+                >
+                  Repeat
+                </Text>
+
+                <View
+                  style={
+                    styles.repeatOptions
+                  }
+                >
+                  {[
+                    {
+                      value:
+                        'NONE' as RepeatType,
+                      label:
+                        'Does not repeat',
+                      icon:
+                        'event',
+                    },
+                    {
+                      value:
+                        'DAILY' as RepeatType,
+                      label:
+                        'Every day',
+                      icon:
+                        'today',
+                    },
+                    {
+                      value:
+                        'WEEKLY' as RepeatType,
+                      label:
+                        'Every week',
+                      icon:
+                        'date-range',
+                    },
+                    {
+                      value:
+                        'MONTHLY' as RepeatType,
+                      label:
+                        'Every month',
+                      icon:
+                        'calendar-month',
+                    },
+                  ].map(
+                    (option) => {
+                      const selected =
+                        repeatType ===
+                        option.value;
+
+                      return (
+                        <Pressable
+                          key={
+                            option.value
+                          }
+                          onPress={() =>
+                            setRepeatType(
+                              option.value,
+                            )
+                          }
+                          disabled={
+                            addingTask
+                          }
+                          style={[
+                            styles.repeatOption,
+                            selected &&
+                              styles.repeatOptionActive,
+                          ]}
+                        >
+                          <View
+                            style={[
+                              styles.repeatRadio,
+                              selected &&
+                                styles.repeatRadioActive,
+                            ]}
+                          >
+                            {selected && (
+                              <View
+                                style={
+                                  styles.repeatRadioDot
+                                }
+                              />
+                            )}
+                          </View>
+
+                          <MaterialIcons
+                            name={
+                              option.icon as keyof typeof MaterialIcons.glyphMap
+                            }
+                            size={21}
+                            color={
+                              selected
+                                ? COLORS.primary
+                                : COLORS.onSurfaceVariant
+                            }
+                          />
+
+                          <Text
+                            style={[
+                              styles.repeatOptionText,
+                              selected &&
+                                styles.repeatOptionTextActive,
+                            ]}
+                          >
+                            {
+                              option.label
+                            }
+                          </Text>
+                        </Pressable>
+                      );
+                    },
+                  )}
+                </View>
 
                 {/* REMINDER */}
 
@@ -1898,6 +2694,120 @@ const styles = StyleSheet.create({
     color: COLORS.outline,
   },
 
+  taskMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 7,
+  },
+
+  metaBadge: {
+    minHeight: 27,
+    paddingHorizontal: 8,
+    borderRadius: 14,
+    backgroundColor:
+      '#E7F3E6',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+
+  metaBadgeOff: {
+    backgroundColor:
+      COLORS.surfaceLow,
+  },
+
+  metaBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
+
+  metaBadgeTextOff: {
+    color: COLORS.outline,
+  },
+
+  repeatBadge: {
+    backgroundColor:
+      '#E4F2FC',
+  },
+
+  repeatBadgeText: {
+    color: COLORS.secondary,
+  },
+
+  reminderButton: {
+    minWidth: 82,
+    height: 44,
+    paddingHorizontal: 10,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: COLORS.secondary,
+    backgroundColor: '#E4F2FC',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+  },
+
+  reminderButtonMobile: {
+    minWidth: 44,
+    width: 44,
+    paddingHorizontal: 0,
+  },
+
+  reminderButtonText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: COLORS.secondary,
+  },
+
+  reminderButtonPressed: {
+    transform: [
+      {
+        scale: 0.94,
+      },
+    ],
+    opacity: 0.75,
+  },
+
+  taskActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginLeft: 12,
+  },
+
+  taskActionsMobile: {
+    marginLeft: 8,
+  },
+
+  deleteButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: COLORS.error,
+    backgroundColor: COLORS.errorContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  deleteButtonMobile: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+  },
+
+  deleteButtonPressed: {
+    transform: [
+      {
+        scale: 0.94,
+      },
+    ],
+    opacity: 0.75,
+  },
+
   checkButton: {
     width: 48,
     height: 48,
@@ -2174,6 +3084,71 @@ const styles = StyleSheet.create({
 
   categoryButtonTextActive: {
     color: COLORS.onPrimaryContainer,
+  },
+
+  // ==========================================================
+  // REPEAT
+  // ==========================================================
+
+  repeatOptions: {
+    gap: 8,
+  },
+
+  repeatOption: {
+    minHeight: 50,
+    paddingHorizontal: 13,
+    borderRadius: 13,
+    borderWidth: 1.5,
+    borderColor:
+      COLORS.outlineVariant,
+    backgroundColor:
+      COLORS.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
+
+  repeatOptionActive: {
+    backgroundColor:
+      '#E7F3E6',
+    borderColor:
+      COLORS.primary,
+  },
+
+  repeatRadio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor:
+      COLORS.outline,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  repeatRadioActive: {
+    borderColor:
+      COLORS.primary,
+  },
+
+  repeatRadioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor:
+      COLORS.primary,
+  },
+
+  repeatOptionText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.onSurfaceVariant,
+  },
+
+  repeatOptionTextActive: {
+    color: COLORS.primary,
+    fontWeight: '800',
   },
 
   // ==========================================================

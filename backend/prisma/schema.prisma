@@ -148,6 +148,7 @@ model Task {
   scheduledAt     DateTime
   completed       Boolean  @default(false)
   reminderEnabled Boolean  @default(true)
+  repeatType      String   @default("NONE")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

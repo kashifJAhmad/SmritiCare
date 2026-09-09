@@ -1,7 +1,5 @@
 import { Response } from "express";
-import {
-  AuthenticatedRequest,
-} from "../middleware/auth.middleware";
+import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import * as taskService from "../services/task.service";
 
 export async function createTask(
@@ -22,6 +20,7 @@ export async function createTask(
       category,
       scheduledAt,
       reminderEnabled,
+      repeatType,
     } = req.body;
 
     if (!scheduledAt) {
@@ -31,16 +30,14 @@ export async function createTask(
       });
     }
 
-    const task = await taskService.createTask(
-      req.userId,
-      {
-        title,
-        description,
-        category,
-        scheduledAt,
-        reminderEnabled,
-      },
-    );
+    const task = await taskService.createTask(req.userId, {
+      title,
+      description,
+      category,
+      scheduledAt,
+      reminderEnabled,
+      repeatType,
+    });
 
     return res.status(201).json({
       success: true,
@@ -72,9 +69,7 @@ export async function getTasks(
       });
     }
 
-    const tasks = await taskService.getTasks(
-      req.userId,
-    );
+    const tasks = await taskService.getTasks(req.userId);
 
     return res.status(200).json({
       success: true,
@@ -105,9 +100,11 @@ export async function getTaskById(
       });
     }
 
+    const taskId = String(req.params.id);
+
     const task = await taskService.getTaskById(
       req.userId,
-      String(String(req.params.id)),
+      taskId,
     );
 
     return res.status(200).json({
@@ -139,10 +136,30 @@ export async function updateTask(
       });
     }
 
+    const taskId = String(req.params.id);
+
+    const {
+      title,
+      description,
+      category,
+      scheduledAt,
+      completed,
+      reminderEnabled,
+      repeatType,
+    } = req.body;
+
     const task = await taskService.updateTask(
       req.userId,
-      String(req.params.id),
-      req.body,
+      taskId,
+      {
+        title,
+        description,
+        category,
+        scheduledAt,
+        completed,
+        reminderEnabled,
+        repeatType,
+      },
     );
 
     return res.status(200).json({
@@ -175,9 +192,11 @@ export async function completeTask(
       });
     }
 
+    const taskId = String(req.params.id);
+
     const task = await taskService.completeTask(
       req.userId,
-      String(req.params.id),
+      taskId,
     );
 
     return res.status(200).json({
@@ -210,9 +229,11 @@ export async function deleteTask(
       });
     }
 
+    const taskId = String(req.params.id);
+
     const result = await taskService.deleteTask(
       req.userId,
-      String(req.params.id),
+      taskId,
     );
 
     return res.status(200).json({
