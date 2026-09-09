@@ -1,9 +1,7 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { User } from "@prisma/client";
+import { UserRole } from "@prisma/client";
 import { prisma } from "../config/database";
-
-
 
 type SignupData = {
   fullName: string;
@@ -11,11 +9,13 @@ type SignupData = {
   password: string;
   age?: number;
   language?: string;
+  role?: UserRole;
 };
 
 type LoginData = {
   email: string;
   password: string;
+  role?: UserRole;
 };
 
 export type UpdateProfileData = {
@@ -46,10 +46,11 @@ function getJwtSecret(): string {
   return secret;
 }
 
-function createToken(userId: string): string {
+function createToken(userId: string, role: UserRole): string {
   return jwt.sign(
     {
       userId,
+      role,
     },
     getJwtSecret(),
     {
@@ -62,6 +63,8 @@ function sanitizeUser(user: {
   id: string;
   fullName: string;
   email: string;
+  password?: string;
+  role: UserRole;
   age: number | null;
   language: string;
   caregiverName: string | null;
@@ -70,7 +73,6 @@ function sanitizeUser(user: {
   textSize: string;
   createdAt: Date;
   updatedAt: Date;
-
   phone?: string | null;
   dateOfBirth?: Date | null;
   gender?: string | null;
@@ -84,8 +86,8 @@ function sanitizeUser(user: {
     id: user.id,
     fullName: user.fullName,
     email: user.email,
+    role: user.role,
     age: user.age,
-
     phone: user.phone ?? null,
     dateOfBirth: user.dateOfBirth ?? null,
     gender: user.gender ?? null,
@@ -93,18 +95,21 @@ function sanitizeUser(user: {
     city: user.city ?? null,
     bloodGroup: user.bloodGroup ?? null,
     medicalNotes: user.medicalNotes ?? null,
-
     profileImageUrl: user.profileImageUrl ?? null,
-
     language: user.language,
     caregiverName: user.caregiverName,
     caregiverAccess: user.caregiverAccess,
     gpsSharing: user.gpsSharing,
     textSize: user.textSize,
-
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };
+}
+
+function normalizeRole(role?: UserRole): UserRole {
+  return role === UserRole.CAREGIVER
+    ? UserRole.CAREGIVER
+    : UserRole.PATIENT;
 }
 
 export async function signup(data: SignupData) {
@@ -112,6 +117,7 @@ export async function signup(data: SignupData) {
   const email = data.email.trim().toLowerCase();
   const password = data.password;
   const language = data.language?.trim() || "English";
+  const role = normalizeRole(data.role);
 
   if (!fullName) {
     throw new Error("Full name is required");
@@ -148,10 +154,11 @@ export async function signup(data: SignupData) {
       password: hashedPassword,
       age: data.age,
       language,
+      role,
     },
   });
 
-  const token = createToken(user.id);
+  const token = createToken(user.id, user.role);
 
   return {
     token,
@@ -161,6 +168,7 @@ export async function signup(data: SignupData) {
 
 export async function login(data: LoginData) {
   const email = data.email.trim().toLowerCase();
+  const requestedRole = normalizeRole(data.role);
 
   if (!email) {
     throw new Error("Email is required");
@@ -189,7 +197,15 @@ export async function login(data: LoginData) {
     throw new Error("Invalid email or password");
   }
 
-  const token = createToken(user.id);
+  if (user.role !== requestedRole) {
+    if (requestedRole === UserRole.CAREGIVER) {
+      throw new Error("This account is not registered as a caregiver");
+    }
+
+    throw new Error("This account is not registered as a patient");
+  }
+
+  const token = createToken(user.id, user.role);
 
   return {
     token,
@@ -215,34 +231,8 @@ export async function updateCurrentUser(
   userId: string,
   data: UpdateProfileData,
 ) {
-  const existingUser = await prisma.user.findUnique({
-    where: {
-      id: userId,
-    },
-  });
+  const updateData: Record<string, unknown> = {};
 
-  if (!existingUser) {
-    throw new Error("User not found");
-  }
-
-    const updateData: {
-    fullName?: string;
-    age?: number | null;
-    phone?: string | null;
-    dateOfBirth?: Date | null;
-    gender?: string | null;
-    address?: string | null;
-    city?: string | null;
-    bloodGroup?: string | null;
-    medicalNotes?: string | null;
-    profileImageUrl?: string | null;
-    language?: string;
-    caregiverName?: string | null;
-    caregiverAccess?: boolean;
-    gpsSharing?: boolean;
-    textSize?: string;
-  } = {};
-  // Full name
   if (data.fullName !== undefined) {
     const fullName = data.fullName.trim();
 
@@ -253,120 +243,64 @@ export async function updateCurrentUser(
     updateData.fullName = fullName;
   }
 
-  // Age
   if (data.age !== undefined) {
-    if (
-      data.age !== null &&
-      (!Number.isInteger(data.age) || data.age < 1)
-    ) {
-      throw new Error("Age must be a valid number");
-    }
-
     updateData.age = data.age;
   }
 
-  // Phone
   if (data.phone !== undefined) {
-    const phone = data.phone?.trim();
-
-    updateData.phone = phone || null;
+    updateData.phone = data.phone;
   }
 
-  // Date of birth
   if (data.dateOfBirth !== undefined) {
-    if (data.dateOfBirth === null) {
-      updateData.dateOfBirth = null;
-    } else {
-      const dateOfBirth = new Date(data.dateOfBirth);
-
-      if (Number.isNaN(dateOfBirth.getTime())) {
-        throw new Error("Date of birth must be a valid date");
-      }
-
-      updateData.dateOfBirth = dateOfBirth;
-    }
+    updateData.dateOfBirth = data.dateOfBirth
+      ? new Date(data.dateOfBirth)
+      : null;
   }
 
-  // Gender
   if (data.gender !== undefined) {
-    const gender = data.gender?.trim();
-
-    updateData.gender = gender || null;
+    updateData.gender = data.gender;
   }
 
-  // Address
   if (data.address !== undefined) {
-    const address = data.address?.trim();
-
-    updateData.address = address || null;
+    updateData.address = data.address;
   }
 
-  // City
   if (data.city !== undefined) {
-    const city = data.city?.trim();
-
-    updateData.city = city || null;
+    updateData.city = data.city;
   }
 
-  // Blood group
   if (data.bloodGroup !== undefined) {
-    const bloodGroup = data.bloodGroup?.trim();
-
-    updateData.bloodGroup = bloodGroup || null;
+    updateData.bloodGroup = data.bloodGroup;
   }
 
-   // Medical notes
   if (data.medicalNotes !== undefined) {
-    const medicalNotes = data.medicalNotes?.trim();
-
-    updateData.medicalNotes = medicalNotes || null;
+    updateData.medicalNotes = data.medicalNotes;
   }
 
-  // Profile image
   if (data.profileImageUrl !== undefined) {
-    const profileImageUrl = data.profileImageUrl?.trim();
-
-    updateData.profileImageUrl = profileImageUrl || null;
+    updateData.profileImageUrl = data.profileImageUrl;
   }
 
-  // Language
   if (data.language !== undefined) {
-    const language = data.language.trim();
-
-    if (!language) {
-      throw new Error("Language cannot be empty");
-    }
-
-    updateData.language = language;
+    updateData.language = data.language.trim() || "English";
   }
 
-  // Caregiver name
   if (data.caregiverName !== undefined) {
-    const caregiverName = data.caregiverName?.trim();
-
-    updateData.caregiverName = caregiverName || null;
+    updateData.caregiverName = data.caregiverName;
   }
 
-  // Caregiver access
   if (data.caregiverAccess !== undefined) {
     updateData.caregiverAccess = data.caregiverAccess;
   }
 
-  // GPS sharing
   if (data.gpsSharing !== undefined) {
     updateData.gpsSharing = data.gpsSharing;
   }
 
-  // Text size
   if (data.textSize !== undefined) {
-    if (!["Normal", "Large"].includes(data.textSize)) {
-      throw new Error("Text size must be Normal or Large");
-    }
-
     updateData.textSize = data.textSize;
   }
 
-  // Update database
   const user = await prisma.user.update({
     where: {
       id: userId,

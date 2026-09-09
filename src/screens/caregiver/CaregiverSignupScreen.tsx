@@ -14,6 +14,8 @@ import {
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
+import { caregiverSignup } from "../../services/auth";
+
 type CaregiverSignupScreenProps = {
     onSignup: () => void;
     onLogin: () => void;
@@ -21,14 +23,11 @@ type CaregiverSignupScreenProps = {
 };
 
 const COLORS = {
-    primary: "#00450D",
-    primaryContainer: "#1B5E20",
     background: "#FCF9F8",
-    surface: "#FFFFFF",
-    text: "#1B1C1C",
+    primary: "#00450D",
+    navy: "#102A56",
     textSecondary: "#41493E",
-    outline: "#717A6D",
-    lightBorder: "#C0C9BB",
+    border: "#C0C9BB",
     green: "#4FA56A",
     white: "#FFFFFF",
 };
@@ -40,17 +39,21 @@ export default function CaregiverSignupScreen({
 }: CaregiverSignupScreenProps) {
     const [fullName, setFullName] = useState("");
     const [email, setEmail] = useState("");
-    const [phone, setPhone] = useState("");
     const [password, setPassword] = useState("");
-    const [confirmPassword, setConfirmPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] =
+        useState("");
 
-    const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] =
         useState(false);
 
+    const [loading, setLoading] = useState(false);
+
     const handleSignup = async () => {
-        if (!fullName.trim()) {
+        const cleanName = fullName.trim();
+        const cleanEmail = email.trim();
+
+        if (!cleanName) {
             Alert.alert(
                 "Missing information",
                 "Please enter your full name.",
@@ -58,10 +61,10 @@ export default function CaregiverSignupScreen({
             return;
         }
 
-        if (!email.trim()) {
+        if (!cleanEmail) {
             Alert.alert(
                 "Missing information",
-                "Please enter your email address.",
+                "Please enter your email.",
             );
             return;
         }
@@ -76,8 +79,8 @@ export default function CaregiverSignupScreen({
 
         if (password.length < 6) {
             Alert.alert(
-                "Password too short",
-                "Your password must be at least 6 characters long.",
+                "Invalid password",
+                "Password must be at least 6 characters.",
             );
             return;
         }
@@ -93,22 +96,17 @@ export default function CaregiverSignupScreen({
         try {
             setLoading(true);
 
-            /*
-             * BACKEND CONNECTION — TO BE ADDED BY KASHIF
-             *
-             * Later this section will call the caregiver signup API.
-             *
-             * For now we simulate a successful signup so the
-             * caregiver frontend flow can be developed independently.
-             */
-
-            await new Promise((resolve) => setTimeout(resolve, 700));
+            await caregiverSignup(
+                cleanName,
+                cleanEmail,
+                password,
+            );
 
             setLoading(false);
 
             Alert.alert(
-                "Account created",
-                "Your SmritiCare caregiver account has been created successfully.",
+                "Account Created",
+                "Your caregiver account has been created successfully.",
                 [
                     {
                         text: "Continue",
@@ -122,128 +120,152 @@ export default function CaregiverSignupScreen({
             const message =
                 error instanceof Error
                     ? error.message
-                    : "Unable to create your account. Please try again.";
+                    : "Unable to create your account.";
 
-            Alert.alert("Signup failed", message);
+            Alert.alert(
+                "Sign Up Failed",
+                message,
+            );
         }
     };
 
     return (
         <KeyboardAvoidingView
-            style={styles.container}
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            style={styles.safeArea}
+            behavior={
+                Platform.OS === "ios"
+                    ? "padding"
+                    : undefined
+            }
         >
             <ScrollView
-                contentContainerStyle={styles.scrollContent}
+                contentContainerStyle={styles.container}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
             >
-                {/* Header */}
                 <View style={styles.header}>
-                    {onBack ? (
-                        <Pressable
-                            onPress={onBack}
-                            style={styles.backButton}
-                            hitSlop={10}
-                            disabled={loading}
-                        >
-                            <MaterialIcons
-                                name="arrow-back"
-                                size={27}
-                                color={COLORS.primary}
-                            />
-                        </Pressable>
-                    ) : (
-                        <View style={styles.backPlaceholder} />
-                    )}
+                    <Pressable
+                        onPress={onBack}
+                        disabled={loading}
+                        hitSlop={10}
+                        style={styles.backButton}
+                    >
+                        <MaterialIcons
+                            name="arrow-back"
+                            size={28}
+                            color={COLORS.primary}
+                        />
+                    </Pressable>
 
+                    <Text style={styles.headerTitle}>
+                        Caregiver Sign Up
+                    </Text>
+
+                    <View style={styles.headerSpacer} />
+                </View>
+
+                <View style={styles.logoCircle}>
                     <Image
                         source={require("../../../assets/images/logo.png")}
                         style={styles.logo}
                         resizeMode="contain"
                     />
-
-                    <View style={styles.backPlaceholder} />
                 </View>
 
-                {/* Title */}
-                <View style={styles.titleSection}>
-                    <Text style={styles.title}>
-                        Create Caregiver Account
+                <Text style={styles.title}>
+                    Create Account
+                </Text>
+
+                <Text style={styles.subtitle}>
+                    Create your SmritiCare caregiver account
+                </Text>
+
+                <View style={styles.form}>
+                    <Text style={styles.label}>
+                        Full Name
                     </Text>
 
-                    <Text style={styles.subtitle}>
-                        Create your SmritiCare caregiver account to support
-                        your loved one.
+                    <View style={styles.inputContainer}>
+                        <MaterialIcons
+                            name="person"
+                            size={23}
+                            color={COLORS.green}
+                        />
+
+                        <TextInput
+                            value={fullName}
+                            onChangeText={setFullName}
+                            placeholder="Enter your full name"
+                            placeholderTextColor="#8A9187"
+                            autoCapitalize="words"
+                            autoCorrect={false}
+                            editable={!loading}
+                            style={styles.input}
+                        />
+                    </View>
+
+                    <Text
+                        style={[
+                            styles.label,
+                            styles.nextLabel,
+                        ]}
+                    >
+                        Email Address
                     </Text>
-                </View>
 
-                {/* Form */}
-                <View style={styles.formCard}>
-                    <Text style={styles.sectionTitle}>
-                        Caregiver Information
+                    <View style={styles.inputContainer}>
+                        <MaterialIcons
+                            name="email"
+                            size={23}
+                            color={COLORS.green}
+                        />
+
+                        <TextInput
+                            value={email}
+                            onChangeText={setEmail}
+                            placeholder="Enter your email"
+                            placeholderTextColor="#8A9187"
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            editable={!loading}
+                            style={styles.input}
+                        />
+                    </View>
+
+                    <Text
+                        style={[
+                            styles.label,
+                            styles.nextLabel,
+                        ]}
+                    >
+                        Password
                     </Text>
 
-                    {/* Full Name */}
-                    <Text style={styles.label}>Full Name</Text>
+                    <View style={styles.inputContainer}>
+                        <MaterialIcons
+                            name="lock"
+                            size={23}
+                            color={COLORS.green}
+                        />
 
-                    <TextInput
-                        value={fullName}
-                        onChangeText={setFullName}
-                        placeholder="Enter your full name"
-                        placeholderTextColor="#8A9187"
-                        style={styles.input}
-                        editable={!loading}
-                        autoCapitalize="words"
-                    />
-
-                    {/* Email */}
-                    <Text style={styles.label}>Email</Text>
-
-                    <TextInput
-                        value={email}
-                        onChangeText={setEmail}
-                        placeholder="Enter your email"
-                        placeholderTextColor="#8A9187"
-                        style={styles.input}
-                        editable={!loading}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                    />
-
-                    {/* Phone */}
-                    <Text style={styles.label}>Phone Number</Text>
-
-                    <TextInput
-                        value={phone}
-                        onChangeText={setPhone}
-                        placeholder="Enter your phone number"
-                        placeholderTextColor="#8A9187"
-                        style={styles.input}
-                        editable={!loading}
-                        keyboardType="phone-pad"
-                    />
-
-                    {/* Password */}
-                    <Text style={styles.label}>Password</Text>
-
-                    <View style={styles.passwordContainer}>
                         <TextInput
                             value={password}
                             onChangeText={setPassword}
                             placeholder="Create a password"
                             placeholderTextColor="#8A9187"
-                            style={styles.passwordInput}
-                            editable={!loading}
                             secureTextEntry={!showPassword}
                             autoCapitalize="none"
                             autoCorrect={false}
+                            editable={!loading}
+                            style={styles.input}
                         />
 
                         <Pressable
                             onPress={() =>
-                                setShowPassword((value) => !value)
+                                setShowPassword(
+                                    (value) => !value,
+                                )
                             }
                             disabled={loading}
                             hitSlop={10}
@@ -255,35 +277,47 @@ export default function CaregiverSignupScreen({
                                         ? "visibility"
                                         : "visibility-off"
                                 }
-                                size={22}
-                                color={COLORS.textSecondary}
+                                size={23}
+                                color="#718090"
                             />
                         </Pressable>
                     </View>
 
-                    <Text style={styles.passwordHint}>
-                        Password must contain at least 6 characters.
+                    <Text
+                        style={[
+                            styles.label,
+                            styles.nextLabel,
+                        ]}
+                    >
+                        Confirm Password
                     </Text>
 
-                    {/* Confirm Password */}
-                    <Text style={styles.label}>Confirm Password</Text>
+                    <View style={styles.inputContainer}>
+                        <MaterialIcons
+                            name="lock-outline"
+                            size={23}
+                            color={COLORS.green}
+                        />
 
-                    <View style={styles.passwordContainer}>
                         <TextInput
                             value={confirmPassword}
                             onChangeText={setConfirmPassword}
                             placeholder="Confirm your password"
                             placeholderTextColor="#8A9187"
-                            style={styles.passwordInput}
-                            editable={!loading}
-                            secureTextEntry={!showConfirmPassword}
+                            secureTextEntry={
+                                !showConfirmPassword
+                            }
                             autoCapitalize="none"
                             autoCorrect={false}
+                            editable={!loading}
+                            style={styles.input}
                         />
 
                         <Pressable
                             onPress={() =>
-                                setShowConfirmPassword((value) => !value)
+                                setShowConfirmPassword(
+                                    (value) => !value,
+                                )
                             }
                             disabled={loading}
                             hitSlop={10}
@@ -295,22 +329,20 @@ export default function CaregiverSignupScreen({
                                         ? "visibility"
                                         : "visibility-off"
                                 }
-                                size={22}
-                                color={COLORS.textSecondary}
+                                size={23}
+                                color="#718090"
                             />
                         </Pressable>
                     </View>
 
-                    {/* Create Account */}
                     <Pressable
                         onPress={handleSignup}
                         disabled={loading}
                         style={({ pressed }) => [
-                            styles.signupButton,
-                            pressed &&
-                            !loading &&
-                            styles.buttonPressed,
-                            loading && styles.buttonDisabled,
+                            styles.primaryButton,
+                            pressed && styles.pressed,
+                            loading &&
+                                styles.buttonDisabled,
                         ]}
                     >
                         {loading ? (
@@ -320,54 +352,50 @@ export default function CaregiverSignupScreen({
                             />
                         ) : (
                             <>
-                                <Text style={styles.signupButtonText}>
-                                    Create Account
-                                </Text>
-
                                 <MaterialIcons
-                                    name="arrow-forward"
-                                    size={22}
+                                    name="person-add"
+                                    size={23}
                                     color={COLORS.white}
                                 />
+
+                                <Text
+                                    style={
+                                        styles.primaryButtonText
+                                    }
+                                >
+                                    Create Caregiver Account
+                                </Text>
                             </>
                         )}
                     </Pressable>
                 </View>
 
-                {/* Login */}
-                <View style={styles.loginSection}>
-                    <Text style={styles.loginText}>
-                        Already have a caregiver account?
+                <View style={styles.loginRow}>
+                    <Text style={styles.accountText}>
+                        Already have an account?
                     </Text>
 
                     <Pressable
                         onPress={onLogin}
                         disabled={loading}
                     >
-                        <Text style={styles.loginLink}>
-                            Sign In
+                        <Text style={styles.loginText}>
+                            {" "}Sign In
                         </Text>
                     </Pressable>
                 </View>
 
-                {/* Security */}
-                <View style={styles.securityCard}>
+                <View style={styles.securityBox}>
                     <MaterialIcons
-                        name="lock"
-                        size={22}
+                        name="verified-user"
+                        size={25}
                         color={COLORS.primary}
                     />
 
-                    <View style={styles.securityTextContainer}>
-                        <Text style={styles.securityTitle}>
-                            Your information is secure
-                        </Text>
-
-                        <Text style={styles.securityText}>
-                            Your caregiver information is protected and
-                            securely handled by SmritiCare.
-                        </Text>
-                    </View>
+                    <Text style={styles.securityText}>
+                        Your caregiver account is protected by
+                        SmritiCare authentication.
+                    </Text>
                 </View>
             </ScrollView>
         </KeyboardAvoidingView>
@@ -375,19 +403,21 @@ export default function CaregiverSignupScreen({
 }
 
 const styles = StyleSheet.create({
-    container: {
+    safeArea: {
         flex: 1,
         backgroundColor: COLORS.background,
     },
 
-    scrollContent: {
-        paddingHorizontal: 22,
-        paddingTop: 22,
+    container: {
+        flexGrow: 1,
+        alignItems: "center",
+        paddingHorizontal: 24,
         paddingBottom: 40,
     },
 
     header: {
-        height: 58,
+        width: "100%",
+        height: 64,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
@@ -396,93 +426,88 @@ const styles = StyleSheet.create({
     backButton: {
         width: 48,
         height: 48,
-        borderRadius: 24,
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: COLORS.white,
     },
 
-    backPlaceholder: {
-        width: 48,
-        height: 48,
-    },
-
-    logo: {
-        width: 55,
-        height: 55,
-    },
-
-    titleSection: {
-        marginTop: 24,
-        marginBottom: 24,
-    },
-
-    title: {
-        fontSize: 30,
-        lineHeight: 38,
-        fontWeight: "700",
+    headerTitle: {
+        fontSize: 21,
+        fontWeight: "800",
         color: COLORS.primary,
     },
 
+    headerSpacer: {
+        width: 48,
+    },
+
+    logoCircle: {
+        width: 125,
+        height: 125,
+        borderRadius: 63,
+        backgroundColor: COLORS.white,
+        alignItems: "center",
+        justifyContent: "center",
+        marginTop: 10,
+        overflow: "hidden",
+        elevation: 4,
+    },
+
+    logo: {
+        width: 110,
+        height: 110,
+    },
+
+    title: {
+        marginTop: 22,
+        fontSize: 30,
+        lineHeight: 38,
+        fontWeight: "800",
+        color: COLORS.navy,
+        textAlign: "center",
+    },
+
     subtitle: {
-        marginTop: 8,
-        fontSize: 16,
-        lineHeight: 24,
+        marginTop: 7,
+        marginBottom: 27,
+        fontSize: 17,
+        lineHeight: 25,
         color: COLORS.textSecondary,
+        textAlign: "center",
     },
 
-    formCard: {
-        backgroundColor: COLORS.surface,
-        borderRadius: 24,
-        padding: 20,
-    },
-
-    sectionTitle: {
-        fontSize: 20,
-        fontWeight: "700",
-        color: COLORS.text,
-        marginBottom: 20,
+    form: {
+        width: "100%",
+        maxWidth: 520,
     },
 
     label: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: COLORS.text,
         marginBottom: 8,
-        marginTop: 14,
+        fontSize: 16,
+        fontWeight: "700",
+        color: COLORS.navy,
+    },
+
+    nextLabel: {
+        marginTop: 18,
+    },
+
+    inputContainer: {
+        minHeight: 58,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: 15,
+        backgroundColor: COLORS.white,
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 16,
     },
 
     input: {
-        minHeight: 54,
-        borderWidth: 1,
-        borderColor: COLORS.lightBorder,
-        borderRadius: 14,
-        paddingHorizontal: 16,
-        fontSize: 16,
-        color: COLORS.text,
-        backgroundColor: COLORS.white,
-
-        ...(Platform.OS === "web"
-            ? ({ outlineStyle: "none" } as any)
-            : {}),
-    },
-
-    passwordContainer: {
-        minHeight: 54,
-        borderWidth: 1,
-        borderColor: COLORS.lightBorder,
-        borderRadius: 14,
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: COLORS.white,
-    },
-
-    passwordInput: {
         flex: 1,
-        minHeight: 52,
-        paddingHorizontal: 16,
+        marginLeft: 12,
+        minHeight: 54,
         fontSize: 16,
-        color: COLORS.text,
+        color: "#1B2D42",
 
         ...(Platform.OS === "web"
             ? ({ outlineStyle: "none" } as any)
@@ -490,89 +515,79 @@ const styles = StyleSheet.create({
     },
 
     eyeButton: {
-        width: 48,
+        width: 42,
         height: 48,
         alignItems: "center",
         justifyContent: "center",
     },
 
-    passwordHint: {
-        marginTop: 6,
-        fontSize: 13,
-        color: COLORS.textSecondary,
-    },
-
-    signupButton: {
-        marginTop: 26,
-        minHeight: 56,
+    primaryButton: {
+        minHeight: 58,
         borderRadius: 16,
-        backgroundColor: COLORS.primaryContainer,
-
+        backgroundColor: COLORS.primary,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-
-        gap: 8,
+        marginTop: 26,
+        paddingHorizontal: 18,
+        elevation: 3,
     },
 
-    signupButtonText: {
-        color: COLORS.white,
+    primaryButtonText: {
+        marginLeft: 10,
         fontSize: 17,
-        fontWeight: "700",
+        fontWeight: "800",
+        color: COLORS.white,
     },
 
-    buttonPressed: {
+    pressed: {
         opacity: 0.8,
+        transform: [
+            {
+                scale: 0.99,
+            },
+        ],
     },
 
     buttonDisabled: {
         opacity: 0.65,
     },
 
-    loginSection: {
+    loginRow: {
+        flexDirection: "row",
         alignItems: "center",
+        justifyContent: "center",
         marginTop: 22,
-        gap: 5,
+        flexWrap: "wrap",
+    },
+
+    accountText: {
+        fontSize: 15,
+        color: COLORS.textSecondary,
     },
 
     loginText: {
         fontSize: 15,
-        color: COLORS.textSecondary,
-        textAlign: "center",
-    },
-
-    loginLink: {
-        fontSize: 16,
-        fontWeight: "700",
+        fontWeight: "800",
         color: COLORS.primary,
     },
 
-    securityCard: {
-        marginTop: 24,
-        padding: 16,
-        borderRadius: 18,
-        backgroundColor: "#EAF4EA",
-
+    securityBox: {
+        width: "100%",
+        maxWidth: 520,
         flexDirection: "row",
         alignItems: "flex-start",
-
-        gap: 12,
-    },
-
-    securityTextContainer: {
-        flex: 1,
-    },
-
-    securityTitle: {
-        fontSize: 15,
-        fontWeight: "700",
-        color: COLORS.primary,
+        backgroundColor: "#EDF7F0",
+        borderRadius: 16,
+        padding: 15,
+        marginTop: 28,
     },
 
     securityText: {
-        marginTop: 4,
-        fontSize: 13,
-        lineHeight: 19,
+        flex: 1,
+        marginLeft: 11,
+        fontSize: 13.5,
+        lineHeight: 20,
         color: COLORS.textSecondary,
     },
 });

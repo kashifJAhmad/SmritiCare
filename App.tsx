@@ -10,6 +10,10 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import PatientAuthScreen from './src/screens/auth/PatientAuthScreen';
+import CaregiverAuthScreen from './src/screens/auth/CaregiverAuthScreen';
+import CaregiverLoginScreen from "./src/screens/caregiver/CaregiverLoginScreen";
+import CaregiverSignupScreen from "./src/screens/caregiver/CaregiverSignupScreen";
+import CaregiverDashboardScreen from "./src/screens/caregiver/CaregiverDashboardScreen";
 import LoginScreen from './src/screens/auth/LoginScreen';
 import SignupScreen from './src/screens/auth/SignupScreen';
 import HomeScreen from './src/screens/home/HomeScreen';
@@ -39,6 +43,10 @@ import {
 type Screen =
   | 'welcome'
   | 'patient-auth'
+  | "caregiver-auth"
+  | "caregiver-login"
+  | "caregiver-signup"
+  | "caregiver-dashboard"
   | 'login'
   | 'signup'
   | 'home'
@@ -347,7 +355,7 @@ function AppContent() {
     return (
       <WelcomeScreen
         onPatient={() => setScreen('patient-auth')}
-        onFamilyMember={() => setScreen('login')}
+        onFamilyMember={() => setScreen('caregiver-auth')}
       />
     );
   }
@@ -365,7 +373,19 @@ function AppContent() {
       />
     );
   }
+  // ---------------------------------------------------------
+  // caregiver AUTH
+  // --------------------------------------------------------
 
+  if (screen === "caregiver-auth") {
+    return (
+        <CaregiverAuthScreen
+            onBack={() => setScreen("welcome")}
+            onSignIn={() => setScreen("caregiver-login")}
+            onSignUp={() => setScreen("caregiver-signup")}
+        />
+    );
+}
   // ---------------------------------------------------------
   // LOGIN
   // ---------------------------------------------------------
@@ -393,7 +413,32 @@ function AppContent() {
       />
     );
   }
+if (screen === "caregiver-login") {
+    return (
+        <CaregiverLoginScreen
+            onBack={() => setScreen("caregiver-auth")}
+            onSignup={() => setScreen("caregiver-signup")}
+            onLogin={() => setScreen("caregiver-dashboard")}
+        />
+    );
+}
 
+
+if (screen === "caregiver-signup") {
+    return (
+        <CaregiverSignupScreen
+            onBack={() => setScreen("caregiver-auth")}
+            onLogin={() => setScreen("caregiver-login")}
+            onSignup={() => setScreen("caregiver-dashboard")}
+        />
+    );
+}
+
+if (screen === "caregiver-dashboard") {
+    return (
+        <CaregiverDashboardScreen />
+    );
+}
   // ---------------------------------------------------------
   // MEDICAL HELP
   // ---------------------------------------------------------
@@ -411,17 +456,17 @@ function AppContent() {
   // ---------------------------------------------------------
 
   if (screen === 'schedule') {
-  return (
-    <ScheduleScreen
-      onBack={() => setScreen('home')}
-      onHome={() => setScreen('home')}
-      onGames={() => setScreen('games')}
-      onSchedule={() => setScreen('schedule')}
-      onMemory={() => setScreen('memory')}
-      onProfile={() => setScreen('profile')}
-    />
-  );
-}
+    return (
+      <ScheduleScreen
+        onBack={() => setScreen('home')}
+        onHome={() => setScreen('home')}
+        onGames={() => setScreen('games')}
+        onSchedule={() => setScreen('schedule')}
+        onMemory={() => setScreen('memory')}
+        onProfile={() => setScreen('profile')}
+      />
+    );
+  }
   // ---------------------------------------------------------
   // CALL FAMILY
   // ---------------------------------------------------------

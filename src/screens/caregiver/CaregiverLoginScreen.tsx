@@ -13,6 +13,7 @@ import {
     Image,
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { caregiverLogin } from "../../services/auth";
 
 type CaregiverLoginScreenProps = {
     onLogin: () => void;
@@ -23,7 +24,6 @@ type CaregiverLoginScreenProps = {
 const COLORS = {
     background: "#FCF9F8",
     primary: "#00450D",
-    primaryContainer: "#1B5E20",
     navy: "#102A56",
     text: "#1B1C1C",
     textSecondary: "#41493E",
@@ -44,29 +44,31 @@ export default function CaregiverLoginScreen({
     const [loading, setLoading] = useState(false);
 
     const handleLogin = async () => {
-        if (!email.trim()) {
-            Alert.alert("Missing information", "Please enter your email.");
+        const cleanEmail = email.trim();
+
+        if (!cleanEmail) {
+            Alert.alert(
+                "Missing information",
+                "Please enter your email.",
+            );
             return;
         }
 
         if (!password) {
-            Alert.alert("Missing information", "Please enter your password.");
+            Alert.alert(
+                "Missing information",
+                "Please enter your password.",
+            );
             return;
         }
 
         try {
             setLoading(true);
 
-            /*
-             * BACKEND CONNECTION — TO BE ADDED BY KASHIF
-             *
-             * Later this section will call the caregiver login API.
-             *
-             * For now we simulate a successful caregiver login
-             * so that the frontend navigation can be developed.
-             */
-
-            await new Promise((resolve) => setTimeout(resolve, 700));
+            await caregiverLogin(
+                cleanEmail,
+                password,
+            );
 
             setLoading(false);
 
@@ -79,21 +81,27 @@ export default function CaregiverLoginScreen({
                     ? error.message
                     : "Unable to sign in. Please try again.";
 
-            Alert.alert("Sign In Failed", message);
+            Alert.alert(
+                "Sign In Failed",
+                message,
+            );
         }
     };
 
     return (
         <KeyboardAvoidingView
             style={styles.safeArea}
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            behavior={
+                Platform.OS === "ios"
+                    ? "padding"
+                    : undefined
+            }
         >
             <ScrollView
                 contentContainerStyle={styles.container}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
             >
-                {/* Header */}
                 <View style={styles.header}>
                     <Pressable
                         onPress={onBack}
@@ -108,12 +116,13 @@ export default function CaregiverLoginScreen({
                         />
                     </Pressable>
 
-                    <Text style={styles.headerTitle}>Caregiver Sign In</Text>
+                    <Text style={styles.headerTitle}>
+                        Caregiver Sign In
+                    </Text>
 
                     <View style={styles.headerSpacer} />
                 </View>
 
-                {/* Logo */}
                 <View style={styles.logoCircle}>
                     <Image
                         source={require("../../../assets/images/logo.png")}
@@ -122,17 +131,18 @@ export default function CaregiverLoginScreen({
                     />
                 </View>
 
-                {/* Title */}
-                <Text style={styles.title}>Welcome Back</Text>
+                <Text style={styles.title}>
+                    Welcome Back
+                </Text>
 
                 <Text style={styles.subtitle}>
                     Sign in to your SmritiCare caregiver account
                 </Text>
 
-                {/* Form */}
                 <View style={styles.form}>
-                    {/* Email */}
-                    <Text style={styles.label}>Email Address</Text>
+                    <Text style={styles.label}>
+                        Email Address
+                    </Text>
 
                     <View style={styles.inputContainer}>
                         <MaterialIcons
@@ -154,8 +164,12 @@ export default function CaregiverLoginScreen({
                         />
                     </View>
 
-                    {/* Password */}
-                    <Text style={[styles.label, styles.passwordLabel]}>
+                    <Text
+                        style={[
+                            styles.label,
+                            styles.passwordLabel,
+                        ]}
+                    >
                         Password
                     </Text>
 
@@ -179,7 +193,11 @@ export default function CaregiverLoginScreen({
                         />
 
                         <Pressable
-                            onPress={() => setShowPassword((value) => !value)}
+                            onPress={() =>
+                                setShowPassword(
+                                    (value) => !value,
+                                )
+                            }
                             disabled={loading}
                             hitSlop={10}
                             style={styles.eyeButton}
@@ -196,14 +214,13 @@ export default function CaregiverLoginScreen({
                         </Pressable>
                     </View>
 
-                    {/* Forgot Password */}
                     <Pressable
                         style={styles.forgotButton}
                         disabled={loading}
                         onPress={() =>
                             Alert.alert(
                                 "Forgot Password",
-                                "Password recovery will be connected to the backend later.",
+                                "Password recovery is not available yet.",
                             )
                         }
                     >
@@ -212,14 +229,14 @@ export default function CaregiverLoginScreen({
                         </Text>
                     </Pressable>
 
-                    {/* Sign In */}
                     <Pressable
                         onPress={handleLogin}
                         disabled={loading}
                         style={({ pressed }) => [
                             styles.primaryButton,
                             pressed && styles.pressed,
-                            loading && styles.buttonDisabled,
+                            loading &&
+                                styles.buttonDisabled,
                         ]}
                     >
                         {loading ? (
@@ -235,7 +252,11 @@ export default function CaregiverLoginScreen({
                                     color={COLORS.white}
                                 />
 
-                                <Text style={styles.primaryButtonText}>
+                                <Text
+                                    style={
+                                        styles.primaryButtonText
+                                    }
+                                >
                                     Sign In
                                 </Text>
                             </>
@@ -243,16 +264,16 @@ export default function CaregiverLoginScreen({
                     </Pressable>
                 </View>
 
-                {/* Divider */}
                 <View style={styles.dividerRow}>
                     <View style={styles.divider} />
 
-                    <Text style={styles.orText}>OR</Text>
+                    <Text style={styles.orText}>
+                        OR
+                    </Text>
 
                     <View style={styles.divider} />
                 </View>
 
-                {/* Signup */}
                 <View style={styles.signupRow}>
                     <Text style={styles.accountText}>
                         Don't have a caregiver account?
@@ -268,7 +289,6 @@ export default function CaregiverLoginScreen({
                     </Pressable>
                 </View>
 
-                {/* Security */}
                 <View style={styles.securityBox}>
                     <MaterialIcons
                         name="verified-user"
@@ -277,8 +297,8 @@ export default function CaregiverLoginScreen({
                     />
 
                     <Text style={styles.securityText}>
-                        Your caregiver information is protected and
-                        securely handled by SmritiCare.
+                        Your caregiver information is protected
+                        and securely handled by SmritiCare.
                     </Text>
                 </View>
             </ScrollView>
@@ -333,7 +353,6 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         marginTop: 12,
         overflow: "hidden",
-
         shadowColor: "#000",
         shadowOffset: {
             width: 0,
@@ -389,10 +408,8 @@ const styles = StyleSheet.create({
         borderColor: COLORS.border,
         borderRadius: 15,
         backgroundColor: COLORS.white,
-
         flexDirection: "row",
         alignItems: "center",
-
         paddingHorizontal: 16,
     },
 
@@ -430,13 +447,10 @@ const styles = StyleSheet.create({
         minHeight: 58,
         borderRadius: 16,
         backgroundColor: COLORS.primary,
-
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-
         marginTop: 8,
-
         shadowColor: "#000",
         shadowOffset: {
             width: 0,
@@ -456,7 +470,11 @@ const styles = StyleSheet.create({
 
     pressed: {
         opacity: 0.8,
-        transform: [{ scale: 0.99 }],
+        transform: [
+            {
+                scale: 0.99,
+            },
+        ],
     },
 
     buttonDisabled: {
@@ -508,12 +526,9 @@ const styles = StyleSheet.create({
         maxWidth: 520,
         flexDirection: "row",
         alignItems: "flex-start",
-
         backgroundColor: "#EDF7F0",
-
         borderRadius: 16,
         padding: 15,
-
         marginTop: 28,
     },
 
