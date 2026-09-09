@@ -1,78 +1,169 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { MaterialIcons, Ionicons } from "@expo/vector-icons";
+  useWindowDimensions,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 
-import QuickAssist from "../../components/QuickAssist";
-
-// ============================================================
-// COLORS
-// Matches the Patient Login / SmritiCare design system
-// ============================================================
-
-const COLORS = {
-  background: "#F4FAFF",
-
-  surface: "#FFFFFF",
-  surfaceSoft: "#F6F3F2",
-
-  primary: "#00450D",
-  primaryContainer: "#1B5E20",
-  onPrimary: "#FFFFFF",
-  onPrimaryContainer: "#90D689",
-
-  secondary: "#556158",
-  secondaryContainer: "#D9E6DA",
-
-  outline: "#717A6D",
-  outlineVariant: "#C0C9BB",
-
-  text: "#1B1C1C",
-  textSecondary: "#41493E",
-
-  navy: "#102A56",
-
-  medicalBlue: "#005B96",
-  medicalBlueSoft: "#EAF4FB",
-
-  cognitiveGreen: "#1B5E20",
-  cognitiveGreenSoft: "#EAF5EA",
-
-  scheduleGold: "#8A6500",
-  scheduleGoldSoft: "#FFF6D9",
-
-  familyRed: "#A00015",
-  familyRedSoft: "#FDEBEC",
-};
-
-// ============================================================
-// TYPES
-// ============================================================
+import QuickAssist from '../../components/QuickAssist';
 
 type HomeScreenProps = {
   onLogout: () => void;
-
   onMedicalHelp: () => void;
   onSchedule: () => void;
   onCallFamily: () => void;
   onCognitiveScore: () => void;
-
   onProfile?: () => void;
   onGames?: () => void;
   onMemory?: () => void;
-
   onVoiceAssistant?: () => void;
 };
 
-// ============================================================
-// HOME SCREEN
-// ============================================================
+type NavButtonProps = {
+  label: string;
+  icon: string;
+  active?: boolean;
+  onPress: () => void;
+};
+
+function NavButton({
+  label,
+  icon,
+  active = false,
+  onPress,
+}: NavButtonProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.navButton,
+        active && styles.navButtonActive,
+        pressed && styles.navButtonPressed,
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <Text
+        style={[
+          styles.navIcon,
+          active && styles.navIconActive,
+        ]}
+      >
+        {icon}
+      </Text>
+
+      <Text
+        style={[
+          styles.navLabel,
+          active && styles.navLabelActive,
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+type ActionCardProps = {
+  title: string;
+  subtitle: string;
+  icon: keyof typeof MaterialIcons.glyphMap;
+  onPress: () => void;
+  wide?: boolean;
+};
+
+function ActionCard({
+  title,
+  subtitle,
+  icon,
+  onPress,
+  wide = false,
+}: ActionCardProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.actionCard,
+        wide && styles.actionCardWide,
+        pressed && styles.cardPressed,
+      ]}
+    >
+      <View style={styles.actionIconContainer}>
+        <MaterialIcons
+          name={icon}
+          size={30}
+          color="#00450D"
+        />
+      </View>
+
+      <View style={styles.actionTextContainer}>
+        <Text style={styles.actionTitle}>{title}</Text>
+
+        <Text style={styles.actionSubtitle}>
+          {subtitle}
+        </Text>
+      </View>
+
+      <MaterialIcons
+        name="chevron-right"
+        size={26}
+        color="#717A6D"
+      />
+    </Pressable>
+  );
+}
+
+type FeatureCardProps = {
+  title: string;
+  description: string;
+  icon: keyof typeof MaterialIcons.glyphMap;
+  onPress: () => void;
+};
+
+function FeatureCard({
+  title,
+  description,
+  icon,
+  onPress,
+}: FeatureCardProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.featureCard,
+        pressed && styles.cardPressed,
+      ]}
+    >
+      <View style={styles.featureIconContainer}>
+        <MaterialIcons
+          name={icon}
+          size={30}
+          color="#00450D"
+        />
+      </View>
+
+      <Text style={styles.featureTitle}>{title}</Text>
+
+      <Text style={styles.featureDescription}>
+        {description}
+      </Text>
+
+      <View style={styles.featureArrow}>
+        <MaterialIcons
+          name="arrow-forward"
+          size={20}
+          color="#00450D"
+        />
+      </View>
+    </Pressable>
+  );
+}
 
 export default function HomeScreen({
   onLogout,
@@ -85,908 +176,782 @@ export default function HomeScreen({
   onMemory,
   onVoiceAssistant,
 }: HomeScreenProps) {
-  const [activeTab, setActiveTab] = useState("Home");
+  const { width } = useWindowDimensions();
+
+  const isMobile = width < 768;
+  const isTablet = width >= 768 && width < 1100;
+
+  const [showQuickAssist, setShowQuickAssist] =
+    useState(false);
+
+  const handleLogout = () => {
+    if (isMobile) {
+      Alert.alert(
+        'Sign out',
+        'Are you sure you want to sign out?',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Sign out',
+            style: 'destructive',
+            onPress: onLogout,
+          },
+        ]
+      );
+    } else {
+      onLogout();
+    }
+  };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        {/* ======================================================
-            HEADER
-        ======================================================= */}
+    <SafeAreaView
+      style={styles.container}
+      edges={['top', 'left', 'right', 'bottom']}
+    >
+      <View style={styles.screen}>
 
+        {/* HEADER */}
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={styles.logoMark}>
-              <Text style={styles.logoLetter}>S</Text>
+          <View style={styles.headerBrand}>
+            <View style={styles.logoCircle}>
+              <Text style={styles.logoText}>S</Text>
             </View>
 
             <View>
-              <Text style={styles.appTitle}>SmritiCare</Text>
-              <Text style={styles.appSubtitle}>Your care companion</Text>
+              <Text style={styles.brandName}>
+                SmritiCare
+              </Text>
+
+              <Text style={styles.brandSubtitle}>
+                Your care companion
+              </Text>
             </View>
           </View>
 
           <View style={styles.headerActions}>
             <Pressable
               onPress={onProfile}
-              style={({ pressed }) => [
-                styles.headerButton,
-                pressed && styles.pressed,
-              ]}
+              style={styles.headerButton}
               accessibilityRole="button"
               accessibilityLabel="Open profile"
             >
-              <MaterialIcons
+              <Ionicons
                 name="person-outline"
-                size={27}
-                color={COLORS.primary}
+                size={23}
+                color="#102A56"
               />
             </Pressable>
 
             <Pressable
-              onPress={onLogout}
-              style={({ pressed }) => [
-                styles.headerButton,
-                pressed && styles.pressed,
-              ]}
+              onPress={handleLogout}
+              style={styles.headerButton}
               accessibilityRole="button"
               accessibilityLabel="Sign out"
             >
-              <MaterialIcons
-                name="logout"
-                size={25}
-                color={COLORS.primary}
+              <Ionicons
+                name="log-out-outline"
+                size={23}
+                color="#102A56"
               />
             </Pressable>
           </View>
         </View>
 
-        {/* Decorative line */}
-
-        <View style={styles.decorativeLine}>
-          <View style={styles.linePrimary} />
-          <View style={styles.lineSecondary} />
-          <View style={styles.lineLight} />
-        </View>
-
-        {/* ======================================================
-            MAIN CONTENT
-        ======================================================= */}
-
+        {/* SCROLLABLE CONTENT */}
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[
+            styles.content,
+            isMobile && styles.contentMobile,
+            isTablet && styles.contentTablet,
+          ]}
           showsVerticalScrollIndicator={false}
         >
-          {/* ====================================================
-              WELCOME
-          ===================================================== */}
 
+          {/* WELCOME */}
           <View style={styles.welcomeSection}>
-            <Text style={styles.welcomeTitle}>Welcome back</Text>
+            <Text style={styles.welcomeTitle}>
+              Welcome back
+            </Text>
 
-            <Text style={styles.welcomeSubtitle}>
+            <Text style={styles.welcomeText}>
               What would you like to do today?
             </Text>
           </View>
 
-          {/* ====================================================
-              MAIN ACTIONS
-          ===================================================== */}
+          {/* QUICK ACTIONS */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              Quick Actions
+            </Text>
 
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
+            <Text style={styles.sectionSubtitle}>
+              Easy access to the things you need most
+            </Text>
+
+            <View
+              style={[
+                styles.actionsGrid,
+                isMobile && styles.actionsGridMobile,
+              ]}
+            >
+              <ActionCard
+                title="Medical Help"
+                subtitle="Get help when you need it"
+                icon="medical-services"
+                onPress={onMedicalHelp}
+              />
+
+              <ActionCard
+                title="Cognitive Score"
+                subtitle="Check your progress"
+                icon="psychology"
+                onPress={onCognitiveScore}
+              />
+
+              <ActionCard
+                title="My Schedule"
+                subtitle="See your reminders"
+                icon="calendar-today"
+                onPress={onSchedule}
+              />
+
+              <ActionCard
+                title="Call Family"
+                subtitle="Stay connected"
+                icon="call"
+                onPress={onCallFamily}
+              />
+            </View>
           </View>
 
-          <View style={styles.actionGrid}>
-            {/* --------------------------------------------------
-                MEDICAL HELP
-            --------------------------------------------------- */}
+          {/* FEATURES */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              Explore
+            </Text>
 
-            <Pressable
-              onPress={onMedicalHelp}
-              style={({ pressed }) => [
-                styles.actionCard,
-                pressed && styles.cardPressed,
+            <Text style={styles.sectionSubtitle}>
+              Keep your mind active and your memories close
+            </Text>
+
+            <View
+              style={[
+                styles.featureGrid,
+                isMobile && styles.featureGridMobile,
               ]}
-              accessibilityRole="button"
-              accessibilityLabel="Medical help"
             >
-              <View
-                style={[
-                  styles.actionIcon,
-                  {
-                    backgroundColor: COLORS.medicalBlueSoft,
-                  },
-                ]}
-              >
-                <MaterialIcons
-                  name="medical-services"
-                  size={36}
-                  color={COLORS.medicalBlue}
-                />
-              </View>
+              <FeatureCard
+                title="Games"
+                description="Fun activities to keep your mind active."
+                icon="sports-esports"
+                onPress={onGames || (() => {})}
+              />
 
-              <Text style={styles.actionTitle}>Medical Help</Text>
+              <FeatureCard
+                title="Memories"
+                description="Save and revisit your special moments."
+                icon="favorite"
+                onPress={onMemory || (() => {})}
+              />
+            </View>
+          </View>
 
-              <Text style={styles.actionDescription}>
-                Get help when you need it
+          {/* QUICK ASSIST */}
+          <View style={styles.assistCard}>
+            <View style={styles.assistIconContainer}>
+              <Ionicons
+                name="sparkles-outline"
+                size={30}
+                color="#00450D"
+              />
+            </View>
+
+            <View style={styles.assistTextContainer}>
+              <Text style={styles.assistTitle}>
+                Need a little help?
               </Text>
-            </Pressable>
 
-            {/* --------------------------------------------------
-                COGNITIVE SCORE
-            --------------------------------------------------- */}
-
-            <Pressable
-              onPress={onCognitiveScore}
-              style={({ pressed }) => [
-                styles.actionCard,
-                pressed && styles.cardPressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Cognitive score"
-            >
-              <View
-                style={[
-                  styles.actionIcon,
-                  {
-                    backgroundColor: COLORS.cognitiveGreenSoft,
-                  },
-                ]}
-              >
-                <MaterialIcons
-                  name="assessment"
-                  size={36}
-                  color={COLORS.cognitiveGreen}
-                />
-              </View>
-
-              <Text style={styles.actionTitle}>Cognitive Score</Text>
-
-              <Text style={styles.actionDescription}>
-                View your progress
+              <Text style={styles.assistDescription}>
+                SmritiCare can guide you to the right
+                feature.
               </Text>
-            </Pressable>
-
-            {/* --------------------------------------------------
-                SCHEDULE
-            --------------------------------------------------- */}
+            </View>
 
             <Pressable
-              onPress={onSchedule}
+              onPress={() => {
+                if (onVoiceAssistant) {
+                  onVoiceAssistant();
+                } else {
+                  setShowQuickAssist(true);
+                }
+              }}
               style={({ pressed }) => [
-                styles.actionCard,
-                pressed && styles.cardPressed,
+                styles.assistButton,
+                pressed && styles.buttonPressed,
               ]}
-              accessibilityRole="button"
-              accessibilityLabel="My schedule"
             >
-              <View
-                style={[
-                  styles.actionIcon,
-                  {
-                    backgroundColor: COLORS.scheduleGoldSoft,
-                  },
-                ]}
-              >
-                <MaterialIcons
-                  name="calendar-today"
-                  size={36}
-                  color={COLORS.scheduleGold}
-                />
-              </View>
-
-              <Text style={styles.actionTitle}>My Schedule</Text>
-
-              <Text style={styles.actionDescription}>
-                View your reminders
-              </Text>
-            </Pressable>
-
-            {/* --------------------------------------------------
-                CALL FAMILY
-            --------------------------------------------------- */}
-
-            <Pressable
-              onPress={onCallFamily}
-              style={({ pressed }) => [
-                styles.actionCard,
-                pressed && styles.cardPressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Call family"
-            >
-              <View
-                style={[
-                  styles.actionIcon,
-                  {
-                    backgroundColor: COLORS.familyRedSoft,
-                  },
-                ]}
-              >
-                <MaterialIcons
-                  name="phone-in-talk"
-                  size={36}
-                  color={COLORS.familyRed}
-                />
-              </View>
-
-              <Text style={styles.actionTitle}>Call Family</Text>
-
-              <Text style={styles.actionDescription}>
-                Stay connected
+              <Text style={styles.assistButtonText}>
+                Get Help
               </Text>
             </Pressable>
           </View>
 
-          {/* ====================================================
-              GAMES
-          ===================================================== */}
-
-          <Pressable
-            onPress={onGames}
-            style={({ pressed }) => [
-              styles.featureCard,
-              pressed && styles.cardPressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Open games"
-          >
-            <View style={styles.featureIcon}>
-              <MaterialIcons
-                name="psychology"
-                size={31}
-                color={COLORS.onPrimaryContainer}
+          {/* SAFETY MESSAGE */}
+          <View style={styles.safetyCard}>
+            <View style={styles.safetyIcon}>
+              <Ionicons
+                name="shield-checkmark-outline"
+                size={25}
+                color="#00450D"
               />
             </View>
 
-            <View style={styles.featureContent}>
-              <Text style={styles.featureTitle}>Memory & Brain Games</Text>
-
-              <Text style={styles.featureDescription}>
-                Exercise your memory with simple activities
-              </Text>
-            </View>
-
-            <MaterialIcons
-              name="chevron-right"
-              size={30}
-              color={COLORS.primary}
-            />
-          </Pressable>
-
-          {/* ====================================================
-              MEMORIES
-          ===================================================== */}
-
-          <Pressable
-            onPress={onMemory}
-            style={({ pressed }) => [
-              styles.featureCard,
-              pressed && styles.cardPressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Open memories"
-          >
-            <View style={styles.featureIcon}>
-              <MaterialIcons
-                name="auto-stories"
-                size={31}
-                color={COLORS.onPrimaryContainer}
-              />
-            </View>
-
-            <View style={styles.featureContent}>
-              <Text style={styles.featureTitle}>My Memories</Text>
-
-              <Text style={styles.featureDescription}>
-                Save and revisit special memories
-              </Text>
-            </View>
-
-            <MaterialIcons
-              name="chevron-right"
-              size={30}
-              color={COLORS.primary}
-            />
-          </Pressable>
-
-          {/* ====================================================
-              SIMPLE SUPPORT CARD
-          ===================================================== */}
-
-          <View style={styles.supportCard}>
-            <View style={styles.supportIcon}>
-              <MaterialIcons
-                name="favorite"
-                size={26}
-                color={COLORS.primary}
-              />
-            </View>
-
-            <View style={styles.supportContent}>
-              <Text style={styles.supportTitle}>
-                We're here for you
+            <View style={styles.safetyText}>
+              <Text style={styles.safetyTitle}>
+                Your wellbeing matters
               </Text>
 
-              <Text style={styles.supportText}>
-                SmritiCare helps you stay connected, organized,
-                and supported throughout your day.
+              <Text style={styles.safetyDescription}>
+                SmritiCare is here to make everyday
+                activities easier and more comfortable.
               </Text>
             </View>
           </View>
 
-          {/* Bottom spacing */}
-
+          {/* SPACE FOR BOTTOM NAV */}
           <View style={styles.bottomSpacing} />
         </ScrollView>
 
         {/* ======================================================
-            BOTTOM NAVIGATION
-        ======================================================= */}
+    BOTTOM NAVIGATION
+====================================================== */}
 
-        <View style={styles.bottomNav}>
-          {/* HOME */}
+<View style={styles.bottomNav}>
+  <NavButton
+    label="Home"
+    icon="⌂"
+    active
+    onPress={() => {}}
+  />
 
-          <Pressable
-            style={[
-              styles.navItem,
-              activeTab === "Home" && styles.activeNavItem,
-            ]}
-            onPress={() => setActiveTab("Home")}
-            accessibilityRole="button"
-            accessibilityLabel="Home"
-          >
-            <MaterialIcons
-              name="home"
-              size={25}
-              color={
-                activeTab === "Home"
-                  ? COLORS.primary
-                  : COLORS.textSecondary
-              }
-            />
+  <NavButton
+    label="Games"
+    icon="🎮"
+    onPress={onGames || (() => {})}
+  />
 
-            <Text
-              style={[
-                styles.navText,
-                activeTab === "Home" && styles.activeNavText,
-              ]}
-            >
-              Home
-            </Text>
-          </Pressable>
+  <NavButton
+    label="Schedule"
+    icon="📅"
+    onPress={onSchedule}
+  />
 
-          {/* GAMES */}
+  <NavButton
+    label="Memories"
+    icon="💚"
+    onPress={onMemory || (() => {})}
+  />
 
-          <Pressable
-            style={styles.navItem}
-            onPress={() => {
-              setActiveTab("Games");
-              onGames?.();
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Games"
-          >
-            <MaterialIcons
-              name="sports-esports"
-              size={25}
-              color={COLORS.textSecondary}
-            />
+  <NavButton
+    label="Profile"
+    icon="👤"
+    onPress={onProfile || (() => {})}
+  />
+</View>
 
-            <Text style={styles.navText}>Games</Text>
-          </Pressable>
+{/* ======================================================
+    QUICK ASSIST
+====================================================== */}
 
-          {/* REMIND */}
+<QuickAssist
+  bottomOffset={100}
+  onVoiceAssistant={onVoiceAssistant}
+/>
 
-          <Pressable
-            style={styles.navItem}
-            onPress={() => {
-              setActiveTab("Remind");
-              onSchedule();
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Reminders"
-          >
-            <MaterialIcons
-              name="notifications-none"
-              size={25}
-              color={COLORS.textSecondary}
-            />
-
-            <Text style={styles.navText}>Remind</Text>
-          </Pressable>
-
-          {/* MEMORY */}
-
-          <Pressable
-            style={styles.navItem}
-            onPress={() => {
-              setActiveTab("Memory");
-              onMemory?.();
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Memories"
-          >
-            <MaterialIcons
-              name="auto-stories"
-              size={25}
-              color={COLORS.textSecondary}
-            />
-
-            <Text style={styles.navText}>Memory</Text>
-          </Pressable>
-
-          {/* PROFILE */}
-
-          <Pressable
-            style={[
-              styles.navItem,
-              activeTab === "Profile" && styles.activeNavItem,
-            ]}
-            onPress={() => {
-              setActiveTab("Profile");
-              onProfile?.();
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Profile"
-          >
-            <MaterialIcons
-              name="person-outline"
-              size={25}
-              color={
-                activeTab === "Profile"
-                  ? COLORS.primary
-                  : COLORS.textSecondary
-              }
-            />
-
-            <Text
-              style={[
-                styles.navText,
-                activeTab === "Profile" && styles.activeNavText,
-              ]}
-            >
-              Profile
-            </Text>
-          </Pressable>
-        </View>
-
-        {/* ======================================================
-            QUICK ASSIST
-        ======================================================= */}
-
-        <QuickAssist
-          bottomOffset={88}
-          onVoiceAssistant={onVoiceAssistant}
-        />
-      </View>
-    </SafeAreaView>
-  );
+</View>
+</SafeAreaView>
+);
 }
-
-// ============================================================
-// STYLES
-// ============================================================
-
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#F4FAFF',
   },
+
+  screen: {
+    flex: 1,
+    backgroundColor: '#F4FAFF',
+  },
+
+  /* HEADER */
+
+  header: {
+    minHeight: 76,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E4E9E4',
+  },
+
+  headerBrand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 1,
+  },
+
+  logoCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#E5F2E4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+
+  logoText: {
+    fontSize: 25,
+    fontWeight: '800',
+    color: '#00450D',
+  },
+
+  brandName: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#102A56',
+  },
+
+  brandSubtitle: {
+    fontSize: 12,
+    color: '#717A6D',
+    marginTop: 2,
+  },
+
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  headerButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F4F7F4',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  /* CONTENT */
 
   scrollView: {
     flex: 1,
   },
 
   content: {
-    width: "100%",
-    maxWidth: 800,
-    alignSelf: "center",
-
-    paddingHorizontal: 22,
-    paddingTop: 20,
-    paddingBottom: 24,
+    width: '100%',
+    maxWidth: 1180,
+    alignSelf: 'center',
+    paddingHorizontal: 28,
+    paddingTop: 28,
+    paddingBottom: 20,
   },
 
-  // ==========================================================
-  // HEADER
-  // ==========================================================
-
-  header: {
-    width: "100%",
-    minHeight: 72,
-
-    paddingHorizontal: 20,
-
-    backgroundColor: COLORS.surface,
-
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.outlineVariant,
+  contentMobile: {
+    paddingHorizontal: 16,
+    paddingTop: 22,
   },
 
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
+  contentTablet: {
+    paddingHorizontal: 24,
   },
 
-  logoMark: {
-    width: 46,
-    height: 46,
-
-    borderRadius: 23,
-
-    backgroundColor: COLORS.primaryContainer,
-
-    alignItems: "center",
-    justifyContent: "center",
-
-    marginRight: 12,
-  },
-
-  logoLetter: {
-    fontSize: 25,
-    fontWeight: "800",
-    color: COLORS.onPrimaryContainer,
-  },
-
-  appTitle: {
-    fontSize: 22,
-    lineHeight: 28,
-    fontWeight: "800",
-    color: COLORS.primary,
-  },
-
-  appSubtitle: {
-    marginTop: 1,
-    fontSize: 13,
-    color: COLORS.textSecondary,
-  },
-
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-
-  headerButton: {
-    width: 48,
-    height: 48,
-
-    borderRadius: 24,
-
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  decorativeLine: {
-    height: 5,
-    width: "100%",
-
-    flexDirection: "row",
-
-    opacity: 0.18,
-  },
-
-  linePrimary: {
-    flex: 1,
-    backgroundColor: COLORS.primary,
-  },
-
-  lineSecondary: {
-    flex: 1,
-    backgroundColor: COLORS.secondary,
-  },
-
-  lineLight: {
-    flex: 1,
-    backgroundColor: COLORS.primaryContainer,
-  },
-
-  // ==========================================================
-  // WELCOME
-  // ==========================================================
+  /* WELCOME */
 
   welcomeSection: {
-    paddingTop: 10,
-    paddingBottom: 22,
+    marginBottom: 28,
   },
 
   welcomeTitle: {
-    fontSize: 29,
-    lineHeight: 37,
-    fontWeight: "800",
-    color: COLORS.navy,
+    fontSize: 32,
+    lineHeight: 40,
+    fontWeight: '800',
+    color: '#102A56',
   },
 
-  welcomeSubtitle: {
-    marginTop: 6,
+  welcomeText: {
     fontSize: 17,
     lineHeight: 25,
-    color: COLORS.textSecondary,
+    color: '#556158',
+    marginTop: 5,
   },
 
-  // ==========================================================
-  // SECTION HEADER
-  // ==========================================================
+  /* SECTIONS */
 
-  sectionHeader: {
-    marginBottom: 12,
+  section: {
+    marginBottom: 28,
   },
 
   sectionTitle: {
-    fontSize: 20,
-    lineHeight: 26,
-    fontWeight: "800",
-    color: COLORS.text,
+    fontSize: 23,
+    lineHeight: 30,
+    fontWeight: '800',
+    color: '#1B1C1C',
   },
 
-  // ==========================================================
-  // ACTION GRID
-  // ==========================================================
+  sectionSubtitle: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: '#717A6D',
+    marginTop: 3,
+    marginBottom: 15,
+  },
 
-  actionGrid: {
-    width: "100%",
+  /* QUICK ACTION GRID */
 
-    flexDirection: "row",
-    flexWrap: "wrap",
+  actionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
 
-    gap: 14,
+  actionsGridMobile: {
+    flexDirection: 'column',
+    gap: 12,
   },
 
   actionCard: {
-    width: "48%",
-
-    minHeight: 170,
-
+    flexGrow: 1,
+    flexBasis: '47%',
+    minHeight: 120,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
     padding: 18,
-
-    backgroundColor: COLORS.surface,
-
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-
-    borderRadius: 20,
-
-    alignItems: "flex-start",
-    justifyContent: "center",
-
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    borderColor: '#E1E7E1',
+    shadowColor: '#000000',
     shadowOpacity: 0.04,
     shadowRadius: 8,
-
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
     elevation: 2,
   },
 
-  actionIcon: {
+  actionCardWide: {
+    flexBasis: '100%',
+  },
+
+  actionIconContainer: {
     width: 58,
     height: 58,
+    borderRadius: 16,
+    backgroundColor: '#E7F3E6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
 
-    borderRadius: 29,
-
-    alignItems: "center",
-    justifyContent: "center",
-
-    marginBottom: 13,
+  actionTextContainer: {
+    flex: 1,
   },
 
   actionTitle: {
-    fontSize: 17,
-    lineHeight: 23,
-    fontWeight: "800",
-    color: COLORS.text,
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '800',
+    color: '#1B1C1C',
   },
 
-  actionDescription: {
-    marginTop: 4,
-
-    fontSize: 13.5,
+  actionSubtitle: {
+    fontSize: 13,
     lineHeight: 19,
-
-    color: COLORS.textSecondary,
+    color: '#717A6D',
+    marginTop: 3,
   },
 
-  // ==========================================================
-  // FEATURE CARDS
-  // ==========================================================
+  /* FEATURE GRID */
+
+  featureGrid: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+
+  featureGridMobile: {
+    flexDirection: 'column',
+  },
 
   featureCard: {
-    width: "100%",
-
-    minHeight: 92,
-
-    marginTop: 16,
-
-    padding: 16,
-
-    backgroundColor: COLORS.surface,
-
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-
+    flex: 1,
+    minHeight: 190,
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
-
-    flexDirection: "row",
-    alignItems: "center",
-
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#E1E7E1',
+    position: 'relative',
+    shadowColor: '#000000',
     shadowOpacity: 0.04,
     shadowRadius: 8,
-
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
     elevation: 2,
   },
 
-  featureIcon: {
-    width: 56,
-    height: 56,
-
-    borderRadius: 28,
-
-    backgroundColor: COLORS.primaryContainer,
-
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  featureContent: {
-    flex: 1,
-
-    marginLeft: 14,
-    marginRight: 8,
+  featureIconContainer: {
+    width: 58,
+    height: 58,
+    borderRadius: 17,
+    backgroundColor: '#E7F3E6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
   },
 
   featureTitle: {
-    fontSize: 18,
-    lineHeight: 24,
-    fontWeight: "800",
-    color: COLORS.text,
+    fontSize: 20,
+    lineHeight: 27,
+    fontWeight: '800',
+    color: '#1B1C1C',
   },
 
   featureDescription: {
-    marginTop: 3,
-
     fontSize: 14,
-    lineHeight: 20,
-
-    color: COLORS.textSecondary,
+    lineHeight: 21,
+    color: '#717A6D',
+    marginTop: 6,
+    paddingRight: 20,
   },
 
-  // ==========================================================
-  // SUPPORT
-  // ==========================================================
+  featureArrow: {
+    position: 'absolute',
+    right: 18,
+    bottom: 18,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#E7F3E6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
-  supportCard: {
-    width: "100%",
+  /* QUICK ASSIST */
 
-    marginTop: 18,
-
-    padding: 16,
-
+  assistCard: {
+    backgroundColor: '#EAF5E9',
     borderRadius: 20,
-
-    backgroundColor: "#EDF7F0",
-
-    flexDirection: "row",
-    alignItems: "flex-start",
+    padding: 18,
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#D7E9D5',
   },
 
-  supportIcon: {
-    width: 46,
-    height: 46,
-
-    borderRadius: 23,
-
-    backgroundColor: COLORS.surface,
-
-    alignItems: "center",
-    justifyContent: "center",
+  assistIconContainer: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
   },
 
-  supportContent: {
+  assistTextContainer: {
     flex: 1,
-    marginLeft: 12,
   },
 
-  supportTitle: {
+  assistTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#1B1C1C',
+  },
+
+  assistDescription: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#556158',
+    marginTop: 3,
+  },
+
+  assistButton: {
+    minHeight: 44,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: '#00450D',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 10,
+  },
+
+  assistButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+
+  /* SAFETY */
+
+  safetyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 17,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E1E7E1',
+  },
+
+  safetyIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 15,
+    backgroundColor: '#E7F3E6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 13,
+  },
+
+  safetyText: {
+    flex: 1,
+  },
+
+  safetyTitle: {
     fontSize: 16,
-    lineHeight: 22,
-    fontWeight: "800",
-    color: COLORS.primary,
+    fontWeight: '800',
+    color: '#1B1C1C',
   },
 
-  supportText: {
-    marginTop: 4,
-
-    fontSize: 13.5,
-    lineHeight: 20,
-
-    color: COLORS.textSecondary,
+  safetyDescription: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#717A6D',
+    marginTop: 3,
   },
 
-  // ==========================================================
-  // BOTTOM NAV
-  // ==========================================================
+  /* BOTTOM NAVIGATION */
 
   bottomNav: {
-    width: "100%",
-    minHeight: 76,
-
-    paddingHorizontal: 4,
-    paddingVertical: 7,
-
-    backgroundColor: COLORS.surface,
-
+    minHeight: 70,
+    width: '100%',
+    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: COLORS.outlineVariant,
-
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-  },
-
-  navItem: {
-    width: 64,
-    minHeight: 58,
-
+    borderTopColor: '#E1E7E1',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingHorizontal: 6,
     paddingVertical: 6,
-
-    borderRadius: 14,
-
-    alignItems: "center",
-    justifyContent: "center",
   },
 
-  activeNavItem: {
-    backgroundColor: "#EAF5EA",
+  navButton: {
+    flex: 1,
+    minHeight: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    paddingVertical: 5,
   },
 
-  navText: {
-    marginTop: 3,
-
-    fontSize: 12,
-    lineHeight: 16,
-
-    fontWeight: "700",
-
-    color: COLORS.textSecondary,
+  navButtonActive: {
+    backgroundColor: '#E7F3E6',
   },
 
-  activeNavText: {
-    color: COLORS.primary,
+  navButtonPressed: {
+    opacity: 0.65,
   },
 
-  // ==========================================================
-  // OTHER
-  // ==========================================================
+  navIcon: {
+    fontSize: 21,
+    lineHeight: 25,
+    color: '#717A6D',
+  },
+
+  navIconActive: {
+    color: '#00450D',
+  },
+
+  navLabel: {
+    fontSize: 11,
+    lineHeight: 15,
+    color: '#717A6D',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+
+  navLabelActive: {
+    color: '#00450D',
+    fontWeight: '800',
+  },
+
+  /* QUICK ASSIST OVERLAY */
+
+  quickAssistOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(16, 42, 86, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+
+  quickAssistBox: {
+    width: '100%',
+    maxWidth: 500,
+    maxHeight: '80%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 20,
+    shadowColor: '#000000',
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    elevation: 8,
+  },
+
+  quickAssistClose: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#F4F7F4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-end',
+    marginBottom: 8,
+  },
+
+  /* GENERAL */
+
+  cardPressed: {
+    opacity: 0.75,
+    transform: [{ scale: 0.99 }],
+  },
+
+  buttonPressed: {
+    opacity: 0.8,
+  },
 
   bottomSpacing: {
     height: 20,
-  },
-
-  pressed: {
-    opacity: 0.75,
-  },
-
-  cardPressed: {
-    transform: [{ scale: 0.98 }],
-    opacity: 0.92,
   },
 });

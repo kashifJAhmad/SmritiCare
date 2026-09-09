@@ -480,6 +480,7 @@ function AppContent() {
         onSchedule={() => setScreen('schedule')}
         onMemory={() => setScreen('memory')}
         onProfile={() => setScreen('profile')}
+        onVoiceAssistant={() => setScreen('voice-assistant')}
         onOddOneOut={() => setScreen('odd-one-out')}
         onGuessFood={() => setScreen('guess-food')}
       />
@@ -513,6 +514,7 @@ function AppContent() {
         onGames={() => setScreen('games')}
         onSchedule={() => setScreen('schedule')}
         onProfile={() => setScreen('profile')}
+        onVoiceAssistant={() => setScreen('voice-assistant')}
       />
     );
   }
