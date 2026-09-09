@@ -20,7 +20,6 @@ type OfflineSyncStatusScreenProps = {
 
 const COLORS = {
     background: '#F4FAFF',
-
     surface: '#FFFFFF',
     surfaceLowest: '#FFFFFF',
     surfaceLow: '#E9F6FD',
@@ -84,7 +83,8 @@ export default function OfflineSyncStatusScreen({
 
     const [syncing, setSyncing] = useState(false);
     const [syncComplete, setSyncComplete] = useState(false);
-    const [lastSynced, setLastSynced] = useState('Today, 10:42 AM');
+    const [lastSynced, setLastSynced] =
+        useState('Today, 10:42 AM');
 
     useEffect(() => {
         if (!syncComplete) return;
@@ -115,9 +115,7 @@ export default function OfflineSyncStatusScreen({
             <View
                 style={[
                     styles.header,
-                    {
-                        paddingTop: insets.top,
-                    },
+                    { paddingTop: insets.top },
                 ]}
             >
                 <View style={styles.headerInner}>
@@ -170,7 +168,7 @@ export default function OfflineSyncStatusScreen({
                     <View style={styles.headingRow}>
                         <MaterialIcons
                             name="cloud-done"
-                            size={24}
+                            size={22}
                             color={COLORS.primary}
                         />
 
@@ -212,8 +210,9 @@ export default function OfflineSyncStatusScreen({
 
                     <View style={styles.infoBox}>
                         <Text style={styles.infoText}>
-                            All 18 activities and care logs are synchronized
-                            between Ramani&apos;s device and Caregiver portal.
+                            All 18 activities and care logs are
+                            synchronized between Ramani&apos;s device
+                            and Caregiver portal.
                         </Text>
                     </View>
 
@@ -224,10 +223,11 @@ export default function OfflineSyncStatusScreen({
                         onPress={triggerSync}
                         style={({ pressed }) => [
                             styles.syncButton,
-                            syncing && styles.syncButtonDisabled,
+                            syncing &&
+                            styles.syncButtonDisabled,
                             pressed &&
-                                !syncing &&
-                                styles.buttonPressed,
+                            !syncing &&
+                            styles.buttonPressed,
                         ]}
                     >
                         <MaterialIcons
@@ -331,8 +331,9 @@ export default function OfflineSyncStatusScreen({
                     </View>
 
                     <Text style={styles.flowDescription}>
-                        Activities, games, and reminders operate 100% offline
-                        and automatically sync once network is restored.
+                        Activities, games, and reminders operate
+                        100% offline and automatically sync once
+                        network is restored.
                     </Text>
                 </View>
 
@@ -392,9 +393,9 @@ export default function OfflineSyncStatusScreen({
                         </Text>
 
                         <Text style={styles.resilienceText}>
-                            Even during rural network outages, reminders and
-                            speech anchors will trigger on time with zero
-                            delay.
+                            Even during rural network outages,
+                            reminders and speech anchors will trigger
+                            on time with zero delay.
                         </Text>
                     </View>
                 </View>
@@ -428,12 +429,12 @@ export default function OfflineSyncStatusScreen({
 
                                     {index <
                                         SYNC_HISTORY.length - 1 && (
-                                        <View
-                                            style={
-                                                styles.timelineLine
-                                            }
-                                        />
-                                    )}
+                                            <View
+                                                style={
+                                                    styles.timelineLine
+                                                }
+                                            />
+                                        )}
                                 </View>
 
                                 <View
@@ -482,7 +483,7 @@ export default function OfflineSyncStatusScreen({
                     {
                         paddingBottom: Math.max(
                             insets.bottom,
-                            8
+                            8,
                         ),
                     },
                 ]}
@@ -574,9 +575,7 @@ function MetricCard({
                 style={[
                     styles.metricDetail,
                     detailColor
-                        ? {
-                              color: detailColor,
-                          }
+                        ? { color: detailColor }
                         : null,
                 ]}
             >
@@ -657,7 +656,7 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         zIndex: 20,
-        backgroundColor: 'rgba(244,250,255,0.96)',
+        backgroundColor: 'rgba(244, 250, 255, 0.96)',
         shadowColor: '#000000',
         shadowOpacity: 0.04,
         shadowRadius: 8,
@@ -1141,7 +1140,7 @@ const styles = StyleSheet.create({
         fontWeight: '400',
     },
 
-    /* Bottom navigation */
+    /* Bottom Navigation */
 
     bottomNav: {
         position: 'absolute',
@@ -1149,7 +1148,7 @@ const styles = StyleSheet.create({
         right: 0,
         bottom: 0,
         zIndex: 30,
-        backgroundColor: 'rgba(244,250,255,0.96)',
+        backgroundColor: 'rgba(244, 250, 255, 0.96)',
         shadowColor: '#000000',
         shadowOpacity: 0.04,
         shadowRadius: 16,

@@ -84,7 +84,7 @@ export default function LowBatteryAlertScreen({
         setSendingReminder(true);
 
         showToast(
-            'High-volume Assamese chime & voice reminder sent to Ramani’s tablet.'
+            'High-volume Assamese chime & voice reminder sent to Ramani’s tablet.',
         );
 
         setTimeout(() => {
@@ -100,7 +100,7 @@ export default function LowBatteryAlertScreen({
 
         Alert.alert(
             'Call Companion',
-            'The companion / in-home caregiver call will be connected during integration.'
+            'The companion / in-home caregiver call will be connected during integration.',
         );
     };
 
@@ -124,6 +124,7 @@ export default function LowBatteryAlertScreen({
                             styles.headerButton,
                             pressed && styles.pressed,
                         ]}
+                        accessibilityRole="button"
                         accessibilityLabel="Go back"
                     >
                         <MaterialIcons
@@ -315,9 +316,12 @@ export default function LowBatteryAlertScreen({
                         onPress={handleVoiceReminder}
                         style={({ pressed }) => [
                             styles.voiceButton,
-                            sendingReminder && styles.voiceButtonSending,
+                            sendingReminder &&
+                            styles.voiceButtonSending,
                             pressed && styles.pressed,
                         ]}
+                        accessibilityRole="button"
+                        accessibilityLabel="Send voice reminder to charge tablet"
                     >
                         <MaterialIcons
                             name="volume-up"
@@ -339,6 +343,8 @@ export default function LowBatteryAlertScreen({
                             styles.callButton,
                             pressed && styles.pressed,
                         ]}
+                        accessibilityRole="button"
+                        accessibilityLabel="Call companion or in-home caregiver"
                     >
                         <MaterialIcons
                             name="call"
@@ -358,6 +364,8 @@ export default function LowBatteryAlertScreen({
                             styles.locationButton,
                             pressed && styles.pressed,
                         ]}
+                        accessibilityRole="button"
+                        accessibilityLabel="View full location details"
                     >
                         <MaterialIcons
                             name="explore"
@@ -498,9 +506,7 @@ function StatusCard({
             </View>
 
             <View style={styles.statusTextContainer}>
-                <Text style={styles.statusLabel}>
-                    {label}
-                </Text>
+                <Text style={styles.statusLabel}>{label}</Text>
 
                 <Text
                     style={[

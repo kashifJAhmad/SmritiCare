@@ -39,6 +39,7 @@ const COLORS = {
     onPrimary: '#FFFFFF',
     onPrimaryFixed: '#002203',
     onPrimaryContainer: '#90D689',
+    onPrimaryContainer: '#90D689',
 
     secondary: '#556158',
     secondaryContainer: '#D9E6DA',
@@ -281,6 +282,7 @@ export default function CaregiverNotesScreen({
                             <View style={styles.monitoringRow}>
                                 <MaterialIcons
                                     name="verified-user"
+                                    name="verified-user"
                                     size={16}
                                     color={COLORS.primary}
                                 />
@@ -462,6 +464,8 @@ export default function CaregiverNotesScreen({
                             <Text style={styles.emptyText}>
                                 Caregiver notes matching this filter
                                 will appear here.
+                                Caregiver notes matching this filter
+                                will appear here.
                             </Text>
                         </View>
                     ) : (
@@ -470,6 +474,15 @@ export default function CaregiverNotesScreen({
                                 key={note.id}
                                 note={note}
                                 liked={likedNotes.includes(note.id)}
+                                acknowledged={acknowledgedNotes.includes(
+                                    note.id,
+                                )}
+                                onLike={() =>
+                                    toggleLike(note.id)
+                                }
+                                onAcknowledge={() =>
+                                    acknowledge(note.id)
+                                }
                                 acknowledged={acknowledgedNotes.includes(
                                     note.id,
                                 )}
@@ -507,6 +520,10 @@ export default function CaregiverNotesScreen({
                 style={[
                     styles.bottomNav,
                     {
+                        paddingBottom: Math.max(
+                            insets.bottom,
+                            8,
+                        ),
                         paddingBottom: Math.max(
                             insets.bottom,
                             8,
@@ -598,6 +615,8 @@ function TimelineCard({
                         style={[
                             styles.noteTag,
                             {
+                                backgroundColor:
+                                    note.tagBackground,
                                 backgroundColor:
                                     note.tagBackground,
                             },
