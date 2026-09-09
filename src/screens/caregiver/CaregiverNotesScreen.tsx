@@ -25,12 +25,12 @@ type CaregiverNotesScreenProps = {
 type FilterType = 'all' | 'cognitive' | 'routine' | 'sleep';
 
 const COLORS = {
-    background: '#F4FAFF',
-    surface: '#FFFFFF',
+    background: '#FCF9F8',
+    surface: '#FCF9F8',
     surfaceLowest: '#FFFFFF',
-    surfaceLow: '#E9F6FD',
-    surfaceContainer: '#EAF3F7',
-    surfaceHigh: '#E2EEF4',
+    surfaceLow: '#F6F3F2',
+    surfaceContainer: '#F0EDED',
+    surfaceHigh: '#EAE7E7',
 
     primary: '#00450D',
     primaryContainer: '#1B5E20',
@@ -38,7 +38,6 @@ const COLORS = {
     primaryFixedDim: '#91D78A',
     onPrimary: '#FFFFFF',
     onPrimaryFixed: '#002203',
-    onPrimaryContainer: '#90D689',
     onPrimaryContainer: '#90D689',
 
     secondary: '#556158',
@@ -52,8 +51,9 @@ const COLORS = {
     tertiaryFixed: '#FFDBD1',
     onTertiaryFixed: '#3B0800',
 
-    onSurface: '#111D23',
+    onSurface: '#1B1C1C',
     onSurfaceVariant: '#41493E',
+
     outline: '#717A6D',
     outlineVariant: '#C0C9BB',
 };
@@ -152,9 +152,8 @@ export default function CaregiverNotesScreen({
         useState<FilterType>('all');
 
     const [likedNotes, setLikedNotes] = useState<number[]>([]);
-    const [acknowledgedNotes, setAcknowledgedNotes] = useState<number[]>(
-        [],
-    );
+    const [acknowledgedNotes, setAcknowledgedNotes] =
+        useState<number[]>([]);
     const [addingNote, setAddingNote] = useState(false);
 
     const filteredNotes = useMemo(() => {
@@ -251,8 +250,7 @@ export default function CaregiverNotesScreen({
                 contentContainerStyle={[
                     styles.content,
                     {
-                        paddingTop: insets.top + 84,
-                        paddingBottom: insets.bottom + 120,
+                        paddingBottom: 120 + insets.bottom,
                     },
                 ]}
             >
@@ -281,7 +279,6 @@ export default function CaregiverNotesScreen({
 
                             <View style={styles.monitoringRow}>
                                 <MaterialIcons
-                                    name="verified-user"
                                     name="verified-user"
                                     size={16}
                                     color={COLORS.primary}
@@ -320,10 +317,10 @@ export default function CaregiverNotesScreen({
                     style={({ pressed }) => [
                         styles.addObservationButton,
                         addingNote &&
-                            styles.addObservationButtonPressed,
+                        styles.addObservationButtonPressed,
                         pressed &&
-                            !addingNote &&
-                            styles.buttonPressed,
+                        !addingNote &&
+                        styles.buttonPressed,
                     ]}
                 >
                     <MaterialIcons
@@ -378,12 +375,9 @@ export default function CaregiverNotesScreen({
                                     {filter.label}
                                 </Text>
 
-                                {filter.key === 'all' &&
-                                    active && (
-                                        <View
-                                            style={styles.filterDot}
-                                        />
-                                    )}
+                                {filter.key === 'all' && active && (
+                                    <View style={styles.filterDot} />
+                                )}
                             </Pressable>
                         );
                     })}
@@ -464,8 +458,6 @@ export default function CaregiverNotesScreen({
                             <Text style={styles.emptyText}>
                                 Caregiver notes matching this filter
                                 will appear here.
-                                Caregiver notes matching this filter
-                                will appear here.
                             </Text>
                         </View>
                     ) : (
@@ -474,15 +466,6 @@ export default function CaregiverNotesScreen({
                                 key={note.id}
                                 note={note}
                                 liked={likedNotes.includes(note.id)}
-                                acknowledged={acknowledgedNotes.includes(
-                                    note.id,
-                                )}
-                                onLike={() =>
-                                    toggleLike(note.id)
-                                }
-                                onAcknowledge={() =>
-                                    acknowledge(note.id)
-                                }
                                 acknowledged={acknowledgedNotes.includes(
                                     note.id,
                                 )}
@@ -508,9 +491,9 @@ export default function CaregiverNotesScreen({
                     </View>
 
                     <Text style={styles.privacyText}>
-                        Notes are shared privately between authorized care
-                        team members to track qualitative changes in
-                        day-to-day well-being.
+                        Notes are shared privately between authorized
+                        care team members to track qualitative changes
+                        in day-to-day well-being.
                     </Text>
                 </View>
             </ScrollView>
@@ -520,10 +503,6 @@ export default function CaregiverNotesScreen({
                 style={[
                     styles.bottomNav,
                     {
-                        paddingBottom: Math.max(
-                            insets.bottom,
-                            8,
-                        ),
                         paddingBottom: Math.max(
                             insets.bottom,
                             8,
@@ -592,9 +571,7 @@ function TimelineCard({
             <View
                 style={[
                     styles.timelineAccent,
-                    {
-                        backgroundColor: note.accent,
-                    },
+                    { backgroundColor: note.accent },
                 ]}
             />
 
@@ -615,8 +592,6 @@ function TimelineCard({
                         style={[
                             styles.noteTag,
                             {
-                                backgroundColor:
-                                    note.tagBackground,
                                 backgroundColor:
                                     note.tagBackground,
                             },
@@ -778,9 +753,7 @@ function NavItem({
                 {label}
             </Text>
 
-            {active && (
-                <View style={styles.activeIndicator} />
-            )}
+            {active && <View style={styles.activeIndicator} />}
         </Pressable>
     );
 }
@@ -796,14 +769,13 @@ const styles = StyleSheet.create({
     },
 
     /* Header */
-
     header: {
         position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
         zIndex: 20,
-        backgroundColor: 'rgba(244,250,255,0.96)',
+        backgroundColor: 'rgba(252, 249, 248, 0.96)',
         shadowColor: '#000000',
         shadowOpacity: 0.04,
         shadowRadius: 8,
@@ -835,6 +807,7 @@ const styles = StyleSheet.create({
         marginHorizontal: 8,
         textAlign: 'center',
         color: COLORS.primary,
+        fontFamily: 'Plus Jakarta Sans',
         fontSize: 28,
         lineHeight: 34,
         fontWeight: '700',
@@ -851,16 +824,15 @@ const styles = StyleSheet.create({
     },
 
     /* Content */
-
     content: {
         width: '100%',
         maxWidth: 448,
         alignSelf: 'center',
+        paddingTop: 84,
         paddingHorizontal: 20,
     },
 
     /* Patient chip */
-
     patientChip: {
         minHeight: 82,
         padding: 16,
@@ -921,6 +893,7 @@ const styles = StyleSheet.create({
 
     patientName: {
         color: COLORS.onSurface,
+        fontFamily: 'Plus Jakarta Sans',
         fontSize: 17,
         lineHeight: 22,
         fontWeight: '700',
@@ -929,6 +902,7 @@ const styles = StyleSheet.create({
     patientAge: {
         marginLeft: 5,
         color: COLORS.secondary,
+        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 13,
         lineHeight: 18,
         fontWeight: '500',
@@ -943,6 +917,7 @@ const styles = StyleSheet.create({
     monitoringText: {
         marginLeft: 4,
         color: COLORS.secondary,
+        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 13,
         lineHeight: 18,
         fontWeight: '500',
@@ -959,7 +934,6 @@ const styles = StyleSheet.create({
     },
 
     /* Add observation */
-
     addObservationButton: {
         width: '100%',
         minHeight: 56,
@@ -987,6 +961,7 @@ const styles = StyleSheet.create({
 
     addObservationText: {
         color: COLORS.onPrimary,
+        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 18,
         lineHeight: 24,
         fontWeight: '600',
@@ -997,7 +972,6 @@ const styles = StyleSheet.create({
     },
 
     /* Filters */
-
     filterContainer: {
         paddingVertical: 4,
         gap: 10,
@@ -1031,6 +1005,7 @@ const styles = StyleSheet.create({
     },
 
     filterText: {
+        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 15,
         lineHeight: 20,
         fontWeight: '600',
@@ -1053,7 +1028,6 @@ const styles = StyleSheet.create({
     },
 
     /* Metrics */
-
     metricsRow: {
         flexDirection: 'row',
         gap: 12,
@@ -1104,6 +1078,7 @@ const styles = StyleSheet.create({
 
     metricLabel: {
         color: COLORS.secondary,
+        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 12,
         lineHeight: 16,
         fontWeight: '600',
@@ -1112,6 +1087,7 @@ const styles = StyleSheet.create({
     metricValue: {
         marginTop: 2,
         color: COLORS.onSurface,
+        fontFamily: 'Plus Jakarta Sans',
         fontSize: 16,
         lineHeight: 21,
         fontWeight: '700',
@@ -1122,7 +1098,6 @@ const styles = StyleSheet.create({
     },
 
     /* Timeline */
-
     timelineSection: {
         marginBottom: 20,
     },
@@ -1137,6 +1112,7 @@ const styles = StyleSheet.create({
 
     timelineTitle: {
         color: COLORS.onSurface,
+        fontFamily: 'Plus Jakarta Sans',
         fontSize: 20,
         lineHeight: 26,
         fontWeight: '700',
@@ -1145,6 +1121,7 @@ const styles = StyleSheet.create({
 
     observationCount: {
         color: COLORS.secondary,
+        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 13,
         lineHeight: 18,
         fontWeight: '600',
@@ -1200,6 +1177,7 @@ const styles = StyleSheet.create({
 
     noteTime: {
         color: COLORS.secondary,
+        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 14,
         lineHeight: 19,
         fontWeight: '600',
@@ -1213,6 +1191,7 @@ const styles = StyleSheet.create({
     },
 
     noteTagText: {
+        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 12,
         lineHeight: 16,
         fontWeight: '600',
@@ -1221,6 +1200,7 @@ const styles = StyleSheet.create({
 
     noteText: {
         color: COLORS.onSurface,
+        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 16,
         lineHeight: 24,
         fontWeight: '400',
@@ -1260,6 +1240,7 @@ const styles = StyleSheet.create({
 
     initialText: {
         color: COLORS.onSecondary,
+        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 12,
         lineHeight: 16,
         fontWeight: '700',
@@ -1268,6 +1249,7 @@ const styles = StyleSheet.create({
     authorText: {
         flex: 1,
         color: COLORS.onSurfaceVariant,
+        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 13,
         lineHeight: 18,
         fontWeight: '600',
@@ -1287,7 +1269,6 @@ const styles = StyleSheet.create({
     },
 
     /* Empty state */
-
     emptyState: {
         backgroundColor: COLORS.surfaceLowest,
         borderRadius: 12,
@@ -1300,6 +1281,7 @@ const styles = StyleSheet.create({
     emptyTitle: {
         marginTop: 10,
         color: COLORS.onSurface,
+        fontFamily: 'Plus Jakarta Sans',
         fontSize: 18,
         lineHeight: 24,
         fontWeight: '700',
@@ -1309,13 +1291,13 @@ const styles = StyleSheet.create({
     emptyText: {
         marginTop: 5,
         color: COLORS.onSurfaceVariant,
+        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 15,
         lineHeight: 21,
         textAlign: 'center',
     },
 
     /* Privacy */
-
     privacyCard: {
         padding: 16,
         backgroundColor: COLORS.surfaceLow,
@@ -1346,20 +1328,20 @@ const styles = StyleSheet.create({
     privacyText: {
         flex: 1,
         color: COLORS.onSurfaceVariant,
+        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 13,
         lineHeight: 19,
         fontWeight: '600',
     },
 
     /* Bottom nav */
-
     bottomNav: {
         position: 'absolute',
         left: 0,
         right: 0,
         bottom: 0,
         zIndex: 30,
-        backgroundColor: 'rgba(244,250,255,0.96)',
+        backgroundColor: 'rgba(252, 249, 248, 0.96)',
         shadowColor: '#000000',
         shadowOpacity: 0.04,
         shadowRadius: 16,
@@ -1391,6 +1373,7 @@ const styles = StyleSheet.create({
     navLabel: {
         marginTop: 2,
         color: COLORS.onSurfaceVariant,
+        fontFamily: 'Atkinson Hyperlegible Next',
         fontSize: 14,
         lineHeight: 18,
         fontWeight: '600',

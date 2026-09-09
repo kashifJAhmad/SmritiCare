@@ -18,7 +18,6 @@ const COLORS = {
     onPrimary: '#FFFFFF',
     primaryFixed: '#ACF4A4',
     onPrimaryFixed: '#002203',
-    onPrimaryContainer: '#90D689',
 
     error: '#BA1A1A',
     errorContainer: '#FFDAD6',
@@ -31,15 +30,13 @@ const COLORS = {
 
     surface: '#FFFFFF',
     surfaceLowest: '#FFFFFF',
-    surfaceContainer: '#EAF3F7',
-    surfaceContainerLow: '#E9F6FD',
-    surfaceContainerHigh: '#E2EEF4',
-    surfaceContainerHighest: '#E5EEF3',
+    surfaceContainer: '#F0EDED',
+    surfaceContainerLow: '#F6F3F2',
+    surfaceContainerHigh: '#EAE7E7',
+    surfaceContainerHighest: '#E5E2E1',
 
     onSurface: '#111D23',
     onSurfaceVariant: '#41493E',
-    outline: '#717A6D',
-    outlineVariant: '#C0C9BB',
 };
 
 type MaterialIconName = keyof typeof MaterialIcons.glyphMap;
@@ -493,9 +490,7 @@ function StatusCard({
             <View
                 style={[
                     styles.statusIconCircle,
-                    {
-                        backgroundColor: iconBackground,
-                    },
+                    { backgroundColor: iconBackground },
                 ]}
             >
                 <MaterialIcons
@@ -511,9 +506,7 @@ function StatusCard({
                 <Text
                     style={[
                         styles.statusValue,
-                        {
-                            color: valueColor,
-                        },
+                        { color: valueColor },
                     ]}
                     numberOfLines={1}
                 >
