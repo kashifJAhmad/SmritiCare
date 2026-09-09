@@ -11,7 +11,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const COLORS = {
-    background: '#FCF9F8',
+    background: '#F4FAFF',
 
     primary: '#00450D',
     primaryContainer: '#1B5E20',
@@ -28,14 +28,14 @@ const COLORS = {
     secondaryFixed: '#D9E6DA',
     onSecondaryFixed: '#131E17',
 
-    surface: '#FCF9F8',
+    surface: '#FFFFFF',
     surfaceLowest: '#FFFFFF',
     surfaceContainer: '#F0EDED',
     surfaceContainerLow: '#F6F3F2',
     surfaceContainerHigh: '#EAE7E7',
     surfaceContainerHighest: '#E5E2E1',
 
-    onSurface: '#1B1C1C',
+    onSurface: '#111D23',
     onSurfaceVariant: '#41493E',
 };
 
@@ -81,7 +81,7 @@ export default function LowBatteryAlertScreen({
         setSendingReminder(true);
 
         showToast(
-            'High-volume Assamese chime & voice reminder sent to Ramani’s tablet.'
+            'High-volume Assamese chime & voice reminder sent to Ramani’s tablet.',
         );
 
         setTimeout(() => {
@@ -97,7 +97,7 @@ export default function LowBatteryAlertScreen({
 
         Alert.alert(
             'Call Companion',
-            'The companion / in-home caregiver call will be connected during integration.'
+            'The companion / in-home caregiver call will be connected during integration.',
         );
     };
 
@@ -121,6 +121,7 @@ export default function LowBatteryAlertScreen({
                             styles.headerButton,
                             pressed && styles.pressed,
                         ]}
+                        accessibilityRole="button"
                         accessibilityLabel="Go back"
                     >
                         <MaterialIcons
@@ -192,9 +193,9 @@ export default function LowBatteryAlertScreen({
                             </Text>
 
                             <Text style={styles.criticalDescription}>
-                                Ramani&apos;s tablet has dropped to 9% battery. Voice
-                                assistance and scheduled reminders will suspend if device
-                                powers down.
+                                Ramani&apos;s tablet has dropped to 9% battery.
+                                Voice assistance and scheduled reminders will
+                                suspend if device powers down.
                             </Text>
                         </View>
                     </View>
@@ -202,7 +203,7 @@ export default function LowBatteryAlertScreen({
                     {/* Status Grid */}
                     <View style={styles.statusGrid}>
                         <StatusCard
-                            icon="battery-very-low"
+                            icon="battery-alert"
                             iconBackground={COLORS.errorContainer}
                             iconColor={COLORS.error}
                             label="Battery Level"
@@ -312,9 +313,12 @@ export default function LowBatteryAlertScreen({
                         onPress={handleVoiceReminder}
                         style={({ pressed }) => [
                             styles.voiceButton,
-                            sendingReminder && styles.voiceButtonSending,
+                            sendingReminder &&
+                            styles.voiceButtonSending,
                             pressed && styles.pressed,
                         ]}
+                        accessibilityRole="button"
+                        accessibilityLabel="Send voice reminder to charge tablet"
                     >
                         <MaterialIcons
                             name="volume-up"
@@ -336,6 +340,8 @@ export default function LowBatteryAlertScreen({
                             styles.callButton,
                             pressed && styles.pressed,
                         ]}
+                        accessibilityRole="button"
+                        accessibilityLabel="Call companion or in-home caregiver"
                     >
                         <MaterialIcons
                             name="call"
@@ -355,6 +361,8 @@ export default function LowBatteryAlertScreen({
                             styles.locationButton,
                             pressed && styles.pressed,
                         ]}
+                        accessibilityRole="button"
+                        accessibilityLabel="View full location details"
                     >
                         <MaterialIcons
                             name="explore"
@@ -371,7 +379,7 @@ export default function LowBatteryAlertScreen({
                 {/* Reserve Power Protocol */}
                 <View style={styles.protocolCard}>
                     <MaterialIcons
-                        name="shield-with-heart"
+                        name="verified-user"
                         size={24}
                         color={COLORS.primary}
                     />
@@ -382,8 +390,9 @@ export default function LowBatteryAlertScreen({
                         </Text>
 
                         <Text style={styles.protocolText}>
-                            Pillbox reminder sensor and emergency audio SOS remain queued
-                            offline for up to 3 hours on emergency reserve power.
+                            Pillbox reminder sensor and emergency audio SOS
+                            remain queued offline for up to 3 hours on
+                            emergency reserve power.
                         </Text>
                     </View>
                 </View>
@@ -492,9 +501,7 @@ function StatusCard({
             </View>
 
             <View style={styles.statusTextContainer}>
-                <Text style={styles.statusLabel}>
-                    {label}
-                </Text>
+                <Text style={styles.statusLabel}>{label}</Text>
 
                 <Text
                     style={[
@@ -674,7 +681,7 @@ const styles = StyleSheet.create({
     },
 
     liveBadge: {
-        backgroundColor: 'rgba(252,249,248,0.8)',
+        backgroundColor: 'rgba(255,255,255,0.8)',
         borderRadius: 10,
         paddingHorizontal: 8,
         paddingVertical: 2,

@@ -38,6 +38,7 @@ const COLORS = {
     primaryFixedDim: '#91D78A',
     onPrimary: '#FFFFFF',
     onPrimaryFixed: '#002203',
+    onPrimaryContainer: '#90D689',
 
     secondary: '#556158',
     secondaryContainer: '#D9E6DA',
@@ -52,6 +53,9 @@ const COLORS = {
 
     onSurface: '#1B1C1C',
     onSurfaceVariant: '#41493E',
+
+    outline: '#717A6D',
+    outlineVariant: '#C0C9BB',
 };
 
 const PATIENT_IMAGE =
@@ -148,7 +152,8 @@ export default function CaregiverNotesScreen({
         useState<FilterType>('all');
 
     const [likedNotes, setLikedNotes] = useState<number[]>([]);
-    const [acknowledgedNotes, setAcknowledgedNotes] = useState<number[]>([]);
+    const [acknowledgedNotes, setAcknowledgedNotes] =
+        useState<number[]>([]);
     const [addingNote, setAddingNote] = useState(false);
 
     const filteredNotes = useMemo(() => {
@@ -274,7 +279,7 @@ export default function CaregiverNotesScreen({
 
                             <View style={styles.monitoringRow}>
                                 <MaterialIcons
-                                    name="shield-with-heart"
+                                    name="verified-user"
                                     size={16}
                                     color={COLORS.primary}
                                 />
@@ -311,8 +316,11 @@ export default function CaregiverNotesScreen({
                     onPress={handleAddObservation}
                     style={({ pressed }) => [
                         styles.addObservationButton,
-                        addingNote && styles.addObservationButtonPressed,
-                        pressed && !addingNote && styles.buttonPressed,
+                        addingNote &&
+                        styles.addObservationButtonPressed,
+                        pressed &&
+                        !addingNote &&
+                        styles.buttonPressed,
                     ]}
                 >
                     <MaterialIcons
@@ -448,7 +456,8 @@ export default function CaregiverNotesScreen({
                             </Text>
 
                             <Text style={styles.emptyText}>
-                                Caregiver notes matching this filter will appear here.
+                                Caregiver notes matching this filter
+                                will appear here.
                             </Text>
                         </View>
                     ) : (
@@ -457,9 +466,15 @@ export default function CaregiverNotesScreen({
                                 key={note.id}
                                 note={note}
                                 liked={likedNotes.includes(note.id)}
-                                acknowledged={acknowledgedNotes.includes(note.id)}
-                                onLike={() => toggleLike(note.id)}
-                                onAcknowledge={() => acknowledge(note.id)}
+                                acknowledged={acknowledgedNotes.includes(
+                                    note.id,
+                                )}
+                                onLike={() =>
+                                    toggleLike(note.id)
+                                }
+                                onAcknowledge={() =>
+                                    acknowledge(note.id)
+                                }
                             />
                         ))
                     )}
@@ -476,9 +491,9 @@ export default function CaregiverNotesScreen({
                     </View>
 
                     <Text style={styles.privacyText}>
-                        Notes are shared privately between authorized care team
-                        members to track qualitative changes in day-to-day
-                        well-being.
+                        Notes are shared privately between authorized
+                        care team members to track qualitative changes
+                        in day-to-day well-being.
                     </Text>
                 </View>
             </ScrollView>
@@ -488,7 +503,10 @@ export default function CaregiverNotesScreen({
                 style={[
                     styles.bottomNav,
                     {
-                        paddingBottom: Math.max(insets.bottom, 8),
+                        paddingBottom: Math.max(
+                            insets.bottom,
+                            8,
+                        ),
                     },
                 ]}
             >
@@ -574,7 +592,8 @@ function TimelineCard({
                         style={[
                             styles.noteTag,
                             {
-                                backgroundColor: note.tagBackground,
+                                backgroundColor:
+                                    note.tagBackground,
                             },
                         ]}
                     >

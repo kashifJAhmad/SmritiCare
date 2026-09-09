@@ -15,6 +15,7 @@ const COLORS = {
     primary: '#00450D',
     primaryContainer: '#1B5E20',
     onPrimary: '#FFFFFF',
+    onPrimaryContainer: '#90D689',
     primaryFixed: '#ACF4A4',
     onPrimaryFixed: '#002203',
 
@@ -909,8 +910,6 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.background,
     },
 
-    /* Header */
-
     header: {
         position: 'absolute',
         top: 0,
@@ -967,8 +966,6 @@ const styles = StyleSheet.create({
         marginHorizontal: 8,
     },
 
-    /* Main */
-
     scrollView: {
         flex: 1,
     },
@@ -980,8 +977,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         gap: 16,
     },
-
-    /* Heading */
 
     headingRow: {
         flexDirection: 'row',
@@ -1039,8 +1034,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-
-    /* Patient Context */
 
     patientContext: {
         backgroundColor: COLORS.surfaceContainerLow,
@@ -1114,8 +1107,6 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
 
-    /* Filters */
-
     filterRow: {
         gap: 8,
         paddingBottom: 4,
@@ -1158,8 +1149,6 @@ const styles = StyleSheet.create({
     filterButtonTextInactive: {
         color: COLORS.onSurfaceVariant,
     },
-
-    /* Alerts */
 
     alertsStack: {
         gap: 16,
@@ -1249,8 +1238,6 @@ const styles = StyleSheet.create({
         lineHeight: 23,
     },
 
-    /* Routine */
-
     routineAlert: {
         backgroundColor: COLORS.tertiaryFixed,
         borderRadius: 12,
@@ -1314,8 +1301,6 @@ const styles = StyleSheet.create({
         fontSize: 16,
         lineHeight: 23,
     },
-
-    /* Device */
 
     deviceAlert: {
         backgroundColor: COLORS.surfaceLowest,
@@ -1389,8 +1374,6 @@ const styles = StyleSheet.create({
         lineHeight: 23,
     },
 
-    /* Buttons */
-
     alertButtonsRow: {
         gap: 10,
     },
@@ -1451,8 +1434,6 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
 
-    /* Empty State */
-
     emptyState: {
         backgroundColor: COLORS.surfaceLowest,
         borderRadius: 12,
@@ -1485,8 +1466,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginTop: 4,
     },
-
-    /* Resolved */
 
     resolvedHeader: {
         flexDirection: 'row',
@@ -1570,8 +1549,6 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
 
-    /* Disclaimer */
-
     disclaimer: {
         backgroundColor: COLORS.surfaceContainer,
         borderRadius: 12,
@@ -1588,8 +1565,6 @@ const styles = StyleSheet.create({
         fontSize: 14,
         lineHeight: 20,
     },
-
-    /* Toast */
 
     toast: {
         position: 'absolute',
@@ -1622,8 +1597,6 @@ const styles = StyleSheet.create({
         lineHeight: 19,
         fontWeight: '600',
     },
-
-    /* Bottom Navigation */
 
     bottomNav: {
         position: 'absolute',

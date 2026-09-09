@@ -19,8 +19,8 @@ type OfflineSyncStatusScreenProps = {
 };
 
 const COLORS = {
-    background: '#FCF9F8',
-    surface: '#FCF9F8',
+    background: '#F4FAFF',
+    surface: '#FFFFFF',
     surfaceLowest: '#FFFFFF',
     surfaceLow: '#F6F3F2',
     surfaceContainer: '#F0EDED',
@@ -38,7 +38,7 @@ const COLORS = {
     onSecondaryFixed: '#131E17',
     onSecondaryFixedVariant: '#3E4A41',
 
-    onSurface: '#1B1C1C',
+    onSurface: '#111D23',
     onSurfaceVariant: '#41493E',
 };
 
@@ -77,7 +77,8 @@ export default function OfflineSyncStatusScreen({
 
     const [syncing, setSyncing] = useState(false);
     const [syncComplete, setSyncComplete] = useState(false);
-    const [lastSynced, setLastSynced] = useState('Today, 10:42 AM');
+    const [lastSynced, setLastSynced] =
+        useState('Today, 10:42 AM');
 
     useEffect(() => {
         if (!syncComplete) return;
@@ -105,7 +106,12 @@ export default function OfflineSyncStatusScreen({
     return (
         <View style={styles.screen}>
             {/* Header */}
-            <View style={[styles.header, { paddingTop: insets.top }]}>
+            <View
+                style={[
+                    styles.header,
+                    { paddingTop: insets.top },
+                ]}
+            >
                 <View style={styles.headerInner}>
                     <Pressable
                         accessibilityRole="button"
@@ -154,7 +160,7 @@ export default function OfflineSyncStatusScreen({
                 <View style={styles.headingBlock}>
                     <View style={styles.headingRow}>
                         <MaterialIcons
-                            name="sync-saved-locally"
+                            name="cloud-done"
                             size={22}
                             color={COLORS.primary}
                         />
@@ -197,8 +203,9 @@ export default function OfflineSyncStatusScreen({
 
                     <View style={styles.infoBox}>
                         <Text style={styles.infoText}>
-                            All 18 activities and care logs are synchronized between
-                            Ramani&apos;s device and Caregiver portal.
+                            All 18 activities and care logs are
+                            synchronized between Ramani&apos;s device
+                            and Caregiver portal.
                         </Text>
                     </View>
 
@@ -209,8 +216,11 @@ export default function OfflineSyncStatusScreen({
                         onPress={triggerSync}
                         style={({ pressed }) => [
                             styles.syncButton,
-                            syncing && styles.syncButtonDisabled,
-                            pressed && !syncing && styles.buttonPressed,
+                            syncing &&
+                            styles.syncButtonDisabled,
+                            pressed &&
+                            !syncing &&
+                            styles.buttonPressed,
                         ]}
                     >
                         <MaterialIcons
@@ -314,8 +324,9 @@ export default function OfflineSyncStatusScreen({
                     </View>
 
                     <Text style={styles.flowDescription}>
-                        Activities, games, and reminders operate 100% offline and
-                        automatically sync once network is restored.
+                        Activities, games, and reminders operate
+                        100% offline and automatically sync once
+                        network is restored.
                     </Text>
                 </View>
 
@@ -375,8 +386,9 @@ export default function OfflineSyncStatusScreen({
                         </Text>
 
                         <Text style={styles.resilienceText}>
-                            Even during rural network outages, reminders and speech
-                            anchors will trigger on time with zero delay.
+                            Even during rural network outages,
+                            reminders and speech anchors will trigger
+                            on time with zero delay.
                         </Text>
                     </View>
                 </View>
@@ -408,14 +420,31 @@ export default function OfflineSyncStatusScreen({
                                         />
                                     </View>
 
-                                    {index < SYNC_HISTORY.length - 1 && (
-                                        <View style={styles.timelineLine} />
-                                    )}
+                                    {index <
+                                        SYNC_HISTORY.length - 1 && (
+                                            <View
+                                                style={
+                                                    styles.timelineLine
+                                                }
+                                            />
+                                        )}
                                 </View>
 
-                                <View style={styles.historyContent}>
-                                    <View style={styles.historyTopRow}>
-                                        <Text style={styles.historyTime}>
+                                <View
+                                    style={
+                                        styles.historyContent
+                                    }
+                                >
+                                    <View
+                                        style={
+                                            styles.historyTopRow
+                                        }
+                                    >
+                                        <Text
+                                            style={
+                                                styles.historyTime
+                                            }
+                                        >
                                             {item.time}
                                         </Text>
 
@@ -426,7 +455,11 @@ export default function OfflineSyncStatusScreen({
                                         />
                                     </View>
 
-                                    <Text style={styles.historyText}>
+                                    <Text
+                                        style={
+                                            styles.historyText
+                                        }
+                                    >
                                         {item.text}
                                     </Text>
                                 </View>
@@ -441,7 +474,10 @@ export default function OfflineSyncStatusScreen({
                 style={[
                     styles.bottomNav,
                     {
-                        paddingBottom: Math.max(insets.bottom, 8),
+                        paddingBottom: Math.max(
+                            insets.bottom,
+                            8,
+                        ),
                     },
                 ]}
             >
@@ -529,7 +565,9 @@ function MetricCard({
             <Text
                 style={[
                     styles.metricDetail,
-                    detailColor ? { color: detailColor } : null,
+                    detailColor
+                        ? { color: detailColor }
+                        : null,
                 ]}
             >
                 {detail}
@@ -584,7 +622,9 @@ function NavItem({
                 {label}
             </Text>
 
-            {active && <View style={styles.activeIndicator} />}
+            {active && (
+                <View style={styles.activeIndicator} />
+            )}
         </Pressable>
     );
 }
@@ -600,13 +640,14 @@ const styles = StyleSheet.create({
     },
 
     /* Header */
+
     header: {
         position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
         zIndex: 20,
-        backgroundColor: 'rgba(252, 249, 248, 0.96)',
+        backgroundColor: 'rgba(244, 250, 255, 0.96)',
         shadowColor: '#000000',
         shadowOpacity: 0.04,
         shadowRadius: 8,
@@ -655,6 +696,7 @@ const styles = StyleSheet.create({
     },
 
     /* Main */
+
     content: {
         width: '100%',
         maxWidth: 448,
@@ -693,6 +735,7 @@ const styles = StyleSheet.create({
     },
 
     /* Cards */
+
     card: {
         width: '100%',
         backgroundColor: COLORS.surfaceLowest,
@@ -816,6 +859,7 @@ const styles = StyleSheet.create({
     },
 
     /* Sections */
+
     sectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -832,6 +876,7 @@ const styles = StyleSheet.create({
     },
 
     /* Flow */
+
     flowRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -921,6 +966,7 @@ const styles = StyleSheet.create({
     },
 
     /* Metrics */
+
     metricsSection: {
         marginBottom: 20,
     },
@@ -983,6 +1029,7 @@ const styles = StyleSheet.create({
     },
 
     /* Resilience */
+
     resilienceCard: {
         marginBottom: 20,
         backgroundColor: COLORS.secondaryContainer,
@@ -1023,6 +1070,7 @@ const styles = StyleSheet.create({
     },
 
     /* History */
+
     historyHeader: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -1101,14 +1149,15 @@ const styles = StyleSheet.create({
         fontWeight: '400',
     },
 
-    /* Bottom navigation */
+    /* Bottom Navigation */
+
     bottomNav: {
         position: 'absolute',
         left: 0,
         right: 0,
         bottom: 0,
         zIndex: 30,
-        backgroundColor: 'rgba(252, 249, 248, 0.96)',
+        backgroundColor: 'rgba(244, 250, 255, 0.96)',
         shadowColor: '#000000',
         shadowOpacity: 0.04,
         shadowRadius: 16,
