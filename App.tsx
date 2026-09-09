@@ -599,7 +599,7 @@ function AppContent() {
       onProfile={() => setScreen('profile')}
       onGames={() => setScreen('games')}
       onMemory={() => setScreen('memory')}
-      onPatientDashboard={() => setScreen('patient-dashboard')}
+      // onPatientDashboard={() => setScreen('patient-dashboard')}
       onVoiceAssistant={() => setScreen('voice-assistant')}
     />
   );
