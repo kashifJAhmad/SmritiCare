@@ -15,7 +15,7 @@ import {
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { getToken } from '../../services/authStorage';
 
-const API_BASE_URL = 'http://192.168.29.253:5000';
+import { API_BASE_URL } from "../../constants/api";
 
 type CallFamilyScreenProps = {
   onBack?: () => void;

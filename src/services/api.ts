@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://192.168.29.253:5000";
+import { API_BASE_URL } from "../constants/api";
 
 export type PatientUser = {
   id: string;

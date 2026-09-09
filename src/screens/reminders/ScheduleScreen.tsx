@@ -15,6 +15,7 @@ import {
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 
 import { getToken } from '../../services/authStorage';
+import { API_BASE_URL } from "../../constants/api";
 
 type ScheduleScreenProps = {
   onBack?: () => void;
@@ -50,7 +51,7 @@ type Task = {
   category: string | null;
 };
 
-const API_BASE_URL = 'http://192.168.29.253:5000';
+
 
 const COLORS = {
   background: '#F4FAFF',
