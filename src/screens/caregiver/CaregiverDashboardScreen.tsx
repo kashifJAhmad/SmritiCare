@@ -21,36 +21,37 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import CaregiverPatientTasks from "./CaregiverPatientTasks";
 import { API_BASE_URL } from "../../constants/api";
 import { getToken } from "../../services/authStorage";
 
 const COLORS = {
-  background: "#F4FAFF",
-  primary: "#00450D",
-  primaryContainer: "#1B5E20",
+  background: "#FBF9F1",
+  primary: "#3F6F45",
+  primaryContainer: "#315A36",
   onPrimary: "#FFFFFF",
-  onPrimaryContainer: "#90D689",
+  onPrimaryContainer: "#D7E7D2",
 
-  secondary: "#00629E",
-  secondaryContainer: "#D7EEFF",
-  secondaryFixed: "#D9E6DA",
+  secondary: "#8A6040",
+  secondaryContainer: "#E9D7C5",
+  secondaryFixed: "#E7EFE3",
 
   surface: "#FFFFFF",
-  surfaceContainer: "#EAF3F7",
-  surfaceContainerLow: "#E9F6FD",
-  surfaceContainerHigh: "#E2EEF4",
+  surfaceContainer: "#E7EFE3",
+  surfaceContainerLow: "#F1F0E7",
+  surfaceContainerHigh: "#E3E2D9",
 
-  greenSoft: "#E2F3E0",
-  greenBorder: "#B7DDB3",
+  greenSoft: "#E7EFE3",
+  greenBorder: "#C5D8C1",
 
-  error: "#BA1A1A",
-  errorContainer: "#FFE8E5",
-  onErrorContainer: "#7A1010",
+  error: "#9B3F32",
+  errorContainer: "#E7C9B9",
+  onErrorContainer: "#7F2F27",
 
-  onSurface: "#111D23",
-  onSurfaceVariant: "#41493E",
-  outline: "#717A6D",
-  outlineVariant: "#C0C9BB",
+  onSurface: "#1B1C17",
+  onSurfaceVariant: "#565A52",
+  outline: "#72766D",
+  outlineVariant: "#CDD2C8",
 };
 
 type MaterialIconName = keyof typeof MaterialIcons.glyphMap;
@@ -147,9 +148,8 @@ function getInitials(name: string): string {
     return words[0].slice(0, 2).toUpperCase();
   }
 
-  return `${words[0][0]}${
-    words[words.length - 1][0]
-  }`.toUpperCase();
+  return `${words[0][0]}${words[words.length - 1][0]
+    }`.toUpperCase();
 }
 
 function getString(
@@ -193,7 +193,7 @@ function getPatientFromConnection(
 
   const age =
     patient.age !== null &&
-    patient.age !== undefined
+      patient.age !== undefined
       ? String(patient.age)
       : "";
 
@@ -306,7 +306,7 @@ export default function CaregiverDashboardScreen({
         if (!response.ok || !result.success) {
           throw new Error(
             result.message ||
-              "Unable to load connected patients."
+            "Unable to load connected patients."
           );
         }
 
@@ -394,7 +394,7 @@ export default function CaregiverDashboardScreen({
       if (!response.ok || !result.success) {
         throw new Error(
           result.message ||
-            "Unable to connect this patient."
+          "Unable to connect this patient."
         );
       }
 
@@ -450,7 +450,7 @@ export default function CaregiverDashboardScreen({
         if (!response.ok || !result.success) {
           throw new Error(
             result.message ||
-              "Unable to disconnect this patient."
+            "Unable to disconnect this patient."
           );
         }
 
@@ -745,17 +745,17 @@ export default function CaregiverDashboardScreen({
           )}
 
           {!loadingPatients &&
-          patients.length > 0 ? (
+            patients.length > 0 ? (
             <Pressable
               onPress={() => loadPatients(true)}
               disabled={refreshing}
               style={({ pressed }) => [
                 styles.refreshButton,
                 refreshing &&
-                  styles.disabledButton,
+                styles.disabledButton,
                 pressed &&
-                  !refreshing &&
-                  styles.pressed,
+                !refreshing &&
+                styles.pressed,
               ]}
               accessibilityRole="button"
               accessibilityLabel="Refresh patient list"
@@ -975,7 +975,7 @@ export default function CaregiverDashboardScreen({
                 style={[
                   styles.patientCodeInput,
                   connecting &&
-                    styles.disabledInput,
+                  styles.disabledInput,
                 ]}
               />
 
@@ -1013,7 +1013,7 @@ export default function CaregiverDashboardScreen({
                   style={[
                     styles.cancelButton,
                     connecting &&
-                      styles.disabledButton,
+                    styles.disabledButton,
                   ]}
                 >
                   <Text
@@ -1029,7 +1029,7 @@ export default function CaregiverDashboardScreen({
                   style={[
                     styles.connectButton,
                     connecting &&
-                      styles.disabledButton,
+                    styles.disabledButton,
                   ]}
                 >
                   {connecting ? (
@@ -1260,14 +1260,14 @@ function PatientCard({
         style={[
           styles.locationCard,
           patientLocation?.available &&
-            styles.locationCardActive,
+          styles.locationCardActive,
         ]}
       >
         <View
           style={[
             styles.locationIcon,
             patientLocation?.available &&
-              styles.locationIconActive,
+            styles.locationIconActive,
           ]}
         >
           {locationLoading ? (
@@ -1314,8 +1314,8 @@ function PatientCard({
                 )}
                 {patientLocation.location.accuracy !== null
                   ? ` • ±${Math.round(
-                      patientLocation.location.accuracy
-                    )} m`
+                    patientLocation.location.accuracy
+                  )} m`
                   : ""}
               </Text>
             </>
@@ -1328,7 +1328,7 @@ function PatientCard({
         </View>
 
         {patientLocation?.available &&
-        patientLocation.location ? (
+          patientLocation.location ? (
           <Pressable
             onPress={openPatientLocation}
             style={({ pressed }) => [
@@ -1365,6 +1365,11 @@ function PatientCard({
         </Text>
       </View>
 
+      <CaregiverPatientTasks
+        patientId={patient.id}
+        patientName={patient.name}
+      />
+
       <View style={styles.patientActions}>
         <Pressable
           onPress={onCognitiveProgress}
@@ -1394,10 +1399,10 @@ function PatientCard({
           style={({ pressed }) => [
             styles.disconnectButton,
             disconnecting &&
-              styles.disabledButton,
+            styles.disabledButton,
             pressed &&
-              !disconnecting &&
-              styles.pressed,
+            !disconnecting &&
+            styles.pressed,
           ]}
           accessibilityRole="button"
           accessibilityLabel={`Disconnect ${patient.name}`}
@@ -1513,7 +1518,7 @@ function BottomNavItem({
         style={[
           styles.navIconContainer,
           active &&
-            styles.navIconContainerActive,
+          styles.navIconContainerActive,
         ]}
       >
         <MaterialIcons
@@ -2168,7 +2173,7 @@ const styles = StyleSheet.create({
 
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.48)",
+    backgroundColor: "rgba(55,50,40,0.48)",
     justifyContent: "flex-end",
   },
 

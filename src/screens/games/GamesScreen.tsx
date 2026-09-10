@@ -33,28 +33,28 @@ type GamesScreenProps = {
 };
 
 const COLORS = {
-  background: '#F4FAFF',
+  background: '#FBF9F1',
   surface: '#FFFFFF',
-  surfaceLow: '#E9F6FD',
-  surfaceVariant: '#D7E4EC',
+  surfaceLow: '#F1F0E7',
+  surfaceVariant: '#E7EFE3',
 
-  primary: '#00450D',
-  primaryContainer: '#1B5E20',
-  onPrimaryContainer: '#90D689',
+  primary: '#3F6F45',
+  primaryContainer: '#315A36',
+  onPrimaryContainer: '#D7E7D2',
 
-  secondary: '#00629E',
-  secondaryContainer: '#62B4FE',
-  onSecondaryContainer: '#004470',
+  secondary: '#8A6040',
+  secondaryContainer: '#E9D7C5',
+  onSecondaryContainer: '#68472F',
 
-  tertiary: '#A70515',
-  tertiaryContainer: '#A70515',
-  onTertiaryContainer: '#FFB2AA',
+  tertiary: '#A65D43',
+  tertiaryContainer: '#E7C9B9',
+  onTertiaryContainer: '#68472F',
 
-  onSurface: '#111D23',
-  onSurfaceVariant: '#41493E',
+  onSurface: '#1B1C17',
+  onSurfaceVariant: '#565A52',
 
-  outline: '#717A6D',
-  outlineVariant: '#C0C9BB',
+  outline: '#72766D',
+  outlineVariant: '#CDD2C8',
 };
 
 type Game = {
@@ -764,7 +764,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
 
-    color: '#E9F6FD',
+    color: '#F1F0E7',
   },
 
   /* ====================================================

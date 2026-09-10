@@ -11,31 +11,31 @@ import {
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 const COLORS = {
-  background: '#FCF9F8',
-  surface: '#FCF9F8',
+  background: '#FBF9F1',
+  surface: '#FBF9F1',
   surfaceLowest: '#FFFFFF',
 
-  primary: '#00450D',
-  primaryContainer: '#1B5E20',
+  primary: '#3F6F45',
+  primaryContainer: '#315A36',
   onPrimary: '#FFFFFF',
-  onPrimaryContainer: '#90D689',
+  onPrimaryContainer: '#D7E7D2',
 
-  secondary: '#556158',
-  secondaryContainer: '#D9E6DA',
-  secondaryFixedDim: '#BDCABE',
+  secondary: '#8A6040',
+  secondaryContainer: '#E7EFE3',
+  secondaryFixedDim: '#C5D8C1',
 
-  tertiary: '#721900',
-  tertiaryFixed: '#FFDBD1',
-  onTertiaryFixed: '#3B0800',
+  tertiary: '#9B3F32',
+  tertiaryFixed: '#E7C9B9',
+  onTertiaryFixed: '#68472F',
 
-  surfaceContainerLow: '#F6F3F2',
-  surfaceContainerHigh: '#EAE7E7',
-  surfaceVariant: '#E5E2E1',
+  surfaceContainerLow: '#F1F0E7',
+  surfaceContainerHigh: '#E9E7DE',
+  surfaceVariant: '#DDDCD3',
 
-  outlineVariant: '#C0C9BB',
+  outlineVariant: '#CDD2C8',
 
-  onSurface: '#1B1C1C',
-  onSurfaceVariant: '#41493E',
+  onSurface: '#1B1C17',
+  onSurfaceVariant: '#565A52',
 };
 
 type VoiceAssistantScreenProps = {
@@ -887,7 +887,7 @@ const styles = StyleSheet.create({
 
     marginRight: 16,
 
-    backgroundColor: '#91D78A',
+    backgroundColor: '#B9D2B3',
   },
 
   /* =======================================================

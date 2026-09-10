@@ -98,7 +98,7 @@ function ActionCard({
         <MaterialIcons
           name={icon}
           size={30}
-          color="#00450D"
+          color={COLORS.green}
         />
       </View>
 
@@ -113,7 +113,7 @@ function ActionCard({
       <MaterialIcons
         name="chevron-right"
         size={26}
-        color="#717A6D"
+        color={COLORS.secondaryText}
       />
     </Pressable>
   );
@@ -144,7 +144,7 @@ function FeatureCard({
         <MaterialIcons
           name={icon}
           size={30}
-          color="#00450D"
+          color={COLORS.green}
         />
       </View>
 
@@ -158,12 +158,27 @@ function FeatureCard({
         <MaterialIcons
           name="arrow-forward"
           size={20}
-          color="#00450D"
+          color={COLORS.green}
         />
       </View>
     </Pressable>
   );
 }
+
+const COLORS = {
+  background: '#FBF9F1',
+  surface: '#FFFFFF',
+  text: '#1B1C17',
+  secondaryText: '#62655E',
+  green: '#3F6F45',
+  greenDark: '#315A36',
+  greenSoft: '#E7EFE3',
+  greenBorder: '#D5E2D0',
+  peach: '#B96F43',
+  peachSoft: '#F7E9DC',
+  peachBorder: '#EBD8C5',
+  border: '#D9DDD4',
+};
 
 export default function HomeScreen({
   onLogout,
@@ -199,7 +214,7 @@ export default function HomeScreen({
             style: 'destructive',
             onPress: onLogout,
           },
-        ]
+        ],
       );
     } else {
       onLogout();
@@ -212,6 +227,11 @@ export default function HomeScreen({
       edges={['top', 'left', 'right', 'bottom']}
     >
       <View style={styles.screen}>
+        {/* SUBTLE BOTANICAL TEXTURE */}
+        <View style={styles.leftLeafOne} />
+        <View style={styles.leftLeafTwo} />
+        <View style={styles.rightLeafOne} />
+        <View style={styles.rightLeafTwo} />
 
         {/* HEADER */}
         <View style={styles.header}>
@@ -241,7 +261,7 @@ export default function HomeScreen({
               <Ionicons
                 name="person-outline"
                 size={23}
-                color="#102A56"
+                color={COLORS.text}
               />
             </Pressable>
 
@@ -254,7 +274,7 @@ export default function HomeScreen({
               <Ionicons
                 name="log-out-outline"
                 size={23}
-                color="#102A56"
+                color={COLORS.text}
               />
             </Pressable>
           </View>
@@ -270,7 +290,6 @@ export default function HomeScreen({
           ]}
           showsVerticalScrollIndicator={false}
         >
-
           {/* WELCOME */}
           <View style={styles.welcomeSection}>
             <Text style={styles.welcomeTitle}>
@@ -366,7 +385,7 @@ export default function HomeScreen({
               <Ionicons
                 name="sparkles-outline"
                 size={30}
-                color="#00450D"
+                color={COLORS.green}
               />
             </View>
 
@@ -406,7 +425,7 @@ export default function HomeScreen({
               <Ionicons
                 name="shield-checkmark-outline"
                 size={25}
-                color="#00450D"
+                color={COLORS.peach}
               />
             </View>
 
@@ -422,69 +441,107 @@ export default function HomeScreen({
             </View>
           </View>
 
-          {/* SPACE FOR BOTTOM NAV */}
           <View style={styles.bottomSpacing} />
         </ScrollView>
 
-        {/* ======================================================
-    BOTTOM NAVIGATION
-====================================================== */}
+        {/* BOTTOM NAVIGATION - KEPT EXACTLY AS REQUESTED */}
+        <View style={styles.bottomNav}>
+          <NavButton
+            label="Home"
+            icon="⌂"
+            active
+            onPress={() => {}}
+          />
 
-<View style={styles.bottomNav}>
-  <NavButton
-    label="Home"
-    icon="⌂"
-    active
-    onPress={() => {}}
-  />
+          <NavButton
+            label="Games"
+            icon="🎮"
+            onPress={onGames || (() => {})}
+          />
 
-  <NavButton
-    label="Games"
-    icon="🎮"
-    onPress={onGames || (() => {})}
-  />
+          <NavButton
+            label="Schedule"
+            icon="📅"
+            onPress={onSchedule}
+          />
 
-  <NavButton
-    label="Schedule"
-    icon="📅"
-    onPress={onSchedule}
-  />
+          <NavButton
+            label="Memories"
+            icon="💚"
+            onPress={onMemory || (() => {})}
+          />
 
-  <NavButton
-    label="Memories"
-    icon="💚"
-    onPress={onMemory || (() => {})}
-  />
+          <NavButton
+            label="Profile"
+            icon="👤"
+            onPress={onProfile || (() => {})}
+          />
+        </View>
 
-  <NavButton
-    label="Profile"
-    icon="👤"
-    onPress={onProfile || (() => {})}
-  />
-</View>
-
-{/* ======================================================
-    QUICK ASSIST
-====================================================== */}
-
-<QuickAssist
-  bottomOffset={100}
-  onVoiceAssistant={onVoiceAssistant}
-/>
-
-</View>
-</SafeAreaView>
-);
+        <QuickAssist
+          bottomOffset={100}
+          onVoiceAssistant={onVoiceAssistant}
+        />
+      </View>
+    </SafeAreaView>
+  );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F4FAFF',
+    backgroundColor: COLORS.background,
   },
 
   screen: {
     flex: 1,
-    backgroundColor: '#F4FAFF',
+    backgroundColor: COLORS.background,
+  },
+
+  /* SUBTLE BOTANICAL TEXTURE */
+
+  leftLeafOne: {
+    position: 'absolute',
+    left: -38,
+    top: 105,
+    width: 110,
+    height: 48,
+    borderRadius: 100,
+    backgroundColor: 'rgba(63, 111, 69, 0.07)',
+    transform: [{ rotate: '-25deg' }],
+  },
+
+  leftLeafTwo: {
+    position: 'absolute',
+    left: -42,
+    top: 160,
+    width: 95,
+    height: 40,
+    borderRadius: 100,
+    backgroundColor: 'rgba(63, 111, 69, 0.05)',
+    transform: [{ rotate: '20deg' }],
+  },
+
+  rightLeafOne: {
+    position: 'absolute',
+    right: -38,
+    top: 180,
+    width: 115,
+    height: 50,
+    borderRadius: 100,
+    backgroundColor: 'rgba(63, 111, 69, 0.07)',
+    transform: [{ rotate: '35deg' }],
+  },
+
+  rightLeafTwo: {
+    position: 'absolute',
+    right: -32,
+    top: 240,
+    width: 90,
+    height: 42,
+    borderRadius: 100,
+    backgroundColor: 'rgba(63, 111, 69, 0.05)',
+    transform: [{ rotate: '-20deg' }],
   },
 
   /* HEADER */
@@ -493,12 +550,12 @@ const styles = StyleSheet.create({
     minHeight: 76,
     paddingHorizontal: 20,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.surface,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderBottomWidth: 1,
-    borderBottomColor: '#E4E9E4',
+    borderBottomColor: COLORS.border,
   },
 
   headerBrand: {
@@ -511,7 +568,7 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: '#E5F2E4',
+    backgroundColor: COLORS.greenSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -520,18 +577,18 @@ const styles = StyleSheet.create({
   logoText: {
     fontSize: 25,
     fontWeight: '800',
-    color: '#00450D',
+    color: COLORS.green,
   },
 
   brandName: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#102A56',
+    color: COLORS.text,
   },
 
   brandSubtitle: {
     fontSize: 12,
-    color: '#717A6D',
+    color: COLORS.secondaryText,
     marginTop: 2,
   },
 
@@ -545,7 +602,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#F4F7F4',
+    backgroundColor: '#F4F3EC',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -584,13 +641,13 @@ const styles = StyleSheet.create({
     fontSize: 32,
     lineHeight: 40,
     fontWeight: '800',
-    color: '#102A56',
+    color: COLORS.text,
   },
 
   welcomeText: {
     fontSize: 17,
     lineHeight: 25,
-    color: '#556158',
+    color: COLORS.secondaryText,
     marginTop: 5,
   },
 
@@ -604,13 +661,13 @@ const styles = StyleSheet.create({
     fontSize: 23,
     lineHeight: 30,
     fontWeight: '800',
-    color: '#1B1C1C',
+    color: COLORS.text,
   },
 
   sectionSubtitle: {
     fontSize: 14,
     lineHeight: 21,
-    color: '#717A6D',
+    color: COLORS.secondaryText,
     marginTop: 3,
     marginBottom: 15,
   },
@@ -632,15 +689,15 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexBasis: '47%',
     minHeight: 120,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.surface,
     borderRadius: 18,
     padding: 18,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E1E7E1',
+    borderColor: COLORS.border,
     shadowColor: '#000000',
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.035,
     shadowRadius: 8,
     shadowOffset: {
       width: 0,
@@ -657,7 +714,7 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 16,
-    backgroundColor: '#E7F3E6',
+    backgroundColor: COLORS.greenSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
@@ -671,13 +728,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 24,
     fontWeight: '800',
-    color: '#1B1C1C',
+    color: COLORS.text,
   },
 
   actionSubtitle: {
     fontSize: 13,
     lineHeight: 19,
-    color: '#717A6D',
+    color: COLORS.secondaryText,
     marginTop: 3,
   },
 
@@ -695,14 +752,14 @@ const styles = StyleSheet.create({
   featureCard: {
     flex: 1,
     minHeight: 190,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.surface,
     borderRadius: 20,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#E1E7E1',
+    borderColor: COLORS.peachBorder,
     position: 'relative',
     shadowColor: '#000000',
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.035,
     shadowRadius: 8,
     shadowOffset: {
       width: 0,
@@ -715,7 +772,7 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 17,
-    backgroundColor: '#E7F3E6',
+    backgroundColor: COLORS.greenSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -725,13 +782,13 @@ const styles = StyleSheet.create({
     fontSize: 20,
     lineHeight: 27,
     fontWeight: '800',
-    color: '#1B1C1C',
+    color: COLORS.text,
   },
 
   featureDescription: {
     fontSize: 14,
     lineHeight: 21,
-    color: '#717A6D',
+    color: COLORS.secondaryText,
     marginTop: 6,
     paddingRight: 20,
   },
@@ -743,7 +800,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#E7F3E6',
+    backgroundColor: COLORS.greenSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -751,21 +808,21 @@ const styles = StyleSheet.create({
   /* QUICK ASSIST */
 
   assistCard: {
-    backgroundColor: '#EAF5E9',
+    backgroundColor: '#E4EEDF',
     borderRadius: 20,
     padding: 18,
     marginBottom: 20,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#D7E9D5',
+    borderColor: '#CDDCC7',
   },
 
   assistIconContainer: {
     width: 52,
     height: 52,
     borderRadius: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8F8F0',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
@@ -778,13 +835,13 @@ const styles = StyleSheet.create({
   assistTitle: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#1B1C1C',
+    color: COLORS.text,
   },
 
   assistDescription: {
     fontSize: 13,
     lineHeight: 19,
-    color: '#556158',
+    color: COLORS.secondaryText,
     marginTop: 3,
   },
 
@@ -792,7 +849,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingHorizontal: 16,
     borderRadius: 12,
-    backgroundColor: '#00450D',
+    backgroundColor: COLORS.greenDark,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 10,
@@ -807,20 +864,20 @@ const styles = StyleSheet.create({
   /* SAFETY */
 
   safetyCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.surface,
     borderRadius: 18,
     padding: 17,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E1E7E1',
+    borderColor: COLORS.peachBorder,
   },
 
   safetyIcon: {
     width: 48,
     height: 48,
     borderRadius: 15,
-    backgroundColor: '#E7F3E6',
+    backgroundColor: COLORS.peachSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 13,
@@ -833,24 +890,24 @@ const styles = StyleSheet.create({
   safetyTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1B1C1C',
+    color: COLORS.text,
   },
 
   safetyDescription: {
     fontSize: 13,
     lineHeight: 19,
-    color: '#717A6D',
+    color: COLORS.secondaryText,
     marginTop: 3,
   },
 
-  /* BOTTOM NAVIGATION */
+  /* BOTTOM NAVIGATION - STRUCTURE UNCHANGED */
 
   bottomNav: {
     minHeight: 70,
     width: '100%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.surface,
     borderTopWidth: 1,
-    borderTopColor: '#E1E7E1',
+    borderTopColor: COLORS.border,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
@@ -868,7 +925,7 @@ const styles = StyleSheet.create({
   },
 
   navButtonActive: {
-    backgroundColor: '#E7F3E6',
+    backgroundColor: COLORS.greenSoft,
   },
 
   navButtonPressed: {
@@ -878,66 +935,24 @@ const styles = StyleSheet.create({
   navIcon: {
     fontSize: 21,
     lineHeight: 25,
-    color: '#717A6D',
+    color: COLORS.secondaryText,
   },
 
   navIconActive: {
-    color: '#00450D',
+    color: COLORS.green,
   },
 
   navLabel: {
     fontSize: 11,
     lineHeight: 15,
-    color: '#717A6D',
+    color: COLORS.secondaryText,
     fontWeight: '600',
     marginTop: 2,
   },
 
   navLabelActive: {
-    color: '#00450D',
+    color: COLORS.green,
     fontWeight: '800',
-  },
-
-  /* QUICK ASSIST OVERLAY */
-
-  quickAssistOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(16, 42, 86, 0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-
-  quickAssistBox: {
-    width: '100%',
-    maxWidth: 500,
-    maxHeight: '80%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 20,
-    shadowColor: '#000000',
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    elevation: 8,
-  },
-
-  quickAssistClose: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#F4F7F4',
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'flex-end',
-    marginBottom: 8,
   },
 
   /* GENERAL */

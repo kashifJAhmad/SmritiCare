@@ -1,9 +1,5 @@
-import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
-
-// ============================================================
-// NOTIFICATION CONFIGURATION
-// ============================================================
+import * as Notifications from "expo-notifications";
+import { Platform } from "react-native";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -14,76 +10,51 @@ Notifications.setNotificationHandler({
   }),
 });
 
-// ============================================================
-// TYPES
-// ============================================================
-
 export type ReminderRepeatType =
-  | 'NONE'
-  | 'DAILY'
-  | 'WEEKLY'
-  | 'MONTHLY';
-
-// ============================================================
-// REQUEST PERMISSION
-// ============================================================
+  | "NONE"
+  | "DAILY"
+  | "WEEKLY"
+  | "MONTHLY";
 
 export async function requestNotificationPermission(): Promise<boolean> {
   try {
     const existingPermission =
       await Notifications.getPermissionsAsync();
 
-    let finalStatus =
-      existingPermission.status;
+    let finalStatus = existingPermission.status;
 
-    if (finalStatus !== 'granted') {
+    if (finalStatus !== "granted") {
       const requestedPermission =
         await Notifications.requestPermissionsAsync();
 
-      finalStatus =
-        requestedPermission.status;
+      finalStatus = requestedPermission.status;
     }
 
-    if (finalStatus !== 'granted') {
+    if (finalStatus !== "granted") {
       return false;
     }
 
-    if (Platform.OS === 'android') {
+    if (Platform.OS === "android") {
       await Notifications.setNotificationChannelAsync(
-        'task-reminders',
+        "task-reminders",
         {
-          name: 'Task Reminders',
+          name: "Task Reminders",
           description:
-            'Reminders for scheduled SmritiCare activities.',
-          importance:
-            Notifications.AndroidImportance.HIGH,
-          vibrationPattern: [
-            0,
-            250,
-            250,
-            250,
-          ],
+            "Reminders for scheduled SmritiCare activities.",
+          importance: Notifications.AndroidImportance.HIGH,
+          vibrationPattern: [0, 250, 250, 250],
           lockscreenVisibility:
             Notifications.AndroidNotificationVisibility.PUBLIC,
-          sound: 'default',
         },
       );
     }
 
     return true;
   } catch (error) {
-    console.error(
-      'NOTIFICATION PERMISSION ERROR:',
-      error,
-    );
-
+    console.error("NOTIFICATION PERMISSION ERROR:", error);
     return false;
   }
 }
-
-// ============================================================
-// SEND REMINDER NOW
-// ============================================================
 
 export async function sendTaskReminderNow(
   taskId: string,
@@ -91,8 +62,7 @@ export async function sendTaskReminderNow(
   description?: string | null,
 ): Promise<boolean> {
   try {
-    // expo-notifications native scheduling is not available on web.
-    if (Platform.OS === 'web') {
+    if (Platform.OS === "web") {
       return false;
     }
 
@@ -106,15 +76,13 @@ export async function sendTaskReminderNow(
     const notificationId =
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: 'SmritiCare Reminder',
-          body:
-            description?.trim()
-              ? `${title}: ${description.trim()}`
-              : title,
-          sound: 'default',
+          title: "SmritiCare Reminder",
+          body: description?.trim()
+            ? `${title}: ${description.trim()}`
+            : title,
           data: {
             taskId,
-            type: 'task-reminder-now',
+            type: "task-reminder-now",
           },
         },
         trigger: {
@@ -123,43 +91,34 @@ export async function sendTaskReminderNow(
           seconds: 1,
           repeats: false,
           channelId:
-            Platform.OS === 'android'
-              ? 'task-reminders'
+            Platform.OS === "android"
+              ? "task-reminders"
               : undefined,
         },
       });
 
-    return Boolean(
-      notificationId,
-    );
+    return Boolean(notificationId);
   } catch (error) {
-    console.error(
-      'SEND TASK REMINDER ERROR:',
-      error,
-    );
-
+    console.error("SEND TASK REMINDER ERROR:", error);
     return false;
   }
 }
-
-// ============================================================
-// SCHEDULE TASK REMINDER
-// ============================================================
 
 export async function scheduleTaskReminder(
   taskId: string,
   title: string,
   scheduledAt: string,
   reminderEnabled: boolean,
-  repeatType: ReminderRepeatType = 'NONE',
+  repeatType: ReminderRepeatType = "NONE",
+  completed = false,
 ): Promise<string | null> {
   try {
-    // expo-notifications scheduling is native-only.
-    if (Platform.OS === 'web') {
+    if (Platform.OS === "web") {
       return null;
     }
 
-    if (!reminderEnabled) {
+    // Completed tasks must never receive a new reminder.
+    if (!reminderEnabled || completed) {
       return null;
     }
 
@@ -170,26 +129,17 @@ export async function scheduleTaskReminder(
       return null;
     }
 
-    const scheduledDate =
-      new Date(scheduledAt);
+    const scheduledDate = new Date(scheduledAt);
 
-    if (
-      Number.isNaN(
-        scheduledDate.getTime(),
-      )
-    ) {
-      throw new Error(
-        'Invalid reminder date.',
-      );
+    if (Number.isNaN(scheduledDate.getTime())) {
+      throw new Error("Invalid reminder date.");
     }
 
     if (
-      scheduledDate.getTime() <=
-      Date.now()
+      scheduledDate.getTime() <= Date.now() &&
+      repeatType === "NONE"
     ) {
-      throw new Error(
-        'Reminder time must be in the future.',
-      );
+      throw new Error("Reminder time must be in the future.");
     }
 
     let trigger:
@@ -197,22 +147,20 @@ export async function scheduleTaskReminder(
       | null = null;
 
     switch (repeatType) {
-      case 'DAILY':
+      case "DAILY":
         trigger = {
           type:
             Notifications.SchedulableTriggerInputTypes.DAILY,
-          hour:
-            scheduledDate.getHours(),
-          minute:
-            scheduledDate.getMinutes(),
+          hour: scheduledDate.getHours(),
+          minute: scheduledDate.getMinutes(),
           channelId:
-            Platform.OS === 'android'
-              ? 'task-reminders'
+            Platform.OS === "android"
+              ? "task-reminders"
               : undefined,
         };
         break;
 
-      case 'WEEKLY':
+      case "WEEKLY":
         trigger = {
           type:
             Notifications.SchedulableTriggerInputTypes.WEEKLY,
@@ -220,76 +168,60 @@ export async function scheduleTaskReminder(
             scheduledDate.getDay() === 0
               ? 1
               : scheduledDate.getDay() + 1,
-          hour:
-            scheduledDate.getHours(),
-          minute:
-            scheduledDate.getMinutes(),
+          hour: scheduledDate.getHours(),
+          minute: scheduledDate.getMinutes(),
           channelId:
-            Platform.OS === 'android'
-              ? 'task-reminders'
+            Platform.OS === "android"
+              ? "task-reminders"
               : undefined,
         };
         break;
 
-      case 'MONTHLY':
+      case "MONTHLY":
         trigger = {
           type:
             Notifications.SchedulableTriggerInputTypes.MONTHLY,
-          day:
-            scheduledDate.getDate(),
-          hour:
-            scheduledDate.getHours(),
-          minute:
-            scheduledDate.getMinutes(),
+          day: scheduledDate.getDate(),
+          hour: scheduledDate.getHours(),
+          minute: scheduledDate.getMinutes(),
           channelId:
-            Platform.OS === 'android'
-              ? 'task-reminders'
+            Platform.OS === "android"
+              ? "task-reminders"
               : undefined,
         };
         break;
 
-      case 'NONE':
+      case "NONE":
       default:
         trigger = {
           type:
             Notifications.SchedulableTriggerInputTypes.DATE,
           date: scheduledDate,
           channelId:
-            Platform.OS === 'android'
-              ? 'task-reminders'
+            Platform.OS === "android"
+              ? "task-reminders"
               : undefined,
         };
         break;
     }
 
-    const notificationId =
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'SmritiCare Reminder',
-          body: title,
-          sound: 'default',
-          data: {
-            taskId,
-            type: 'task-reminder',
-          },
+    return await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "SmritiCare Reminder",
+        body: title,
+        data: {
+          taskId,
+          type: "task-reminder",
+          repeatType,
         },
-        trigger,
-      });
-
-    return notificationId;
+      },
+      trigger,
+    });
   } catch (error) {
-    console.error(
-      'SCHEDULE TASK REMINDER ERROR:',
-      error,
-    );
-
+    console.error("SCHEDULE TASK REMINDER ERROR:", error);
     return null;
   }
 }
-
-// ============================================================
-// CANCEL TASK REMINDER
-// ============================================================
 
 export async function cancelTaskReminder(
   notificationId: string | null,
@@ -303,16 +235,35 @@ export async function cancelTaskReminder(
       notificationId,
     );
   } catch (error) {
-    console.error(
-      'CANCEL TASK REMINDER ERROR:',
-      error,
-    );
+    console.error("CANCEL TASK REMINDER ERROR:", error);
   }
 }
 
-// ============================================================
-// CANCEL ALL SMRITICARE REMINDERS
-// ============================================================
+export async function cancelTaskRemindersByTaskId(
+  taskId: string,
+): Promise<void> {
+  if (!taskId) {
+    return;
+  }
+
+  try {
+    const scheduled =
+      await Notifications.getAllScheduledNotificationsAsync();
+
+    for (const notification of scheduled) {
+      const notificationTaskId =
+        notification.content.data?.taskId;
+
+      if (String(notificationTaskId || "") === taskId) {
+        await Notifications.cancelScheduledNotificationAsync(
+          notification.identifier,
+        );
+      }
+    }
+  } catch (error) {
+    console.error("CANCEL TASK REMINDERS ERROR:", error);
+  }
+}
 
 export async function cancelAllTaskReminders(): Promise<void> {
   try {
@@ -330,34 +281,20 @@ export async function cancelAllTaskReminders(): Promise<void> {
       }
     }
   } catch (error) {
-    console.error(
-      'CANCEL ALL TASK REMINDERS ERROR:',
-      error,
-    );
+    console.error("CANCEL ALL SMRITICARE REMINDERS ERROR:", error);
   }
 }
-
-// ============================================================
-// GET SCHEDULED REMINDERS
-// ============================================================
 
 export async function getScheduledTaskReminders() {
   try {
     const scheduled =
       await Notifications.getAllScheduledNotificationsAsync();
 
-    return scheduled.filter(
-      (notification) =>
-        Boolean(
-          notification.content.data?.taskId,
-        ),
+    return scheduled.filter((notification) =>
+      Boolean(notification.content.data?.taskId),
     );
   } catch (error) {
-    console.error(
-      'GET SCHEDULED TASK REMINDERS ERROR:',
-      error,
-    );
-
+    console.error("GET SCHEDULED TASK REMINDERS ERROR:", error);
     return [];
   }
 }

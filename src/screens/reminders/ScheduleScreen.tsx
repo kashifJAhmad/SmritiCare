@@ -76,34 +76,34 @@ type Task = {
 // ============================================================
 
 const COLORS = {
-  background: '#F4FAFF',
+  background: '#FBF9F1',
   surface: '#FFFFFF',
-  surfaceLow: '#E9F6FD',
-  surfaceVariant: '#D7E4EC',
+  surfaceLow: '#F1F0E7',
+  surfaceVariant: '#D9DDD4',
 
-  primary: '#00450D',
-  primaryContainer: '#1B5E20',
+  primary: '#3F6F45',
+  primaryContainer: '#315A36',
   onPrimary: '#FFFFFF',
-  onPrimaryContainer: '#90D689',
+  onPrimaryContainer: '#D7E7D2',
 
-  secondary: '#00629E',
-  secondaryContainer: '#62B4FE',
-  onSecondaryContainer: '#004470',
+  secondary: '#8A6040',
+  secondaryContainer: '#E9D7C5',
+  onSecondaryContainer: '#68472F',
 
-  tertiary: '#7C000B',
-  tertiaryContainer: '#A70515',
+  tertiary: '#A65D43',
+  tertiaryContainer: '#E7C9B9',
 
   error: '#BA1A1A',
   errorContainer: '#FFDAD6',
   onErrorContainer: '#93000A',
 
-  onSurface: '#111D23',
-  onSurfaceVariant: '#41493E',
+  onSurface: '#1B1C17',
+  onSurfaceVariant: '#565A52',
 
-  outline: '#717A6D',
-  outlineVariant: '#C0C9BB',
+  outline: '#72766D',
+  outlineVariant: '#CDD2C8',
 
-  primaryFixed: '#ACF4A4',
+  primaryFixed: '#B9D2B3',
 };
 
 // ============================================================
@@ -424,6 +424,101 @@ export default function ScheduleScreen({
   );
 
   // ==========================================================
+  // SYNC LOCAL NOTIFICATIONS
+  // ==========================================================
+  //
+  // Tasks can be created by either the patient or a caregiver.
+  // A caregiver's phone cannot schedule a local notification on
+  // the patient's phone, so every time the patient loads/refreshes
+  // the schedule we synchronize backend reminders onto this device.
+  //
+  // Completed tasks are deliberately skipped so they do not keep
+  // reminding the patient. Existing notifications for each task
+  // are cancelled before scheduling again to avoid duplicates.
+  //
+  const syncLocalNotifications = async (
+    apiTasks: ApiTask[],
+  ) => {
+    if (
+      Platform.OS === 'web' ||
+      Constants.appOwnership === 'expo'
+    ) {
+      return;
+    }
+
+    try {
+      const {
+        scheduleTaskReminder,
+        cancelTaskRemindersByTaskId,
+      } = await import(
+        '../../services/notifications'
+      );
+
+      for (const task of apiTasks) {
+        // Remove old scheduled notifications first. This prevents
+        // duplicate reminders after refresh, caregiver edits, or
+        // changes to a repeating task.
+        try {
+          await cancelTaskRemindersByTaskId(
+            task.id,
+          );
+        } catch (cancelError) {
+          console.warn(
+            'COULD NOT CANCEL OLD TASK REMINDER:',
+            task.id,
+            cancelError,
+          );
+        }
+
+        // Completed tasks must never continue reminding.
+        if (
+          task.completed ||
+          !task.reminderEnabled
+        ) {
+          continue;
+        }
+
+        const scheduledAt =
+          new Date(task.scheduledAt);
+
+        // Do not schedule reminders that are already in the past.
+        if (
+          Number.isNaN(
+            scheduledAt.getTime(),
+          ) ||
+          scheduledAt.getTime() <= Date.now()
+        ) {
+          continue;
+        }
+
+        try {
+          await scheduleTaskReminder(
+            task.id,
+            task.title,
+            task.scheduledAt,
+            task.reminderEnabled,
+            normalizeRepeatType(
+              task.repeatType,
+            ),
+            task.completed,
+          );
+        } catch (scheduleError) {
+          console.warn(
+            'COULD NOT SCHEDULE TASK REMINDER:',
+            task.id,
+            scheduleError,
+          );
+        }
+      }
+    } catch (notificationError) {
+      console.warn(
+        'LOCAL NOTIFICATION SYNC FAILED:',
+        notificationError,
+      );
+    }
+  };
+
+  // ==========================================================
   // LOAD TASKS
   // ==========================================================
 
@@ -471,6 +566,12 @@ export default function ScheduleScreen({
       const apiTasks:
         ApiTask[] =
         result.tasks || [];
+
+      // Synchronize backend reminders onto this patient's device.
+      // This also picks up reminders created by a caregiver.
+      await syncLocalNotifications(
+        apiTasks,
+      );
 
       const convertedTasks =
         apiTasks
@@ -760,53 +861,47 @@ export default function ScheduleScreen({
       // SCHEDULE LOCAL NOTIFICATION
       // ======================================================
       //
-      // Do not import expo-notifications while running in Expo Go.
-      // Android Expo Go does not support the remote-push portion of
-      // expo-notifications, and loading the module can trigger the
-      // red-screen runtime error shown by Expo Go.
+      // The task was saved on the backend first. Synchronizing the
+      // new task here schedules its reminder on this device when
+      // running in a development/production build.
       //
-      // The task itself is already saved successfully on the backend.
-      // A development build can schedule the local notification.
-
+      // Expo Go is intentionally skipped because local notification
+      // support is not available there in the same way.
       let notificationScheduled =
         false;
 
-      let notificationUnavailable =
-        false;
-
       if (
-        newTask.reminderEnabled
+        newTask.reminderEnabled &&
+        !newTask.completed &&
+        Platform.OS !== 'web' &&
+        Constants.appOwnership !== 'expo'
       ) {
-        if (Constants.appOwnership === 'expo') {
-          notificationUnavailable =
-            true;
-        } else {
-          try {
-            const {
-              scheduleTaskReminder,
-            } = await import(
-              '../../services/notifications'
+        try {
+          const {
+            scheduleTaskReminder,
+          } = await import(
+            '../../services/notifications'
+          );
+
+          const notificationId =
+            await scheduleTaskReminder(
+              newTask.id,
+              newTask.title,
+              newTask.scheduledAt,
+              newTask.reminderEnabled,
+              newTask.repeatType,
+              newTask.completed,
             );
 
-            const notificationId =
-              await scheduleTaskReminder(
-                newTask.id,
-                newTask.title,
-                newTask.scheduledAt,
-                newTask.reminderEnabled,
-                newTask.repeatType,
-              );
-
-            notificationScheduled =
-              Boolean(
-                notificationId,
-              );
-          } catch (notificationError) {
-            console.warn(
-              'LOCAL NOTIFICATION COULD NOT BE SCHEDULED:',
-              notificationError,
+          notificationScheduled =
+            Boolean(
+              notificationId,
             );
-          }
+        } catch (notificationError) {
+          console.warn(
+            'LOCAL NOTIFICATION COULD NOT BE SCHEDULED:',
+            notificationError,
+          );
         }
       }
 
@@ -826,7 +921,7 @@ export default function ScheduleScreen({
         );
       } else if (
         newTask.reminderEnabled &&
-        notificationUnavailable
+        Constants.appOwnership === 'expo'
       ) {
         Alert.alert(
           'Task Added',
@@ -986,6 +1081,28 @@ export default function ScheduleScreen({
               ),
           );
 
+          if (
+            Platform.OS !== 'web' &&
+            Constants.appOwnership !== 'expo'
+          ) {
+            try {
+              const {
+                cancelTaskRemindersByTaskId,
+              } = await import(
+                '../../services/notifications'
+              );
+
+              await cancelTaskRemindersByTaskId(
+                id,
+              );
+            } catch (notificationError) {
+              console.warn(
+                'COULD NOT CANCEL DELETED TASK REMINDER:',
+                notificationError,
+              );
+            }
+          }
+
           Alert.alert(
             'Task Deleted',
             `${taskToDelete.title} has been removed from your schedule.`,
@@ -1119,6 +1236,53 @@ export default function ScheduleScreen({
                   : task,
             ),
         );
+
+        if (
+          Platform.OS !== 'web' &&
+          Constants.appOwnership !== 'expo'
+        ) {
+          try {
+            const {
+              scheduleTaskReminder,
+              cancelTaskRemindersByTaskId,
+            } = await import(
+              '../../services/notifications'
+            );
+
+            await cancelTaskRemindersByTaskId(
+              id,
+            );
+
+            // Only schedule again when the task has been
+            // uncompleted and its reminder is still enabled.
+            if (
+              !nextCompleted &&
+              currentTask.reminderEnabled
+            ) {
+              const notificationId =
+                await scheduleTaskReminder(
+                  currentTask.id,
+                  currentTask.title,
+                  currentTask.scheduledAt,
+                  currentTask.reminderEnabled,
+                  currentTask.repeatType,
+                  false,
+                );
+
+              if (!notificationId) {
+                console.warn(
+                  'TASK REMINDER COULD NOT BE RESCHEDULED:',
+                  id,
+                );
+              }
+            }
+          } catch (notificationError) {
+            console.warn(
+              'TASK NOTIFICATION UPDATE FAILED:',
+              notificationError,
+            );
+          }
+        }
       } catch (error) {
         console.error(
           'COMPLETE TASK ERROR:',
@@ -2517,7 +2681,7 @@ const styles = StyleSheet.create({
     height: 54,
     borderRadius: 16,
     backgroundColor:
-      '#E7F3E6',
+      '#E7EFE3',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 13,
@@ -2706,7 +2870,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: 14,
     backgroundColor:
-      '#E7F3E6',
+      '#E7EFE3',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -2729,7 +2893,7 @@ const styles = StyleSheet.create({
 
   repeatBadge: {
     backgroundColor:
-      '#E4F2FC',
+      '#F1E5D9',
   },
 
   repeatBadgeText: {
@@ -2743,7 +2907,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     borderWidth: 1.5,
     borderColor: COLORS.secondary,
-    backgroundColor: '#E4F2FC',
+    backgroundColor: '#F1E5D9',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2921,7 +3085,7 @@ const styles = StyleSheet.create({
 
   navButtonActive: {
     backgroundColor:
-      '#E7F3E6',
+      '#E7EFE3',
   },
 
   navPressed: {
@@ -2958,7 +3122,7 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor:
-      'rgba(0, 0, 0, 0.45)',
+      'rgba(35, 39, 30, 0.42)',
     justifyContent: 'flex-end',
   },
 
@@ -3110,7 +3274,7 @@ const styles = StyleSheet.create({
 
   repeatOptionActive: {
     backgroundColor:
-      '#E7F3E6',
+      '#E7EFE3',
     borderColor:
       COLORS.primary,
   },

@@ -12,27 +12,42 @@ import {
   View,
   Image,
 } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 import { patientSignup } from "../../services/api";
 import { saveToken } from "../../services/authStorage";
 
-const COLORS = {
-  primary: "#00450D",
-  primaryContainer: "#1B5E20",
-  background: "#F4FAFF",
-  surface: "#FFFFFF",
-  text: "#1B1C1C",
-  textSecondary: "#41493E",
-  outline: "#717A6D",
-  lightBorder: "#C0C9BB",
-  error: "#BA1A1A",
-};
-
 type SignupScreenProps = {
-  onSignup: () => void;
+  onSignup: (token?: string) => void;
   onLogin: () => void;
   onBack?: () => void;
+};
+
+const COLORS = {
+  background: "#FBF9F1",
+
+  text: "#1B1C17",
+  textSecondary: "#565A52",
+
+  primary: "#3F6F45",
+  primaryContainer: "#315A36",
+  onPrimary: "#FFFFFF",
+  onPrimaryContainer: "#D7E7D2",
+
+  secondary: "#8A6040",
+  secondaryContainer: "#E9D7C5",
+  onSecondaryContainer: "#68472F",
+
+  surface: "#FFFFFF",
+  surfaceLow: "#F1F0E7",
+
+  border: "#CDD2C8",
+  outline: "#72766D",
+
+  greenSoft: "#E5F0E1",
+  greenBorder: "#B9D2B3",
+
+  error: "#9B3F32",
 };
 
 export default function SignupScreen({
@@ -43,317 +58,481 @@ export default function SignupScreen({
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [age, setAge] = useState("");
-  const [language, setLanguage] = useState("English");
+  const [language, setLanguage] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] =
+    useState("");
+
+  const [showPassword, setShowPassword] =
+    useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] =
+    useState(false);
 
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSignup = async () => {
-  if (!fullName.trim()) {
-    Alert.alert("Missing information", "Please enter your full name.");
-    return;
-  }
+    const cleanName = fullName.trim();
+    const cleanEmail = email.trim();
+    const cleanLanguage = language.trim();
 
-  if (!email.trim()) {
-    Alert.alert("Missing information", "Please enter your email address.");
-    return;
-  }
-
-  if (!password) {
-    Alert.alert("Missing information", "Please enter a password.");
-    return;
-  }
-
-  if (password.length < 6) {
-    Alert.alert(
-      "Password too short",
-      "Your password must be at least 6 characters long.",
-    );
-    return;
-  }
-
-  if (password !== confirmPassword) {
-    Alert.alert(
-      "Passwords do not match",
-      "Please make sure both passwords are the same.",
-    );
-    return;
-  }
-
-  const parsedAge = age.trim() ? Number(age.trim()) : undefined;
-
-  if (
-    parsedAge !== undefined &&
-    (!Number.isInteger(parsedAge) || parsedAge < 1)
-  ) {
-    Alert.alert("Invalid age", "Please enter a valid age.");
-    return;
-  }
-
-  try {
-    setLoading(true);
-
-    console.log("1. Starting signup request...");
-
-    const result = await patientSignup({
-      fullName: fullName.trim(),
-      email: email.trim().toLowerCase(),
-      password,
-      age: parsedAge,
-      language,
-    });
-
-    console.log("2. Signup API succeeded");
-    console.log("3. Token received:", !!result.token);
-
-    if (result.token) {
-      console.log("4. Saving token...");
-      await saveToken(result.token);
-      console.log("5. Token saved successfully");
+    if (!cleanName) {
+      Alert.alert(
+        "Missing information",
+        "Please enter your full name.",
+      );
+      return;
     }
 
-    setLoading(false);
+    if (!cleanEmail) {
+      Alert.alert(
+        "Missing information",
+        "Please enter your email address.",
+      );
+      return;
+    }
 
-    Alert.alert(
-      "Account created",
-      "Your SmritiCare patient account has been created successfully.",
-      [
-        {
-          text: "Continue",
-          onPress: onSignup,
-        },
-      ],
-    );
-  } catch (error) {
-    console.error("SIGNUP ERROR:", error);
+    if (!password) {
+      Alert.alert(
+        "Missing information",
+        "Please enter a password.",
+      );
+      return;
+    }
 
-    setLoading(false);
+    if (password.length < 6) {
+      Alert.alert(
+        "Invalid password",
+        "Password must be at least 6 characters.",
+      );
+      return;
+    }
 
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Unable to create your account. Please try again.";
+    if (password !== confirmPassword) {
+      Alert.alert(
+        "Passwords do not match",
+        "Please make sure both passwords are the same.",
+      );
+      return;
+    }
 
-    Alert.alert("Signup failed", message);
-  }
-};
+    let numericAge: number | undefined;
+
+    if (age.trim()) {
+      numericAge = Number(age.trim());
+
+      if (
+        !Number.isInteger(numericAge) ||
+        numericAge < 1 ||
+        numericAge > 120
+      ) {
+        Alert.alert(
+          "Invalid age",
+          "Please enter a valid age between 1 and 120.",
+        );
+        return;
+      }
+    }
+
+    try {
+      setLoading(true);
+
+      const result = await patientSignup({
+        fullName: cleanName,
+        email: cleanEmail,
+        password,
+        age: numericAge,
+        language:
+          cleanLanguage || undefined,
+      });
+
+      await saveToken(result.token);
+
+      setLoading(false);
+
+      Alert.alert(
+        "Account Created",
+        "Your SmritiCare patient account has been created successfully.",
+        [
+          {
+            text: "Continue",
+            onPress: () => onSignup(result.token),
+          },
+        ],
+      );
+    } catch (error) {
+      setLoading(false);
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to create your account.";
+
+      Alert.alert(
+        "Sign Up Failed",
+        message,
+      );
+    }
+  };
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={styles.safeArea}
+      behavior={
+        Platform.OS === "ios"
+          ? "padding"
+          : undefined
+      }
     >
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {/* Header */}
         <View style={styles.header}>
-          {onBack ? (
-            <Pressable
-              onPress={onBack}
-              style={styles.backButton}
-              hitSlop={10}
-              disabled={loading}
-            >
-              <MaterialIcons
-                name="arrow-back"
-                size={27}
-                color={COLORS.primary}
-              />
-            </Pressable>
-          ) : (
-            <View style={styles.backPlaceholder} />
-          )}
+          <Pressable
+            onPress={onBack}
+            disabled={loading}
+            hitSlop={10}
+            style={({ pressed }) => [
+              styles.backButton,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <MaterialIcons
+              name="arrow-back"
+              size={28}
+              color={COLORS.primary}
+            />
+          </Pressable>
 
+          <Text style={styles.headerTitle}>
+            Patient Sign Up
+          </Text>
+
+          <View style={styles.headerSpacer} />
+        </View>
+
+        {/* Logo */}
+        <View style={styles.logoCircle}>
           <Image
             source={require("../../../assets/images/logo.png")}
             style={styles.logo}
             resizeMode="contain"
           />
-
-          <View style={styles.backPlaceholder} />
         </View>
 
-        <View style={styles.titleSection}>
-          <Text style={styles.title}>Create Patient Account</Text>
-          <Text style={styles.subtitle}>
-            Create your SmritiCare account to get started.
+        {/* Title */}
+        <Text style={styles.title}>
+          Create Your Account
+        </Text>
+
+        <Text style={styles.subtitle}>
+          Create your personal SmritiCare account
+        </Text>
+
+        {/* Form */}
+        <View style={styles.form}>
+          {/* Full Name */}
+          <Text style={styles.label}>
+            Full Name
           </Text>
-        </View>
 
-        <View style={styles.formCard}>
-          <Text style={styles.sectionTitle}>Your Information</Text>
-
-          <Text style={styles.label}>Full Name</Text>
-          <TextInput
-            value={fullName}
-            onChangeText={setFullName}
-            placeholder="Enter your full name"
-            placeholderTextColor="#8A9187"
-            style={styles.input}
-            editable={!loading}
-            autoCapitalize="words"
-          />
-
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            value={email}
-            onChangeText={setEmail}
-            placeholder="Enter your email"
-            placeholderTextColor="#8A9187"
-            style={styles.input}
-            editable={!loading}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-
-          <Text style={styles.label}>Age</Text>
-          <TextInput
-            value={age}
-            onChangeText={setAge}
-            placeholder="Enter your age"
-            placeholderTextColor="#8A9187"
-            style={styles.input}
-            editable={!loading}
-            keyboardType="number-pad"
-          />
-
-          <Text style={styles.label}>Preferred Language</Text>
-
-          <Pressable
-            style={styles.languageButton}
-            disabled={loading}
-            onPress={() =>
-              Alert.alert(
-                "Preferred Language",
-                "Language selection will be added soon.",
-              )
-            }
-          >
-            <Text style={styles.languageText}>{language}</Text>
-
+          <View style={styles.inputContainer}>
             <MaterialIcons
-              name="keyboard-arrow-down"
-              size={24}
-              color={COLORS.textSecondary}
+              name="person"
+              size={23}
+              color={COLORS.primary}
             />
-          </Pressable>
 
-          <Text style={styles.label}>Password</Text>
+            <TextInput
+              value={fullName}
+              onChangeText={setFullName}
+              placeholder="Enter your full name"
+              placeholderTextColor="#8A8D84"
+              autoCapitalize="words"
+              autoCorrect={false}
+              editable={!loading}
+              style={styles.input}
+            />
+          </View>
 
-          <View style={styles.passwordContainer}>
+          {/* Email */}
+          <Text
+            style={[
+              styles.label,
+              styles.nextLabel,
+            ]}
+          >
+            Email Address
+          </Text>
+
+          <View style={styles.inputContainer}>
+            <MaterialIcons
+              name="email"
+              size={23}
+              color={COLORS.primary}
+            />
+
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Enter your email"
+              placeholderTextColor="#8A8D84"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!loading}
+              style={styles.input}
+            />
+          </View>
+
+          {/* Age */}
+          <Text
+            style={[
+              styles.label,
+              styles.nextLabel,
+            ]}
+          >
+            Age
+          </Text>
+
+          <View style={styles.inputContainer}>
+            <MaterialIcons
+              name="cake"
+              size={23}
+              color={COLORS.primary}
+            />
+
+            <TextInput
+              value={age}
+              onChangeText={(value) =>
+                setAge(
+                  value.replace(/[^0-9]/g, ""),
+                )
+              }
+              placeholder="Enter your age"
+              placeholderTextColor="#8A8D84"
+              keyboardType="number-pad"
+              editable={!loading}
+              maxLength={3}
+              style={styles.input}
+            />
+          </View>
+
+          {/* Language */}
+          <Text
+            style={[
+              styles.label,
+              styles.nextLabel,
+            ]}
+          >
+            Preferred Language
+          </Text>
+
+          <View style={styles.inputContainer}>
+            <MaterialIcons
+              name="language"
+              size={23}
+              color={COLORS.primary}
+            />
+
+            <TextInput
+              value={language}
+              onChangeText={setLanguage}
+              placeholder="e.g. English"
+              placeholderTextColor="#8A8D84"
+              autoCapitalize="words"
+              autoCorrect={false}
+              editable={!loading}
+              style={styles.input}
+            />
+          </View>
+
+          {/* Password */}
+          <Text
+            style={[
+              styles.label,
+              styles.nextLabel,
+            ]}
+          >
+            Password
+          </Text>
+
+          <View style={styles.inputContainer}>
+            <MaterialIcons
+              name="lock"
+              size={23}
+              color={COLORS.primary}
+            />
+
             <TextInput
               value={password}
               onChangeText={setPassword}
               placeholder="Create a password"
-              placeholderTextColor="#8A9187"
-              style={styles.passwordInput}
-              editable={!loading}
+              placeholderTextColor="#8A8D84"
               secureTextEntry={!showPassword}
               autoCapitalize="none"
               autoCorrect={false}
-            />
-
-            <Pressable
-              onPress={() => setShowPassword((value) => !value)}
-              disabled={loading}
-              hitSlop={10}
-              style={styles.eyeButton}
-            >
-              <MaterialIcons
-                name={showPassword ? "visibility" : "visibility-off"}
-                size={22}
-                color={COLORS.textSecondary}
-              />
-            </Pressable>
-          </View>
-
-          <Text style={styles.passwordHint}>
-            Password must contain at least 6 characters.
-          </Text>
-
-          <Text style={styles.label}>Confirm Password</Text>
-
-          <View style={styles.passwordContainer}>
-            <TextInput
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              placeholder="Confirm your password"
-              placeholderTextColor="#8A9187"
-              style={styles.passwordInput}
               editable={!loading}
-              secureTextEntry={!showConfirmPassword}
-              autoCapitalize="none"
-              autoCorrect={false}
+              style={styles.input}
             />
 
             <Pressable
-              onPress={() => setShowConfirmPassword((value) => !value)}
+              onPress={() =>
+                setShowPassword(
+                  (value) => !value,
+                )
+              }
               disabled={loading}
               hitSlop={10}
               style={styles.eyeButton}
+              accessibilityRole="button"
+              accessibilityLabel={
+                showPassword
+                  ? "Hide password"
+                  : "Show password"
+              }
             >
               <MaterialIcons
                 name={
-                  showConfirmPassword ? "visibility" : "visibility-off"
+                  showPassword
+                    ? "visibility"
+                    : "visibility-off"
                 }
-                size={22}
-                color={COLORS.textSecondary}
+                size={23}
+                color={COLORS.outline}
               />
             </Pressable>
           </View>
 
+          {/* Confirm Password */}
+          <Text
+            style={[
+              styles.label,
+              styles.nextLabel,
+            ]}
+          >
+            Confirm Password
+          </Text>
+
+          <View style={styles.inputContainer}>
+            <MaterialIcons
+              name="lock-outline"
+              size={23}
+              color={COLORS.primary}
+            />
+
+            <TextInput
+              value={confirmPassword}
+              onChangeText={
+                setConfirmPassword
+              }
+              placeholder="Confirm your password"
+              placeholderTextColor="#8A8D84"
+              secureTextEntry={
+                !showConfirmPassword
+              }
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!loading}
+              style={styles.input}
+            />
+
+            <Pressable
+              onPress={() =>
+                setShowConfirmPassword(
+                  (value) => !value,
+                )
+              }
+              disabled={loading}
+              hitSlop={10}
+              style={styles.eyeButton}
+              accessibilityRole="button"
+              accessibilityLabel={
+                showConfirmPassword
+                  ? "Hide confirm password"
+                  : "Show confirm password"
+              }
+            >
+              <MaterialIcons
+                name={
+                  showConfirmPassword
+                    ? "visibility"
+                    : "visibility-off"
+                }
+                size={23}
+                color={COLORS.outline}
+              />
+            </Pressable>
+          </View>
+
+          {/* Create Account */}
           <Pressable
             onPress={handleSignup}
             disabled={loading}
             style={({ pressed }) => [
-              styles.signupButton,
-              pressed && !loading && styles.buttonPressed,
-              loading && styles.buttonDisabled,
+              styles.primaryButton,
+              pressed && styles.pressed,
+              loading &&
+                styles.buttonDisabled,
             ]}
+            accessibilityRole="button"
+            accessibilityLabel="Create patient account"
           >
             {loading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+              <ActivityIndicator
+                size="small"
+                color={COLORS.onPrimary}
+              />
             ) : (
               <>
-                <Text style={styles.signupButtonText}>Create Account</Text>
                 <MaterialIcons
-                  name="arrow-forward"
-                  size={22}
-                  color="#FFFFFF"
+                  name="person-add"
+                  size={23}
+                  color={COLORS.onPrimary}
                 />
+
+                <Text
+                  style={styles.primaryButtonText}
+                >
+                  Create Patient Account
+                </Text>
               </>
             )}
           </Pressable>
         </View>
 
-        <View style={styles.loginSection}>
-          <Text style={styles.loginText}>Already have an account?</Text>
+        {/* Login */}
+        <View style={styles.loginRow}>
+          <Text style={styles.accountText}>
+            Already have an account?
+          </Text>
 
-          <Pressable onPress={onLogin} disabled={loading}>
-            <Text style={styles.loginLink}>Sign In</Text>
+          <Pressable
+            onPress={onLogin}
+            disabled={loading}
+          >
+            <Text style={styles.loginText}>
+              {" "}Sign In
+            </Text>
           </Pressable>
         </View>
 
-        <View style={styles.securityCard}>
+        {/* Security */}
+        <View style={styles.securityBox}>
           <MaterialIcons
-            name="lock"
-            size={22}
+            name="verified-user"
+            size={25}
             color={COLORS.primary}
           />
 
-          <View style={styles.securityTextContainer}>
-            <Text style={styles.securityTitle}>Your information is secure</Text>
-            <Text style={styles.securityText}>
-              Your password is securely protected and your personal information
-              is kept private.
-            </Text>
-          </View>
+          <Text style={styles.securityText}>
+            Your patient account is protected by
+            SmritiCare authentication.
+          </Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -361,19 +540,21 @@ export default function SignupScreen({
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: COLORS.background,
   },
 
-  scrollContent: {
-    paddingHorizontal: 22,
-    paddingTop: 22,
+  container: {
+    flexGrow: 1,
+    alignItems: "center",
+    paddingHorizontal: 24,
     paddingBottom: 40,
   },
 
   header: {
-    height: 58,
+    width: "100%",
+    height: 64,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -382,187 +563,170 @@ const styles = StyleSheet.create({
   backButton: {
     width: 48,
     height: 48,
-    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFFFFF",
   },
 
-  backPlaceholder: {
-    width: 48,
-    height: 48,
-  },
-
-  logo: {
-    width: 55,
-    height: 55,
-  },
-
-  titleSection: {
-    marginTop: 24,
-    marginBottom: 24,
-  },
-
-  title: {
-    fontSize: 30,
-    lineHeight: 38,
-    fontWeight: "700",
+  headerTitle: {
+    fontSize: 21,
+    fontWeight: "800",
     color: COLORS.primary,
   },
 
-  subtitle: {
-    marginTop: 8,
-    fontSize: 16,
-    lineHeight: 24,
-    color: COLORS.textSecondary,
+  headerSpacer: {
+    width: 48,
   },
 
-  formCard: {
+  logoCircle: {
+    width: 125,
+    height: 125,
+    borderRadius: 63,
     backgroundColor: COLORS.surface,
-    borderRadius: 24,
-    padding: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+    overflow: "hidden",
+    elevation: 4,
   },
 
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "700",
+  logo: {
+    width: 110,
+    height: 110,
+  },
+
+  title: {
+    marginTop: 22,
+    fontSize: 30,
+    lineHeight: 38,
+    fontWeight: "800",
     color: COLORS.text,
-    marginBottom: 20,
+    textAlign: "center",
+  },
+
+  subtitle: {
+    marginTop: 7,
+    marginBottom: 27,
+    fontSize: 17,
+    lineHeight: 25,
+    color: COLORS.textSecondary,
+    textAlign: "center",
+  },
+
+  form: {
+    width: "100%",
+    maxWidth: 520,
   },
 
   label: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: COLORS.text,
     marginBottom: 8,
-    marginTop: 14,
+    fontSize: 16,
+    fontWeight: "700",
+    color: COLORS.text,
+  },
+
+  nextLabel: {
+    marginTop: 18,
+  },
+
+  inputContainer: {
+    minHeight: 58,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 15,
+    backgroundColor: COLORS.surface,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
   },
 
   input: {
-    minHeight: 54,
-    borderWidth: 1,
-    borderColor: COLORS.lightBorder,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: COLORS.text,
-    backgroundColor: "#FFFFFF",
-  },
-
-  languageButton: {
-    minHeight: 54,
-    borderWidth: 1,
-    borderColor: COLORS.lightBorder,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#FFFFFF",
-  },
-
-  languageText: {
-    fontSize: 16,
-    color: COLORS.text,
-  },
-
-  passwordContainer: {
-    minHeight: 54,
-    borderWidth: 1,
-    borderColor: COLORS.lightBorder,
-    borderRadius: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-  },
-
-  passwordInput: {
     flex: 1,
-    minHeight: 52,
-    paddingHorizontal: 16,
+    marginLeft: 12,
+    minHeight: 54,
     fontSize: 16,
     color: COLORS.text,
+
+    ...(Platform.OS === "web"
+      ? ({ outlineStyle: "none" } as any)
+      : {}),
   },
 
   eyeButton: {
-    width: 48,
+    width: 42,
     height: 48,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  passwordHint: {
-    marginTop: 6,
-    fontSize: 13,
-    color: COLORS.textSecondary,
-  },
-
-  signupButton: {
-    marginTop: 26,
-    minHeight: 56,
+  primaryButton: {
+    minHeight: 58,
     borderRadius: 16,
-    backgroundColor: COLORS.primaryContainer,
+    backgroundColor: COLORS.primary,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    marginTop: 26,
+    paddingHorizontal: 18,
+    elevation: 3,
   },
 
-  signupButtonText: {
-    color: "#FFFFFF",
+  primaryButtonText: {
+    marginLeft: 10,
     fontSize: 17,
-    fontWeight: "700",
+    fontWeight: "800",
+    color: COLORS.onPrimary,
   },
 
-  buttonPressed: {
+  pressed: {
     opacity: 0.8,
+    transform: [
+      {
+        scale: 0.99,
+      },
+    ],
   },
 
   buttonDisabled: {
     opacity: 0.65,
   },
 
-  loginSection: {
+  loginRow: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     marginTop: 22,
-    gap: 5,
+    flexWrap: "wrap",
   },
 
-  loginText: {
+  accountText: {
     fontSize: 15,
     color: COLORS.textSecondary,
   },
 
-  loginLink: {
-    fontSize: 16,
-    fontWeight: "700",
+  loginText: {
+    fontSize: 15,
+    fontWeight: "800",
     color: COLORS.primary,
   },
 
-  securityCard: {
-    marginTop: 24,
-    padding: 16,
-    borderRadius: 18,
-    backgroundColor: "#EAF4EA",
+  securityBox: {
+    width: "100%",
+    maxWidth: 520,
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 12,
-  },
-
-  securityTextContainer: {
-    flex: 1,
-  },
-
-  securityTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: COLORS.primary,
+    backgroundColor: COLORS.greenSoft,
+    borderWidth: 1,
+    borderColor: COLORS.greenBorder,
+    borderRadius: 16,
+    padding: 15,
+    marginTop: 28,
   },
 
   securityText: {
-    marginTop: 4,
-    fontSize: 13,
-    lineHeight: 19,
+    flex: 1,
+    marginLeft: 11,
+    fontSize: 13.5,
+    lineHeight: 20,
     color: COLORS.textSecondary,
   },
 });

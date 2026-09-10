@@ -11,9 +11,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import PatientAuthScreen from './src/screens/auth/PatientAuthScreen';
 import CaregiverAuthScreen from './src/screens/auth/CaregiverAuthScreen';
-import CaregiverLoginScreen from "./src/screens/caregiver/CaregiverLoginScreen";
-import CaregiverSignupScreen from "./src/screens/caregiver/CaregiverSignupScreen";
-import CaregiverDashboardScreen from "./src/screens/caregiver/CaregiverDashboardScreen";
+import CaregiverLoginScreen from './src/screens/caregiver/CaregiverLoginScreen';
+import CaregiverSignupScreen from './src/screens/caregiver/CaregiverSignupScreen';
+import CaregiverDashboardScreen from './src/screens/caregiver/CaregiverDashboardScreen';
 import LoginScreen from './src/screens/auth/LoginScreen';
 import SignupScreen from './src/screens/auth/SignupScreen';
 import HomeScreen from './src/screens/home/HomeScreen';
@@ -43,10 +43,10 @@ import {
 type Screen =
   | 'welcome'
   | 'patient-auth'
-  | "caregiver-auth"
-  | "caregiver-login"
-  | "caregiver-signup"
-  | "caregiver-dashboard"
+  | 'caregiver-auth'
+  | 'caregiver-login'
+  | 'caregiver-signup'
+  | 'caregiver-dashboard'
   | 'login'
   | 'signup'
   | 'home'
@@ -135,7 +135,7 @@ function AppContent() {
   }
 
   // ---------------------------------------------------------
-  // LOGOUT
+  // PATIENT LOGOUT
   // ---------------------------------------------------------
 
   async function handleLogout() {
@@ -151,27 +151,24 @@ function AppContent() {
     } catch (error) {
       console.log('SmritiCare: logout error:', error);
 
-      // Even if storage fails, don't keep the user inside
-      // the authenticated part of the app.
       setPatient(null);
       setScreen('welcome');
     }
   }
 
   // ---------------------------------------------------------
-  // AUTH SUCCESS
+  // PATIENT AUTH SUCCESS
   // ---------------------------------------------------------
 
   async function handleAuthenticationSuccess() {
     console.log('SmritiCare: authentication successful');
 
-    // The Signup/Login screen has already saved the token.
-    // We now load the complete patient from /api/auth/me.
     try {
       const token = await getToken();
 
       if (!token) {
         console.log('SmritiCare: no token after authentication');
+
         setPatient(null);
         setScreen('welcome');
         return;
@@ -373,21 +370,23 @@ function AppContent() {
       />
     );
   }
-  // ---------------------------------------------------------
-  // caregiver AUTH
-  // --------------------------------------------------------
 
-  if (screen === "caregiver-auth") {
-    return (
-        <CaregiverAuthScreen
-            onBack={() => setScreen("welcome")}
-            onSignIn={() => setScreen("caregiver-login")}
-            onSignUp={() => setScreen("caregiver-signup")}
-        />
-    );
-}
   // ---------------------------------------------------------
-  // LOGIN
+  // CAREGIVER AUTH
+  // ---------------------------------------------------------
+
+  if (screen === 'caregiver-auth') {
+    return (
+      <CaregiverAuthScreen
+        onBack={() => setScreen('welcome')}
+        onSignIn={() => setScreen('caregiver-login')}
+        onSignUp={() => setScreen('caregiver-signup')}
+      />
+    );
+  }
+
+  // ---------------------------------------------------------
+  // PATIENT LOGIN
   // ---------------------------------------------------------
 
   if (screen === 'login') {
@@ -401,7 +400,7 @@ function AppContent() {
   }
 
   // ---------------------------------------------------------
-  // SIGNUP
+  // PATIENT SIGNUP
   // ---------------------------------------------------------
 
   if (screen === 'signup') {
@@ -413,32 +412,48 @@ function AppContent() {
       />
     );
   }
-if (screen === "caregiver-login") {
+
+  // ---------------------------------------------------------
+  // CAREGIVER LOGIN
+  // ---------------------------------------------------------
+
+  if (screen === 'caregiver-login') {
     return (
-        <CaregiverLoginScreen
-            onBack={() => setScreen("caregiver-auth")}
-            onSignup={() => setScreen("caregiver-signup")}
-            onLogin={() => setScreen("caregiver-dashboard")}
-        />
+      <CaregiverLoginScreen
+        onBack={() => setScreen('caregiver-auth')}
+        onSignup={() => setScreen('caregiver-signup')}
+        onLogin={() => setScreen('caregiver-dashboard')}
+      />
     );
+  }
+
+  // ---------------------------------------------------------
+  // CAREGIVER SIGNUP
+  // ---------------------------------------------------------
+
+  if (screen === "caregiver-signup") {
+  return (
+    <CaregiverSignupScreen
+      onBack={() => setScreen("caregiver-auth")}
+      onLogin={() => setScreen("caregiver-login")}
+      onSignup={handleAuthenticationSuccess}
+    />
+  );
 }
 
+  // ---------------------------------------------------------
+  // CAREGIVER DASHBOARD
+  // ---------------------------------------------------------
 
-if (screen === "caregiver-signup") {
+  if (screen === 'caregiver-dashboard') {
     return (
-        <CaregiverSignupScreen
-            onBack={() => setScreen("caregiver-auth")}
-            onLogin={() => setScreen("caregiver-login")}
-            onSignup={() => setScreen("caregiver-dashboard")}
-        />
+      <CaregiverDashboardScreen
+        onBack={() => setScreen('caregiver-auth')}
+        onLogout={() => setScreen('caregiver-auth')}
+      />
     );
-}
+  }
 
-if (screen === "caregiver-dashboard") {
-    return (
-        <CaregiverDashboardScreen />
-    );
-}
   // ---------------------------------------------------------
   // MEDICAL HELP
   // ---------------------------------------------------------
@@ -467,6 +482,7 @@ if (screen === "caregiver-dashboard") {
       />
     );
   }
+
   // ---------------------------------------------------------
   // CALL FAMILY
   // ---------------------------------------------------------
@@ -603,28 +619,18 @@ if (screen === "caregiver-dashboard") {
     return (
       <VoiceAssistantScreen
         onBack={() => setScreen('home')}
-
-        // Remind me to take my medicine
         onMedicine={() => {
           setScreen('schedule');
         }}
-
-        // Open profile
         onProfile={() => {
           setScreen('profile');
         }}
-
-        // Call my family
         onFamily={() => {
           setScreen('call-family');
         }}
-
-        // Start a memory game
         onGame={() => {
           setScreen('games');
         }}
-
-        // Show my schedule
         onSchedule={() => {
           setScreen('schedule');
         }}
@@ -646,7 +652,6 @@ if (screen === "caregiver-dashboard") {
       onProfile={() => setScreen('profile')}
       onGames={() => setScreen('games')}
       onMemory={() => setScreen('memory')}
-      // onPatientDashboard={() => setScreen('patient-dashboard')}
       onVoiceAssistant={() => setScreen('voice-assistant')}
     />
   );
@@ -654,7 +659,6 @@ if (screen === "caregiver-dashboard") {
 
 // ---------------------------------------------------------
 // APP ROOT
-// SafeAreaProvider must wrap the entire application.
 // ---------------------------------------------------------
 
 export default function App() {

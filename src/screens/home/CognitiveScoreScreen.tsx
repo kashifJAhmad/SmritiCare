@@ -86,7 +86,7 @@ export default function CognitiveScoreScreen({
             <Ionicons
               name="arrow-back"
               size={25}
-              color="#00450D"
+              color="#3F6F45"
             />
             <Text style={styles.backText}>Back</Text>
           </Pressable>
@@ -200,7 +200,7 @@ export default function CognitiveScoreScreen({
                 <MaterialIcons
                   name="extension"
                   size={26}
-                  color="#90D689"
+                  color="#D7E7D2"
                 />
               </View>
 
@@ -216,7 +216,7 @@ export default function CognitiveScoreScreen({
               <MaterialIcons
                 name="chevron-right"
                 size={28}
-                color="#41493E"
+                color="#565A52"
               />
             </Pressable>
 
@@ -233,7 +233,7 @@ export default function CognitiveScoreScreen({
                 <MaterialIcons
                   name="auto-stories"
                   size={26}
-                  color="#004470"
+                  color="#68472F"
                 />
               </View>
 
@@ -249,7 +249,7 @@ export default function CognitiveScoreScreen({
               <MaterialIcons
                 name="chevron-right"
                 size={28}
-                color="#41493E"
+                color="#565A52"
               />
             </Pressable>
           </View>
@@ -282,20 +282,20 @@ export default function CognitiveScoreScreen({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F4FAFF',
+    backgroundColor: '#FBF9F1',
   },
   container: {
     flex: 1,
-    backgroundColor: '#F4FAFF',
+    backgroundColor: '#FBF9F1',
   },
 
   // Header
   header: {
     height: 64,
     paddingHorizontal: 24,
-    backgroundColor: '#F4FAFF',
+    backgroundColor: '#FBF9F1',
     borderBottomWidth: 2,
-    borderBottomColor: '#C0C9BB',
+    borderBottomColor: '#CDD2C8',
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     lineHeight: 34,
     fontWeight: '700',
-    color: '#00450D',
+    color: '#3F6F45',
   },
   headerCenter: {
     flex: 1,
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     lineHeight: 36,
     fontWeight: '700',
-    color: '#00450D',
+    color: '#3F6F45',
   },
   headerSpacer: {
     width: 72,
@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
     fontSize: 34,
     lineHeight: 42,
     fontWeight: '700',
-    color: '#111D23',
+    color: '#1B1C17',
     marginBottom: 16,
   },
 
@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
   scoreCard: {
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: '#C0C9BB',
+    borderColor: '#CDD2C8',
     borderRadius: 8,
     padding: 24,
     elevation: 2,
@@ -361,14 +361,14 @@ const styles = StyleSheet.create({
     fontSize: 28,
     lineHeight: 34,
     fontWeight: '700',
-    color: '#00450D',
+    color: '#3F6F45',
     textAlign: 'center',
   },
   scoreDescription: {
     marginTop: 8,
     fontSize: 18,
     lineHeight: 28,
-    color: '#41493E',
+    color: '#565A52',
     textAlign: 'center',
   },
   gaugeContainer: {
@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
     height: 190,
     borderRadius: 95,
     borderWidth: 15,
-    borderColor: '#DDEAF2',
+    borderColor: '#E7EFE3',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
     height: 190,
     borderRadius: 95,
     borderWidth: 15,
-    borderColor: '#00450D',
+    borderColor: '#3F6F45',
     borderLeftColor: 'transparent',
     borderBottomColor: 'transparent',
     transformOrigin: 'center',
@@ -411,13 +411,13 @@ const styles = StyleSheet.create({
     fontSize: 46,
     lineHeight: 54,
     fontWeight: '700',
-    color: '#00450D',
+    color: '#3F6F45',
   },
   scoreOutOf: {
     marginTop: 2,
     fontSize: 18,
     lineHeight: 28,
-    color: '#41493E',
+    color: '#565A52',
   },
 
   // Weekly progress
@@ -425,7 +425,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: '#C0C9BB',
+    borderColor: '#CDD2C8',
     borderRadius: 8,
     padding: 24,
     elevation: 2,
@@ -437,7 +437,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     lineHeight: 34,
     fontWeight: '700',
-    color: '#111D23',
+    color: '#1B1C17',
     marginBottom: 22,
   },
   chart: {
@@ -460,12 +460,12 @@ const styles = StyleSheet.create({
   },
   bar: {
     width: '100%',
-    backgroundColor: '#DDEAF2',
+    backgroundColor: '#D9DDD4',
     borderTopLeftRadius: 4,
     borderTopRightRadius: 4,
   },
   currentBar: {
-    backgroundColor: '#00450D',
+    backgroundColor: '#3F6F45',
   },
   mutedBar: {
     opacity: 0.5,
@@ -474,7 +474,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -2,
     alignSelf: 'center',
-    backgroundColor: '#263238',
+    backgroundColor: '#68472F',
     borderRadius: 4,
     paddingHorizontal: 7,
     paddingVertical: 4,
@@ -482,17 +482,17 @@ const styles = StyleSheet.create({
   },
   tooltipText: {
     fontSize: 14,
-    color: '#E6F3FB',
+    color: '#FBF9F1',
     fontWeight: '400',
   },
   dayLabel: {
     marginTop: 8,
     fontSize: 18,
     lineHeight: 28,
-    color: '#41493E',
+    color: '#565A52',
   },
   currentDayLabel: {
-    color: '#00450D',
+    color: '#3F6F45',
     fontWeight: '700',
   },
 
@@ -506,7 +506,7 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: '#C0C9BB',
+    borderColor: '#CDD2C8',
     borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',
@@ -519,7 +519,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#1B5E20',
+    backgroundColor: '#315A36',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
@@ -528,7 +528,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#62B4FE',
+    backgroundColor: '#E9D7C5',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
@@ -540,13 +540,13 @@ const styles = StyleSheet.create({
     fontSize: 22,
     lineHeight: 32,
     fontWeight: '700',
-    color: '#111D23',
+    color: '#1B1C17',
   },
   insightDescription: {
     marginTop: 2,
     fontSize: 18,
     lineHeight: 28,
-    color: '#41493E',
+    color: '#565A52',
   },
 
   // Exercise
@@ -554,7 +554,7 @@ const styles = StyleSheet.create({
     minHeight: 60,
     marginTop: 8,
     borderRadius: 8,
-    backgroundColor: '#00450D',
+    backgroundColor: '#3F6F45',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -575,6 +575,6 @@ const styles = StyleSheet.create({
     opacity: 0.78,
   },
   cardPressed: {
-    backgroundColor: '#DDEAF2',
+    backgroundColor: '#F1F0E7',
   },
 });

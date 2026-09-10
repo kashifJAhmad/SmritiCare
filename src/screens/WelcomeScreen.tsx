@@ -16,17 +16,17 @@ type WelcomeScreenProps = {
 };
 
 const COLORS = {
-  background: '#F4FAFF',
-  navy: '#102A56',
-  text: '#31445A',
-  teal: '#197D87',
-  green: '#4FA56A',
-  patientBg: '#F0FBF6',
-  patientBorder: '#D9F0E4',
-  familyBg: '#FFF8EF',
-  familyBorder: '#F8E8D2',
-  peach: '#D9784B',
+  background: '#FBF9F1',
+  text: '#1B1C17',
+  secondaryText: '#62655E',
+  green: '#3F6F45',
+  greenSoft: '#E7EFE3',
+  greenBorder: '#D5E2D0',
+  peach: '#B96F43',
+  peachSoft: '#F7E9DC',
+  peachBorder: '#EBD8C5',
   white: '#FFFFFF',
+  heart: '#D9787F',
 };
 
 export default function WelcomeScreen({
@@ -39,13 +39,12 @@ export default function WelcomeScreen({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Decorative leaves */}
         <View style={styles.leftLeafOne} />
         <View style={styles.leftLeafTwo} />
         <View style={styles.rightLeafOne} />
         <View style={styles.rightLeafTwo} />
 
-        {/* Logo */}
+        {/* Logo unchanged */}
         <View style={styles.logoCircle}>
           <Image
             source={require('../../assets/images/logo.png')}
@@ -54,7 +53,6 @@ export default function WelcomeScreen({
           />
         </View>
 
-        {/* Brand */}
         <Text style={styles.brandName}>
           Smriti<Text style={styles.brandGreen}>Care</Text>
         </Text>
@@ -62,7 +60,6 @@ export default function WelcomeScreen({
         <Text style={styles.tagline}>Brighter Minds</Text>
         <Text style={styles.tagline}>Warmer Tomorrows</Text>
 
-        {/* Welcome heading */}
         <View style={styles.headingContainer}>
           <Text style={styles.heading}>Welcome to SmritiCare</Text>
           <Text style={styles.subtitle}>
@@ -70,7 +67,6 @@ export default function WelcomeScreen({
           </Text>
         </View>
 
-        {/* Patient */}
         <Pressable
           onPress={onPatient}
           style={({ pressed }) => [
@@ -102,7 +98,6 @@ export default function WelcomeScreen({
           />
         </Pressable>
 
-        {/* Family Member */}
         <Pressable
           onPress={onFamilyMember}
           style={({ pressed }) => [
@@ -136,12 +131,11 @@ export default function WelcomeScreen({
           />
         </Pressable>
 
-        {/* Footer */}
         <View style={styles.footer}>
           <MaterialIcons
             name="favorite"
             size={34}
-            color="#E96B7A"
+            color={COLORS.heart}
           />
 
           <Text style={styles.footerText}>
@@ -168,19 +162,15 @@ const styles = StyleSheet.create({
     paddingBottom: 45,
   },
 
-  /* ---------------- LOGO ---------------- */
-
+  /* Logo size and image are unchanged */
   logoCircle: {
     width: 235,
     height: 235,
     borderRadius: 118,
     backgroundColor: COLORS.white,
-
     alignItems: 'center',
     justifyContent: 'center',
-
     marginTop: 12,
-
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -189,7 +179,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 18,
     elevation: 4,
-
     overflow: 'hidden',
   },
 
@@ -203,23 +192,21 @@ const styles = StyleSheet.create({
     fontSize: 40,
     lineHeight: 46,
     fontWeight: '800',
-    color: '#176B88',
+    color: COLORS.text,
     letterSpacing: -1.2,
   },
 
   brandGreen: {
-    color: '#4FA56A',
+    color: COLORS.green,
   },
 
   tagline: {
     fontSize: 18,
     lineHeight: 24,
-    color: '#647586',
+    color: COLORS.secondaryText,
     fontWeight: '500',
     textAlign: 'center',
   },
-
-  /* ---------------- HEADING ---------------- */
 
   headingContainer: {
     width: '100%',
@@ -232,7 +219,7 @@ const styles = StyleSheet.create({
     fontSize: 31,
     lineHeight: 39,
     fontWeight: '800',
-    color: COLORS.navy,
+    color: COLORS.text,
     textAlign: 'center',
   },
 
@@ -240,28 +227,21 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 18,
     lineHeight: 26,
-    color: '#607284',
+    color: COLORS.secondaryText,
     textAlign: 'center',
     paddingHorizontal: 10,
   },
 
-  /* ---------------- CARDS ---------------- */
-
   optionCard: {
     width: '100%',
     minHeight: 170,
-
     borderRadius: 24,
     borderWidth: 1,
-
     flexDirection: 'row',
     alignItems: 'center',
-
     paddingVertical: 22,
     paddingHorizontal: 18,
-
     marginBottom: 18,
-
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -273,13 +253,13 @@ const styles = StyleSheet.create({
   },
 
   patientCard: {
-    backgroundColor: COLORS.patientBg,
-    borderColor: COLORS.patientBorder,
+    backgroundColor: COLORS.greenSoft,
+    borderColor: COLORS.greenBorder,
   },
 
   familyCard: {
-    backgroundColor: COLORS.familyBg,
-    borderColor: COLORS.familyBorder,
+    backgroundColor: COLORS.peachSoft,
+    borderColor: COLORS.peachBorder,
   },
 
   pressed: {
@@ -291,11 +271,9 @@ const styles = StyleSheet.create({
     width: 92,
     height: 92,
     borderRadius: 46,
-    backgroundColor: '#DDF4E8',
-
+    backgroundColor: '#DDE8D8',
     alignItems: 'center',
     justifyContent: 'center',
-
     marginRight: 16,
   },
 
@@ -303,11 +281,9 @@ const styles = StyleSheet.create({
     width: 92,
     height: 92,
     borderRadius: 46,
-    backgroundColor: '#FCEBD8',
-
+    backgroundColor: '#F1DDCA',
     alignItems: 'center',
     justifyContent: 'center',
-
     marginRight: 16,
   },
 
@@ -320,17 +296,15 @@ const styles = StyleSheet.create({
     fontSize: 22,
     lineHeight: 29,
     fontWeight: '800',
-    color: COLORS.navy,
+    color: COLORS.text,
   },
 
   optionDescription: {
     marginTop: 8,
     fontSize: 16,
     lineHeight: 23,
-    color: COLORS.text,
+    color: COLORS.secondaryText,
   },
-
-  /* ---------------- FOOTER ---------------- */
 
   footer: {
     alignItems: 'center',
@@ -342,13 +316,12 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 17,
     lineHeight: 25,
-    color: '#687887',
+    color: COLORS.secondaryText,
     textAlign: 'center',
     fontStyle: 'italic',
   },
 
-  /* ---------------- DECORATION ---------------- */
-
+  /* Subtle warm botanical texture only */
   leftLeafOne: {
     position: 'absolute',
     left: -28,
@@ -356,7 +329,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 45,
     borderRadius: 100,
-    backgroundColor: 'rgba(92, 190, 164, 0.10)',
+    backgroundColor: 'rgba(63, 111, 69, 0.08)',
     transform: [{ rotate: '-25deg' }],
   },
 
@@ -367,7 +340,7 @@ const styles = StyleSheet.create({
     width: 90,
     height: 38,
     borderRadius: 100,
-    backgroundColor: 'rgba(92, 190, 164, 0.08)',
+    backgroundColor: 'rgba(63, 111, 69, 0.06)',
     transform: [{ rotate: '20deg' }],
   },
 
@@ -378,7 +351,7 @@ const styles = StyleSheet.create({
     width: 105,
     height: 48,
     borderRadius: 100,
-    backgroundColor: 'rgba(92, 190, 164, 0.10)',
+    backgroundColor: 'rgba(63, 111, 69, 0.08)',
     transform: [{ rotate: '35deg' }],
   },
 
@@ -389,7 +362,7 @@ const styles = StyleSheet.create({
     width: 85,
     height: 40,
     borderRadius: 100,
-    backgroundColor: 'rgba(92, 190, 164, 0.08)',
+    backgroundColor: 'rgba(63, 111, 69, 0.06)',
     transform: [{ rotate: '-20deg' }],
   },
 });

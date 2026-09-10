@@ -330,7 +330,7 @@ export default function CallFamilyScreen({
             <Ionicons
               name="arrow-back"
               size={28}
-              color="#00450D"
+              color="#3F6F45"
             />
           </Pressable>
 
@@ -351,7 +351,7 @@ export default function CallFamilyScreen({
               <MaterialIcons
                 name="family-restroom"
                 size={34}
-                color="#00450D"
+                color="#3F6F45"
               />
             </View>
 
@@ -369,7 +369,7 @@ export default function CallFamilyScreen({
             <View style={styles.loadingContainer}>
               <ActivityIndicator
                 size="large"
-                color="#00450D"
+                color="#3F6F45"
               />
               <Text style={styles.loadingText}>
                 Loading family contacts...
@@ -380,7 +380,7 @@ export default function CallFamilyScreen({
               <MaterialIcons
                 name="people-outline"
                 size={58}
-                color="#556158"
+                color="#8A6040"
               />
 
               <Text style={styles.emptyTitle}>
@@ -456,7 +456,7 @@ export default function CallFamilyScreen({
                     <MaterialIcons
                       name="delete-outline"
                       size={23}
-                      color="#A70515"
+                      color="#9B3F32"
                     />
 
                     <Text style={styles.deleteText}>
@@ -481,7 +481,7 @@ export default function CallFamilyScreen({
             <MaterialIcons
               name="add-circle"
               size={48}
-              color="#00450D"
+              color="#3F6F45"
             />
 
             <Text style={styles.addFamilyText}>
@@ -502,7 +502,7 @@ export default function CallFamilyScreen({
               <MaterialIcons
                 name="refresh"
                 size={25}
-                color="#00450D"
+                color="#3F6F45"
               />
 
               <Text style={styles.refreshText}>
@@ -570,7 +570,7 @@ export default function CallFamilyScreen({
                   <Ionicons
                     name="close"
                     size={28}
-                    color="#41493E"
+                    color="#565A52"
                   />
                 </Pressable>
               </View>
@@ -583,7 +583,7 @@ export default function CallFamilyScreen({
                 value={name}
                 onChangeText={setName}
                 placeholder="e.g. Aman"
-                placeholderTextColor="#717A6D"
+                placeholderTextColor="#72766D"
                 style={styles.input}
                 editable={!saving}
                 autoCapitalize="words"
@@ -597,7 +597,7 @@ export default function CallFamilyScreen({
                 value={relationship}
                 onChangeText={setRelationship}
                 placeholder="e.g. Son"
-                placeholderTextColor="#717A6D"
+                placeholderTextColor="#72766D"
                 style={styles.input}
                 editable={!saving}
                 autoCapitalize="words"
@@ -611,7 +611,7 @@ export default function CallFamilyScreen({
                 value={phone}
                 onChangeText={setPhone}
                 placeholder="e.g. 9876543210"
-                placeholderTextColor="#717A6D"
+                placeholderTextColor="#72766D"
                 style={styles.input}
                 editable={!saving}
                 keyboardType="phone-pad"
@@ -682,7 +682,7 @@ function NavItem({
       <MaterialIcons
         name={icon}
         size={28}
-        color={active ? '#90D689' : '#41493E'}
+        color={active ? '#D7E7D2' : '#565A52'}
       />
 
       <Text
@@ -700,12 +700,12 @@ function NavItem({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F4FAFF',
+    backgroundColor: '#FBF9F1',
   },
 
   container: {
     flex: 1,
-    backgroundColor: '#F4FAFF',
+    backgroundColor: '#FBF9F1',
   },
 
   // Header
@@ -714,9 +714,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F4FAFF',
+    backgroundColor: '#FBF9F1',
     borderBottomWidth: 2,
-    borderBottomColor: '#C0C9BB',
+    borderBottomColor: '#CDD2C8',
   },
 
   backButton: {
@@ -732,7 +732,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     lineHeight: 36,
     fontWeight: '700',
-    color: '#00450D',
+    color: '#3F6F45',
   },
 
   headerSectionTitle: {
@@ -740,7 +740,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     lineHeight: 24,
     fontWeight: '700',
-    color: '#00450D',
+    color: '#3F6F45',
   },
 
   // Content
@@ -752,9 +752,9 @@ const styles = StyleSheet.create({
 
   introCard: {
     minHeight: 92,
-    backgroundColor: '#E9F6FD',
+    backgroundColor: '#F1F0E7',
     borderWidth: 2,
-    borderColor: '#C0DCEB',
+    borderColor: '#D9DDD4',
     borderRadius: 12,
     padding: 16,
     marginBottom: 18,
@@ -780,14 +780,14 @@ const styles = StyleSheet.create({
     fontSize: 21,
     lineHeight: 27,
     fontWeight: '700',
-    color: '#00450D',
+    color: '#3F6F45',
   },
 
   introText: {
     marginTop: 3,
     fontSize: 16,
     lineHeight: 22,
-    color: '#41493E',
+    color: '#565A52',
   },
 
   // Loading
@@ -800,7 +800,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 18,
-    color: '#41493E',
+    color: '#565A52',
   },
 
   // Empty
@@ -808,7 +808,7 @@ const styles = StyleSheet.create({
     minHeight: 220,
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: '#C0C9BB',
+    borderColor: '#CDD2C8',
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -822,7 +822,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 30,
     fontWeight: '700',
-    color: '#111D23',
+    color: '#1B1C17',
     textAlign: 'center',
   },
 
@@ -830,7 +830,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 17,
     lineHeight: 25,
-    color: '#41493E',
+    color: '#565A52',
     textAlign: 'center',
   },
 
@@ -839,7 +839,7 @@ const styles = StyleSheet.create({
     minHeight: 128,
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: '#C0C9BB',
+    borderColor: '#CDD2C8',
     borderRadius: 8,
     padding: 16,
     marginBottom: 16,
@@ -865,18 +865,18 @@ const styles = StyleSheet.create({
 
   patternStripeOne: {
     flex: 1,
-    backgroundColor: '#A70515',
+    backgroundColor: '#A65D43',
   },
 
   patternStripeTwo: {
     flex: 1,
-    backgroundColor: '#A70515',
+    backgroundColor: '#A65D43',
     opacity: 0.55,
   },
 
   patternStripeThree: {
     flex: 1,
-    backgroundColor: '#A70515',
+    backgroundColor: '#A65D43',
     opacity: 0.25,
   },
 
@@ -891,9 +891,9 @@ const styles = StyleSheet.create({
     width: 76,
     height: 76,
     borderRadius: 38,
-    backgroundColor: '#E3F0F8',
+    backgroundColor: '#E7EFE3',
     borderWidth: 2,
-    borderColor: '#D7E4EC',
+    borderColor: '#CDD2C8',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
@@ -903,7 +903,7 @@ const styles = StyleSheet.create({
     fontSize: 25,
     lineHeight: 30,
     fontWeight: '700',
-    color: '#00450D',
+    color: '#3F6F45',
   },
 
   nameBlock: {
@@ -915,21 +915,21 @@ const styles = StyleSheet.create({
     fontSize: 25,
     lineHeight: 31,
     fontWeight: '700',
-    color: '#111D23',
+    color: '#1B1C17',
   },
 
   memberRelation: {
     marginTop: 2,
     fontSize: 17,
     lineHeight: 23,
-    color: '#41493E',
+    color: '#565A52',
   },
 
   memberPhone: {
     marginTop: 3,
     fontSize: 16,
     lineHeight: 22,
-    color: '#556158',
+    color: '#8A6040',
   },
 
   actionColumn: {
@@ -942,7 +942,7 @@ const styles = StyleSheet.create({
     minWidth: 94,
     paddingHorizontal: 17,
     borderRadius: 8,
-    backgroundColor: '#00450D',
+    backgroundColor: '#3F6F45',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -974,7 +974,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 18,
     fontWeight: '700',
-    color: '#A70515',
+    color: '#9B3F32',
   },
 
   pressed: {
@@ -988,7 +988,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: '#00450D',
+    borderColor: '#3F6F45',
     borderRadius: 8,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
@@ -1001,19 +1001,19 @@ const styles = StyleSheet.create({
     fontSize: 25,
     lineHeight: 32,
     fontWeight: '700',
-    color: '#00450D',
+    color: '#3F6F45',
     textAlign: 'center',
   },
 
   addPressed: {
-    backgroundColor: '#E9F6FD',
+    backgroundColor: '#F1F0E7',
   },
 
   refreshButton: {
     minHeight: 56,
     marginTop: 12,
     borderWidth: 2,
-    borderColor: '#C0C9BB',
+    borderColor: '#CDD2C8',
     borderRadius: 8,
     backgroundColor: '#FFFFFF',
     flexDirection: 'row',
@@ -1025,13 +1025,13 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 17,
     fontWeight: '700',
-    color: '#00450D',
+    color: '#3F6F45',
   },
 
   // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    backgroundColor: 'rgba(40, 42, 36, 0.45)',
     justifyContent: 'center',
     paddingHorizontal: 20,
   },
@@ -1041,7 +1041,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 22,
     borderWidth: 2,
-    borderColor: '#C0C9BB',
+    borderColor: '#CDD2C8',
     elevation: 8,
   },
 
@@ -1057,7 +1057,7 @@ const styles = StyleSheet.create({
     fontSize: 27,
     lineHeight: 34,
     fontWeight: '700',
-    color: '#00450D',
+    color: '#3F6F45',
   },
 
   modalCloseButton: {
@@ -1074,25 +1074,25 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 22,
     fontWeight: '700',
-    color: '#1B1C1C',
+    color: '#1B1C17',
   },
 
   input: {
     minHeight: 54,
     borderWidth: 2,
-    borderColor: '#C0C9BB',
+    borderColor: '#CDD2C8',
     borderRadius: 8,
     paddingHorizontal: 14,
     fontSize: 18,
-    color: '#111D23',
-    backgroundColor: '#FCF9F8',
+    color: '#1B1C17',
+    backgroundColor: '#FBF9F1',
   },
 
   saveButton: {
     minHeight: 58,
     marginTop: 22,
     borderRadius: 8,
-    backgroundColor: '#00450D',
+    backgroundColor: '#3F6F45',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1118,9 +1118,9 @@ const styles = StyleSheet.create({
     height: 90,
     paddingHorizontal: 8,
     paddingVertical: 12,
-    backgroundColor: '#F4FAFF',
+    backgroundColor: '#FBF9F1',
     borderTopWidth: 2,
-    borderTopColor: '#C0C9BB',
+    borderTopColor: '#CDD2C8',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
@@ -1137,7 +1137,7 @@ const styles = StyleSheet.create({
   },
 
   navItemActive: {
-    backgroundColor: '#1B5E20',
+    backgroundColor: '#315A36',
   },
 
   navLabel: {
@@ -1145,11 +1145,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 18,
     fontWeight: '700',
-    color: '#41493E',
+    color: '#565A52',
   },
 
   navLabelActive: {
-    color: '#90D689',
+    color: '#D7E7D2',
   },
 
   navPressed: {

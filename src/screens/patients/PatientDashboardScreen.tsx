@@ -14,49 +14,49 @@ import {
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 const COLORS = {
-  background: '#FCF9F8',
-  surface: '#FCF9F8',
+  background: '#FBF9F1',
+  surface: '#FBF9F1',
   white: '#FFFFFF',
 
-  surfaceContainerLow: '#F6F3F2',
-  surfaceContainer: '#F0EDED',
-  surfaceContainerHigh: '#EAE7E7',
-  surfaceContainerHighest: '#E5E2E1',
+  surfaceContainerLow: '#F1F0E7',
+  surfaceContainer: '#E9E7DE',
+  surfaceContainerHigh: '#E3E2D9',
+  surfaceContainerHighest: '#DDDCD3',
 
-  primary: '#00450D',
-  primaryContainer: '#1B5E20',
+  primary: '#3F6F45',
+  primaryContainer: '#315A36',
   onPrimary: '#FFFFFF',
-  onPrimaryContainer: '#90D689',
+  onPrimaryContainer: '#D7E7D2',
 
-  primaryFixed: '#ACF4A4',
-  primaryFixedDim: '#91D78A',
-  onPrimaryFixed: '#002203',
+  primaryFixed: '#B9D2B3',
+  primaryFixedDim: '#9FC69A',
+  onPrimaryFixed: '#203D24',
 
-  secondary: '#556158',
-  secondaryFixed: '#D9E6DA',
-  onSecondaryFixedVariant: '#3E4A41',
+  secondary: '#8A6040',
+  secondaryFixed: '#E7EFE3',
+  onSecondaryFixedVariant: '#68472F',
 
-  tertiary: '#721900',
-  tertiaryContainer: '#9B2500',
+  tertiary: '#9B3F32',
+  tertiaryContainer: '#A65D43',
 
-  error: '#BA1A1A',
-  errorContainer: '#FFDAD6',
-  onErrorContainer: '#93000A',
+  error: '#9B3F32',
+  errorContainer: '#E7C9B9',
+  onErrorContainer: '#7F2F27',
 
-  outline: '#717A6D',
-  outlineVariant: '#C0C9BB',
+  outline: '#72766D',
+  outlineVariant: '#CDD2C8',
 
-  onSurface: '#1B1C1C',
-  onSurfaceVariant: '#41493E',
+  onSurface: '#1B1C17',
+  onSurfaceVariant: '#565A52',
 
-  successBackground: '#EAF6EA',
-  successBorder: '#C8DEC8',
+  successBackground: '#E7EFE3',
+  successBorder: '#C5D8C1',
 
-  warningBackground: '#FFF4D6',
-  warningBorder: '#E5C76B',
+  warningBackground: '#F5E8C8',
+  warningBorder: '#D7BE79',
 
-  dangerBackground: '#FFF0EE',
-  dangerBorder: '#F0BDB7',
+  dangerBackground: '#F4E0DC',
+  dangerBorder: '#DDB1A9',
 };
 
 type PatientStatus = 'Active' | 'Alert' | 'Stable';

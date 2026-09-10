@@ -25,30 +25,20 @@ type UpdateTaskData = {
   repeatType?: RepeatType | string;
 };
 
-function parseDate(
-  value: string | Date,
-): Date {
-  const date =
-    value instanceof Date
-      ? value
-      : new Date(value);
+function parseDate(value: string | Date): Date {
+  const date = value instanceof Date ? value : new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    throw new Error(
-      "Invalid scheduled date",
-    );
+    throw new Error("Invalid scheduled date");
   }
 
   return date;
 }
 
-function parseRepeatType(
-  value?: string,
-): RepeatType {
-  const repeatType =
-    String(value || "NONE")
-      .trim()
-      .toUpperCase();
+function parseRepeatType(value?: string): RepeatType {
+  const repeatType = String(value || "NONE")
+    .trim()
+    .toUpperCase();
 
   const allowed: RepeatType[] = [
     "NONE",
@@ -57,11 +47,7 @@ function parseRepeatType(
     "MONTHLY",
   ];
 
-  if (
-    !allowed.includes(
-      repeatType as RepeatType,
-    )
-  ) {
+  if (!allowed.includes(repeatType as RepeatType)) {
     throw new Error(
       "Invalid repeat type. Use NONE, DAILY, WEEKLY, or MONTHLY.",
     );
@@ -70,18 +56,10 @@ function parseRepeatType(
   return repeatType as RepeatType;
 }
 
-function startOfDay(
-  date: Date,
-): Date {
-  const result =
-    new Date(date.getTime());
+function startOfDay(date: Date): Date {
+  const result = new Date(date.getTime());
 
-  result.setHours(
-    0,
-    0,
-    0,
-    0,
-  );
+  result.setHours(0, 0, 0, 0);
 
   return result;
 }
@@ -90,46 +68,32 @@ function advanceScheduledDate(
   scheduledAt: Date,
   repeatType: RepeatType,
 ): Date {
-  const next =
-    new Date(
-      scheduledAt.getTime(),
-    );
+  const next = new Date(scheduledAt.getTime());
 
   switch (repeatType) {
     case "DAILY":
-      next.setDate(
-        next.getDate() + 1,
-      );
+      next.setDate(next.getDate() + 1);
       break;
 
     case "WEEKLY":
-      next.setDate(
-        next.getDate() + 7,
-      );
+      next.setDate(next.getDate() + 7);
       break;
 
     case "MONTHLY": {
-      const originalDay =
-        next.getDate();
+      const originalDay = next.getDate();
 
       next.setDate(1);
 
-      next.setMonth(
-        next.getMonth() + 1,
-      );
+      next.setMonth(next.getMonth() + 1);
 
-      const lastDayOfMonth =
-        new Date(
-          next.getFullYear(),
-          next.getMonth() + 1,
-          0,
-        ).getDate();
+      const lastDayOfMonth = new Date(
+        next.getFullYear(),
+        next.getMonth() + 1,
+        0,
+      ).getDate();
 
       next.setDate(
-        Math.min(
-          originalDay,
-          lastDayOfMonth,
-        ),
+        Math.min(originalDay, lastDayOfMonth),
       );
 
       break;
@@ -144,82 +108,44 @@ function advanceScheduledDate(
 }
 
 /**
- * Renew completed recurring tasks only AFTER the calendar day has
- * changed.
- *
- * Example:
- *   Daily task: today at 10:00 AM
- *   Patient completes it at 10:30 AM
- *   -> It stays completed for the rest of today.
- *
- * After 12:00 AM:
- *   -> The task moves to tomorrow at 10:00 AM
- *   -> completed becomes false.
- *
- * This prevents the task from immediately becoming active again
- * simply because the patient completed it after its scheduled time.
+ * Renew completed repeating tasks after the calendar day changes.
  */
 async function renewCompletedRepeatingTasks(
   userId: string,
 ): Promise<void> {
-  const repeatingTasks =
-    await prisma.task.findMany({
-      where: {
-        userId,
-        completed: true,
-        repeatType: {
-          in: [
-            "DAILY",
-            "WEEKLY",
-            "MONTHLY",
-          ],
-        },
+  const repeatingTasks = await prisma.task.findMany({
+    where: {
+      userId,
+      completed: true,
+      repeatType: {
+        in: ["DAILY", "WEEKLY", "MONTHLY"],
       },
-    });
+    },
+  });
 
-  const today =
-    startOfDay(
-      new Date(),
-    );
+  const today = startOfDay(new Date());
 
   for (const task of repeatingTasks) {
-    const repeatType =
-      parseRepeatType(
-        task.repeatType,
-      );
+    const repeatType = parseRepeatType(task.repeatType);
 
-    const scheduledDay =
-      startOfDay(
-        task.scheduledAt,
-      );
+    const scheduledDay = startOfDay(task.scheduledAt);
 
-    // The task was completed today.
-    // Keep it completed until midnight.
-    if (
-      scheduledDay.getTime() >=
-      today.getTime()
-    ) {
+    if (scheduledDay.getTime() >= today.getTime()) {
       continue;
     }
 
-    // The task's scheduled date is before today,
-    // so the new occurrence is now due to be created.
-    let nextScheduledAt =
-      new Date(
-        task.scheduledAt.getTime(),
-      );
+    let nextScheduledAt = new Date(
+      task.scheduledAt.getTime(),
+    );
 
     while (
-      startOfDay(
-        nextScheduledAt,
-      ).getTime() <
+      startOfDay(nextScheduledAt).getTime() <
       today.getTime()
     ) {
-      nextScheduledAt =
-        advanceScheduledDate(
-          nextScheduledAt,
-          repeatType,
-        );
+      nextScheduledAt = advanceScheduledDate(
+        nextScheduledAt,
+        repeatType,
+      );
     }
 
     await prisma.task.update({
@@ -227,62 +153,120 @@ async function renewCompletedRepeatingTasks(
         id: task.id,
       },
       data: {
-        scheduledAt:
-          nextScheduledAt,
+        scheduledAt: nextScheduledAt,
         completed: false,
       },
     });
   }
 }
 
+/**
+ * Verify that a caregiver is connected to a patient.
+ */
+async function verifyCaregiverPatientAccess(
+  caregiverId: string,
+  patientId: string,
+): Promise<void> {
+  const caregiver = await prisma.user.findUnique({
+    where: {
+      id: caregiverId,
+    },
+    select: {
+      id: true,
+      role: true,
+    },
+  });
+
+  if (!caregiver) {
+    throw new Error("Caregiver not found");
+  }
+
+  if (caregiver.role !== "CAREGIVER") {
+    throw new Error(
+      "Only caregivers can manage patient tasks",
+    );
+  }
+
+  const patient = await prisma.user.findUnique({
+    where: {
+      id: patientId,
+    },
+    select: {
+      id: true,
+      role: true,
+    },
+  });
+
+  if (!patient) {
+    throw new Error("Patient not found");
+  }
+
+  if (patient.role !== "PATIENT") {
+    throw new Error(
+      "The selected user is not a patient",
+    );
+  }
+
+  const connection =
+    await prisma.caregiverPatient.findUnique({
+      where: {
+        caregiverId_patientId: {
+          caregiverId,
+          patientId,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+  if (!connection) {
+    throw new Error(
+      "You are not connected to this patient",
+    );
+  }
+}
+
+/**
+ * Create a task for a user.
+ */
 export async function createTask(
   userId: string,
   data: CreateTaskData,
 ) {
-  const title =
-    data.title?.trim();
+  const title = data.title?.trim();
 
   if (!title) {
-    throw new Error(
-      "Task title is required",
-    );
+    throw new Error("Task title is required");
   }
 
-  const scheduledAt =
-    parseDate(
-      data.scheduledAt,
-    );
+  const scheduledAt = parseDate(data.scheduledAt);
 
-  const repeatType =
-    parseRepeatType(
-      data.repeatType,
-    );
+  const repeatType = parseRepeatType(
+    data.repeatType,
+  );
 
   return prisma.task.create({
     data: {
       userId,
       title,
       description:
-        data.description?.trim() ||
-        null,
+        data.description?.trim() || null,
       category:
-        data.category?.trim() ||
-        null,
+        data.category?.trim() || null,
       scheduledAt,
       reminderEnabled:
-        data.reminderEnabled ??
-        true,
+        data.reminderEnabled ?? true,
       repeatType,
     },
   });
 }
 
-export async function getTasks(
-  userId: string,
-) {
-  await renewCompletedRepeatingTasks(
-    userId,
-  );
+/**
+ * Get the logged-in user's tasks.
+ */
+export async function getTasks(userId: string) {
+  await renewCompletedRepeatingTasks(userId);
 
   return prisma.task.findMany({
     where: {
@@ -294,44 +278,44 @@ export async function getTasks(
   });
 }
 
+/**
+ * Get a single task belonging to the logged-in user.
+ */
 export async function getTaskById(
   userId: string,
   taskId: string,
 ) {
-  const task =
-    await prisma.task.findFirst({
-      where: {
-        id: taskId,
-        userId,
-      },
-    });
+  const task = await prisma.task.findFirst({
+    where: {
+      id: taskId,
+      userId,
+    },
+  });
 
   if (!task) {
-    throw new Error(
-      "Task not found",
-    );
+    throw new Error("Task not found");
   }
 
   return task;
 }
 
+/**
+ * Update a task belonging to the logged-in user.
+ */
 export async function updateTask(
   userId: string,
   taskId: string,
   data: UpdateTaskData,
 ) {
-  const existingTask =
-    await prisma.task.findFirst({
-      where: {
-        id: taskId,
-        userId,
-      },
-    });
+  const existingTask = await prisma.task.findFirst({
+    where: {
+      id: taskId,
+      userId,
+    },
+  });
 
   if (!existingTask) {
-    throw new Error(
-      "Task not found",
-    );
+    throw new Error("Task not found");
   }
 
   const updateData: {
@@ -344,11 +328,8 @@ export async function updateTask(
     repeatType?: RepeatType;
   } = {};
 
-  if (
-    data.title !== undefined
-  ) {
-    const title =
-      data.title.trim();
+  if (data.title !== undefined) {
+    const title = data.title.trim();
 
     if (!title) {
       throw new Error(
@@ -359,61 +340,38 @@ export async function updateTask(
     updateData.title = title;
   }
 
-  if (
-    data.description !==
-    undefined
-  ) {
+  if (data.description !== undefined) {
     updateData.description =
-      data.description?.trim() ||
-      null;
+      data.description?.trim() || null;
   }
 
-  if (
-    data.category !== undefined
-  ) {
+  if (data.category !== undefined) {
     updateData.category =
-      data.category?.trim() ||
-      null;
+      data.category?.trim() || null;
   }
 
-  if (
-    data.scheduledAt !==
-    undefined
-  ) {
-    updateData.scheduledAt =
-      parseDate(
-        data.scheduledAt,
-      );
+  if (data.scheduledAt !== undefined) {
+    updateData.scheduledAt = parseDate(
+      data.scheduledAt,
+    );
   }
 
-  if (
-    data.completed !==
-    undefined
-  ) {
-    updateData.completed =
-      Boolean(
-        data.completed,
-      );
+  if (data.completed !== undefined) {
+    updateData.completed = Boolean(
+      data.completed,
+    );
   }
 
-  if (
-    data.reminderEnabled !==
-    undefined
-  ) {
-    updateData.reminderEnabled =
-      Boolean(
-        data.reminderEnabled,
-      );
+  if (data.reminderEnabled !== undefined) {
+    updateData.reminderEnabled = Boolean(
+      data.reminderEnabled,
+    );
   }
 
-  if (
-    data.repeatType !==
-    undefined
-  ) {
-    updateData.repeatType =
-      parseRepeatType(
-        data.repeatType,
-      );
+  if (data.repeatType !== undefined) {
+    updateData.repeatType = parseRepeatType(
+      data.repeatType,
+    );
   }
 
   return prisma.task.update({
@@ -424,22 +382,22 @@ export async function updateTask(
   });
 }
 
+/**
+ * Delete a task belonging to the logged-in user.
+ */
 export async function deleteTask(
   userId: string,
   taskId: string,
 ) {
-  const existingTask =
-    await prisma.task.findFirst({
-      where: {
-        id: taskId,
-        userId,
-      },
-    });
+  const existingTask = await prisma.task.findFirst({
+    where: {
+      id: taskId,
+      userId,
+    },
+  });
 
   if (!existingTask) {
-    throw new Error(
-      "Task not found",
-    );
+    throw new Error("Task not found");
   }
 
   await prisma.task.delete({
@@ -449,27 +407,231 @@ export async function deleteTask(
   });
 
   return {
-    message:
-      "Task deleted successfully",
+    message: "Task deleted successfully",
   };
 }
 
+/**
+ * Complete a task belonging to the logged-in user.
+ */
 export async function completeTask(
   userId: string,
   taskId: string,
 ) {
+  const existingTask = await prisma.task.findFirst({
+    where: {
+      id: taskId,
+      userId,
+    },
+  });
+
+  if (!existingTask) {
+    throw new Error("Task not found");
+  }
+
+  return prisma.task.update({
+    where: {
+      id: taskId,
+    },
+    data: {
+      completed: true,
+    },
+  });
+}
+
+// ============================================================
+// CAREGIVER TASK ACCESS
+// ============================================================
+
+/**
+ * Get all tasks for a connected patient.
+ */
+export async function getPatientTasksForCaregiver(
+  caregiverId: string,
+  patientId: string,
+) {
+  await verifyCaregiverPatientAccess(
+    caregiverId,
+    patientId,
+  );
+
+  await renewCompletedRepeatingTasks(patientId);
+
+  return prisma.task.findMany({
+    where: {
+      userId: patientId,
+    },
+    orderBy: {
+      scheduledAt: "asc",
+    },
+  });
+}
+
+/**
+ * Create a task for a connected patient.
+ */
+export async function createTaskForPatient(
+  caregiverId: string,
+  patientId: string,
+  data: CreateTaskData,
+) {
+  await verifyCaregiverPatientAccess(
+    caregiverId,
+    patientId,
+  );
+
+  return createTask(patientId, data);
+}
+
+/**
+ * Update a task belonging to a connected patient.
+ */
+export async function updateTaskForPatient(
+  caregiverId: string,
+  patientId: string,
+  taskId: string,
+  data: UpdateTaskData,
+) {
+  await verifyCaregiverPatientAccess(
+    caregiverId,
+    patientId,
+  );
+
   const existingTask =
     await prisma.task.findFirst({
       where: {
         id: taskId,
-        userId,
+        userId: patientId,
       },
     });
 
   if (!existingTask) {
-    throw new Error(
-      "Task not found",
+    throw new Error("Patient task not found");
+  }
+
+  const updateData: {
+    title?: string;
+    description?: string | null;
+    category?: string | null;
+    scheduledAt?: Date;
+    completed?: boolean;
+    reminderEnabled?: boolean;
+    repeatType?: RepeatType;
+  } = {};
+
+  if (data.title !== undefined) {
+    const title = data.title.trim();
+
+    if (!title) {
+      throw new Error(
+        "Task title cannot be empty",
+      );
+    }
+
+    updateData.title = title;
+  }
+
+  if (data.description !== undefined) {
+    updateData.description =
+      data.description?.trim() || null;
+  }
+
+  if (data.category !== undefined) {
+    updateData.category =
+      data.category?.trim() || null;
+  }
+
+  if (data.scheduledAt !== undefined) {
+    updateData.scheduledAt = parseDate(
+      data.scheduledAt,
     );
+  }
+
+  if (data.completed !== undefined) {
+    updateData.completed = Boolean(
+      data.completed,
+    );
+  }
+
+  if (data.reminderEnabled !== undefined) {
+    updateData.reminderEnabled = Boolean(
+      data.reminderEnabled,
+    );
+  }
+
+  if (data.repeatType !== undefined) {
+    updateData.repeatType = parseRepeatType(
+      data.repeatType,
+    );
+  }
+
+  return prisma.task.update({
+    where: {
+      id: taskId,
+    },
+    data: updateData,
+  });
+}
+
+/**
+ * Delete a task belonging to a connected patient.
+ */
+export async function deleteTaskForPatient(
+  caregiverId: string,
+  patientId: string,
+  taskId: string,
+) {
+  await verifyCaregiverPatientAccess(
+    caregiverId,
+    patientId,
+  );
+
+  const existingTask =
+    await prisma.task.findFirst({
+      where: {
+        id: taskId,
+        userId: patientId,
+      },
+    });
+
+  if (!existingTask) {
+    throw new Error("Patient task not found");
+  }
+
+  await prisma.task.delete({
+    where: {
+      id: taskId,
+    },
+  });
+
+  return {
+    message: "Patient task deleted successfully",
+  };
+}
+
+/**
+ * Mark a connected patient's task as completed.
+ */
+export async function completeTaskForPatient(
+  caregiverId: string,
+  patientId: string,
+  taskId: string,
+) {
+  await verifyCaregiverPatientAccess(
+    caregiverId,
+    patientId,
+  );
+
+  const existingTask =
+    await prisma.task.findFirst({
+      where: {
+        id: taskId,
+        userId: patientId,
+      },
+    });
+
+  if (!existingTask) {
+    throw new Error("Patient task not found");
   }
 
   return prisma.task.update({
