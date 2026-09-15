@@ -10,103 +10,118 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const COLORS = {
-  // SmritiCare patient-app palette
-  background: "#F4FAFF",
+  background: "#FBF9F1",
   surface: "#FFFFFF",
-  surfaceContainerLow: "#E9F6FD",
-  surfaceContainer: "#EAF3F7",
-  surfaceContainerHigh: "#E2EEF4",
-  surfaceContainerHighest: "#DCE9EF",
 
-  primary: "#00450D",
-  primaryContainer: "#1B5E20",
+  surfaceLow: "#F1F0E7",
+  surfaceVariant: "#DDDCD3",
+  surfaceHigh: "#E8E8DE",
+
+  primary: "#3F6F45",
+  primaryContainer: "#315A36",
   onPrimary: "#FFFFFF",
-  onPrimaryContainer: "#90D689",
+  onPrimaryContainer: "#D7E7D2",
 
-  secondary: "#00629E",
-  secondaryContainer: "#D7EEFF",
-  onSecondaryContainer: "#00344F",
+  primarySoft: "#E2EDE0",
+  primarySoftBorder: "#C5D8C0",
 
-  greenSoft: "#E2F3E0",
-  greenBorder: "#B7DDB3",
+  secondary: "#8A6040",
+  secondaryContainer: "#E9D7C5",
+  onSecondaryContainer: "#68472F",
 
-  error: "#BA1A1A",
-  errorContainer: "#FFE8E5",
-  onErrorContainer: "#7A1010",
+  tertiary: "#A65D43",
+  tertiaryContainer: "#E7C9B9",
 
-  warning: "#8A4B00",
-  warningContainer: "#FFF1DC",
+  error: "#9B3F32",
+  errorContainer: "#F4DDD8",
+  onErrorContainer: "#7F2F27",
 
-  onSurface: "#111D23",
-  onSurfaceVariant: "#41493E",
-  outline: "#717A6D",
-  outlineVariant: "#C0C9BB",
+  warning: "#8A6040",
+  warningContainer: "#F4E7D7",
 
-  inverseSurface: "#263238",
-  inverseOnSurface: "#F3F7F9",
+  onSurface: "#1B1C17",
+  onSurfaceVariant: "#565A52",
+
+  outline: "#72766D",
+  outlineVariant: "#CDD2C8",
+
+  muted: "#74786F",
+
+  inverseSurface: "#293029",
+  inverseOnSurface: "#F4F5EE",
 };
 
 type MaterialIconName = keyof typeof MaterialIcons.glyphMap;
 
-type AlertCategory = "medication" | "routine" | "device";
+type AlertCategory =
+  | "medication"
+  | "routine"
+  | "general";
 
 type AlertItem = {
   id: string;
   category: AlertCategory;
-  typeLabel: string;
+  label: string;
   title: string;
   description: string;
-  badge: string;
   icon: MaterialIconName;
 };
 
 type CaregiverAlertsScreenProps = {
   onBack?: () => void;
   onHome?: () => void;
-  onGames?: () => void;
   onSchedule?: () => void;
-  onMemory?: () => void;
+  onAlerts?: () => void;
   onProfile?: () => void;
 };
 
-const ALERTS: AlertItem[] = [
+const PLACEHOLDER_ALERTS: AlertItem[] = [
   {
-    id: "medication",
+    id: "placeholder-medication",
     category: "medication",
-    typeLabel: "Urgent Action",
-    title: "Medication Not Acknowledged",
+    label: "Medication",
+    title: "Medication alert will appear here",
     description:
-      "Night Calcium & Vitamin D (08:00 PM) scheduled 45 mins ago. Pillbox sensor did not register drawer opening.",
-    badge: "Unacknowledged",
-    icon: "emergency",
+      "When a connected patient's medication reminder needs attention, the alert details will be shown here.",
+    icon: "medication",
   },
   {
-    id: "routine",
+    id: "placeholder-routine",
     category: "routine",
-    typeLabel: "Routine Follow-up",
-    title: "Hydration Behind Schedule",
+    label: "Routine",
+    title: "Routine alert will appear here",
     description:
-      "Patient has completed 5 of 8 glasses today. Last logged at 3:00 PM (3 hours behind target pace for humid evening).",
-    badge: "5 / 8 Cups",
-    icon: "water-drop",
+      "Daily routine events such as missed reminders or follow-ups will appear in this section.",
+    icon: "event-note",
   },
   {
-    id: "device",
-    category: "device",
-    typeLabel: "Brain Health",
-    title: "Daily Cognitive Session Remaining",
+    id: "placeholder-general",
+    category: "general",
+    label: "General",
+    title: "Patient activity alert will appear here",
     description:
-      "4 of 5 exercises done. 1 gentle Bihu memory match session pending before evening rest time.",
-    badge: "Pending",
-    icon: "psychology",
+      "Important patient activity and care-related notifications will appear here when the alert system is connected.",
+    icon: "notifications-active",
   },
 ];
 
 const FILTERS = [
-  { key: "all", label: "All Alerts", count: 3 },
-  { key: "medication", label: "Medication", count: 1 },
-  { key: "routine", label: "Routine", count: 1 },
-  { key: "device", label: "Cognitive", count: 1 },
+  {
+    key: "all",
+    label: "All",
+  },
+  {
+    key: "medication",
+    label: "Medication",
+  },
+  {
+    key: "routine",
+    label: "Routine",
+  },
+  {
+    key: "general",
+    label: "General",
+  },
 ] as const;
 
 type FilterKey = (typeof FILTERS)[number]["key"];
@@ -114,9 +129,8 @@ type FilterKey = (typeof FILTERS)[number]["key"];
 export default function CaregiverAlertsScreen({
   onBack,
   onHome,
-  onGames,
   onSchedule,
-  onMemory,
+  onAlerts,
   onProfile,
 }: CaregiverAlertsScreenProps) {
   const insets = useSafeAreaInsets();
@@ -124,32 +138,29 @@ export default function CaregiverAlertsScreen({
   const [selectedFilter, setSelectedFilter] =
     useState<FilterKey>("all");
 
-  const [dismissedAlerts, setDismissedAlerts] =
+  const [acknowledged, setAcknowledged] =
     useState<string[]>([]);
+
+  const [refreshing, setRefreshing] =
+    useState(false);
 
   const [processingAlert, setProcessingAlert] =
     useState<string | null>(null);
 
-  const [completedActions, setCompletedActions] =
-    useState<Record<string, string>>({});
-
   const [toastMessage, setToastMessage] =
     useState<string | null>(null);
-
-  const [refreshing, setRefreshing] =
-    useState(false);
 
   const showToast = (message: string) => {
     setToastMessage(message);
 
     setTimeout(() => {
       setToastMessage(null);
-    }, 2800);
+    }, 2600);
   };
 
   const visibleAlerts = useMemo(() => {
-    return ALERTS.filter((alert) => {
-      if (dismissedAlerts.includes(alert.id)) {
+    return PLACEHOLDER_ALERTS.filter((alert) => {
+      if (acknowledged.includes(alert.id)) {
         return false;
       }
 
@@ -159,104 +170,67 @@ export default function CaregiverAlertsScreen({
 
       return alert.category === selectedFilter;
     });
-  }, [selectedFilter, dismissedAlerts]);
+  }, [selectedFilter, acknowledged]);
 
   const handleRefresh = () => {
-    if (refreshing) return;
+    if (refreshing) {
+      return;
+    }
 
     setRefreshing(true);
 
     setTimeout(() => {
       setRefreshing(false);
-      showToast("Caregiver alerts refreshed.");
-    }, 700);
-  };
-
-  const handleSettings = () => {
-    showToast("Alert settings will be available here.");
-  };
-
-  const handleVoiceReminder = (alertId: string) => {
-    if (processingAlert) return;
-
-    setProcessingAlert(alertId);
-
-    setTimeout(() => {
-      setProcessingAlert(null);
-
-      setCompletedActions((previous) => ({
-        ...previous,
-        [alertId]: "Sent to Patient Unit",
-      }));
-
       showToast(
-        "Custom Assamese voice prompt delivered to device."
+        "Alerts will refresh from the care system."
       );
-
-      setTimeout(() => {
-        setCompletedActions((previous) => {
-          const updated = { ...previous };
-          delete updated[alertId];
-          return updated;
-        });
-      }, 3500);
-    }, 900);
-  };
-
-  const handlePrompt = (
-    alertId: string,
-    message: string
-  ) => {
-    if (processingAlert) return;
-
-    setProcessingAlert(alertId);
-
-    setTimeout(() => {
-      setProcessingAlert(null);
-
-      setCompletedActions((previous) => ({
-        ...previous,
-        [alertId]: "Prompt Delivered",
-      }));
-
-      showToast(message);
-
-      setTimeout(() => {
-        setCompletedActions((previous) => {
-          const updated = { ...previous };
-          delete updated[alertId];
-          return updated;
-        });
-      }, 3000);
     }, 700);
   };
 
-  const handleDismiss = (alertId: string) => {
-    setDismissedAlerts((previous) => [
+  const handleAcknowledge = (alertId: string) => {
+    setAcknowledged((previous) => [
       ...previous,
       alertId,
     ]);
 
-    showToast("Alert marked as acknowledged.");
+    showToast("Alert acknowledged.");
+  };
+
+  const handleAction = (alertId: string) => {
+    if (processingAlert) {
+      return;
+    }
+
+    setProcessingAlert(alertId);
+
+    setTimeout(() => {
+      setProcessingAlert(null);
+
+      showToast(
+        "Patient action will be available when alerts are connected."
+      );
+    }, 800);
   };
 
   return (
     <View style={styles.screen}>
-      {/* ------------------------------------------------------------- */}
-      {/* Header                                                        */}
-      {/* ------------------------------------------------------------- */}
+      {/* ============================================================ */}
+      {/* HEADER                                                        */}
+      {/* ============================================================ */}
 
       <View
         style={[
           styles.header,
-          { paddingTop: insets.top },
+          {
+            paddingTop: insets.top,
+          },
         ]}
       >
         <View style={styles.headerInner}>
           <Pressable
             onPress={onBack}
             style={({ pressed }) => [
-              styles.headerButton,
+              styles.headerIconButton,
               pressed && styles.pressed,
             ]}
             accessibilityRole="button"
@@ -264,22 +238,22 @@ export default function CaregiverAlertsScreen({
           >
             <MaterialIcons
               name="arrow-back"
-              size={25}
+              size={23}
               color={COLORS.onSurface}
             />
           </Pressable>
 
-          <View style={styles.headerBrand}>
-            <Text style={styles.headerTitle}>
+          <View style={styles.headerCenter}>
+            <Text style={styles.brandName}>
               SmritiCare
             </Text>
 
-            <Text style={styles.headerSubtitle}>
+            <Text style={styles.brandSubtitle}>
               Caregiver
             </Text>
           </View>
 
-          <View style={styles.profileCircle}>
+          <View style={styles.headerProfile}>
             <MaterialIcons
               name="person"
               size={19}
@@ -289,9 +263,9 @@ export default function CaregiverAlertsScreen({
         </View>
       </View>
 
-      {/* ------------------------------------------------------------- */}
-      {/* Main Content                                                  */}
-      {/* ------------------------------------------------------------- */}
+      {/* ============================================================ */}
+      {/* CONTENT                                                        */}
+      {/* ============================================================ */}
 
       <ScrollView
         style={styles.scrollView}
@@ -299,149 +273,147 @@ export default function CaregiverAlertsScreen({
           styles.content,
           {
             paddingTop: insets.top + 78,
-            paddingBottom: insets.bottom + 112,
+            paddingBottom: insets.bottom + 108,
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Page Heading */}
+        {/* ========================================================== */}
+        {/* PAGE INTRO                                                   */}
+        {/* ========================================================== */}
 
-        <View style={styles.headingRow}>
-          <View style={styles.headingText}>
-            <View style={styles.dashboardLabelRow}>
-              <View style={styles.statusDot} />
+        <View style={styles.introRow}>
+          <View style={styles.introText}>
+            <View style={styles.eyebrowRow}>
+              <View style={styles.eyebrowDot} />
 
-              <Text style={styles.dashboardLabel}>
-                CAREGIVER DASHBOARD
+              <Text style={styles.eyebrow}>
+                CAREGIVER ALERTS
               </Text>
             </View>
 
             <Text style={styles.pageTitle}>
-              Needs Attention
+              Alerts
             </Text>
 
             <Text style={styles.pageSubtitle}>
-              Stay connected with your loved one's daily routine.
+              Important updates about the people you care for,
+              all in one place.
             </Text>
           </View>
 
-          <View style={styles.headerActions}>
-            <Pressable
-              onPress={handleRefresh}
-              style={({ pressed }) => [
-                styles.smallActionButton,
-                pressed && styles.pressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Refresh alerts"
-            >
-              <MaterialIcons
-                name={refreshing ? "sync" : "refresh"}
-                size={22}
-                color={COLORS.primary}
-              />
-            </Pressable>
-
-            <Pressable
-              onPress={handleSettings}
-              style={({ pressed }) => [
-                styles.smallActionButton,
-                pressed && styles.pressed,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Alert settings"
-            >
-              <MaterialIcons
-                name="tune"
-                size={22}
-                color={COLORS.primary}
-              />
-            </Pressable>
-          </View>
-        </View>
-
-        {/* ----------------------------------------------------------- */}
-        {/* Patient Context                                              */}
-        {/* ----------------------------------------------------------- */}
-
-        <View style={styles.patientContext}>
-          <View style={styles.patientContextLeft}>
-            <View style={styles.patientAvatar}>
-              <MaterialIcons
-                name="person"
-                size={29}
-                color={COLORS.primary}
-              />
-            </View>
-
-            <View style={styles.patientContextText}>
-              <Text
-                style={styles.patientName}
-                numberOfLines={1}
-              >
-                Ramani Barman
-              </Text>
-
-              <Text
-                style={styles.patientAge}
-                numberOfLines={1}
-              >
-                72 years old
-              </Text>
-
-              <Text
-                style={styles.patientSubtitle}
-                numberOfLines={1}
-              >
-                Active alerts & reminders
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.linkedBadge}>
+          <Pressable
+            onPress={handleRefresh}
+            style={({ pressed }) => [
+              styles.refreshButton,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Refresh alerts"
+          >
             <MaterialIcons
-              name="verified-user"
-              size={16}
+              name={
+                refreshing
+                  ? "sync"
+                  : "refresh"
+              }
+              size={22}
               color={COLORS.primary}
             />
-
-            <Text style={styles.linkedText}>
-              Linked
-            </Text>
-          </View>
+          </Pressable>
         </View>
 
-        {/* ----------------------------------------------------------- */}
-        {/* Alert Summary                                                */}
-        {/* ----------------------------------------------------------- */}
+        {/* ========================================================== */}
+        {/* OVERVIEW CARD                                                */}
+        {/* ========================================================== */}
 
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryIcon}>
+        <View style={styles.overviewCard}>
+          <View style={styles.overviewIcon}>
             <MaterialIcons
               name="notifications-active"
-              size={23}
+              size={25}
               color={COLORS.primary}
             />
           </View>
 
-          <View style={styles.summaryText}>
-            <Text style={styles.summaryTitle}>
-              {visibleAlerts.length}{" "}
+          <View style={styles.overviewContent}>
+            <Text style={styles.overviewTitle}>
+              {visibleAlerts.length} active{" "}
               {visibleAlerts.length === 1
-                ? "alert needs"
-                : "alerts need"}{" "}
-              attention
+                ? "alert"
+                : "alerts"}
             </Text>
 
-            <Text style={styles.summarySubtitle}>
-              Review the items below and help keep the daily routine on track.
+            <Text style={styles.overviewText}>
+              Review important updates and respond when
+              your attention is needed.
+            </Text>
+          </View>
+
+          <View style={styles.overviewStatus}>
+            <View style={styles.liveDot} />
+
+            <Text style={styles.liveText}>
+              Ready
             </Text>
           </View>
         </View>
 
-        {/* ----------------------------------------------------------- */}
-        {/* Filters                                                      */}
-        {/* ----------------------------------------------------------- */}
+        {/* ========================================================== */}
+        {/* PATIENT PLACEHOLDER                                         */}
+        {/* ========================================================== */}
+
+        <View style={styles.patientCard}>
+          <View style={styles.patientAvatar}>
+            <MaterialIcons
+              name="person"
+              size={27}
+              color={COLORS.primary}
+            />
+          </View>
+
+          <View style={styles.patientInfo}>
+            <Text style={styles.patientLabel}>
+              CONNECTED PATIENT
+            </Text>
+
+            <Text style={styles.patientPlaceholder}>
+              Patient information
+            </Text>
+
+            <Text style={styles.patientHint}>
+              Connected patient details will appear here.
+            </Text>
+          </View>
+
+          <View style={styles.connectedBadge}>
+            <MaterialIcons
+              name="link"
+              size={15}
+              color={COLORS.primary}
+            />
+
+            <Text style={styles.connectedText}>
+              Connected
+            </Text>
+          </View>
+        </View>
+
+        {/* ========================================================== */}
+        {/* FILTERS                                                      */}
+        {/* ========================================================== */}
+
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text style={styles.sectionEyebrow}>
+              ALERT TYPES
+            </Text>
+
+            <Text style={styles.sectionTitle}>
+              Filter alerts
+            </Text>
+          </View>
+        </View>
 
         <ScrollView
           horizontal
@@ -468,44 +440,24 @@ export default function CaregiverAlertsScreen({
               >
                 <Text
                   style={[
-                    styles.filterButtonText,
+                    styles.filterText,
                     active
-                      ? styles.filterButtonTextActive
-                      : styles.filterButtonTextInactive,
+                      ? styles.filterTextActive
+                      : styles.filterTextInactive,
                   ]}
                 >
                   {filter.label}
                 </Text>
-
-                <View
-                  style={[
-                    styles.filterCount,
-                    active
-                      ? styles.filterCountActive
-                      : styles.filterCountInactive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.filterCountText,
-                      active
-                        ? styles.filterCountTextActive
-                        : styles.filterCountTextInactive,
-                    ]}
-                  >
-                    {filter.count}
-                  </Text>
-                </View>
               </Pressable>
             );
           })}
         </ScrollView>
 
-        {/* ----------------------------------------------------------- */}
-        {/* Alerts                                                       */}
-        {/* ----------------------------------------------------------- */}
+        {/* ========================================================== */}
+        {/* ALERT LIST                                                   */}
+        {/* ========================================================== */}
 
-        <View style={styles.alertsStack}>
+        <View style={styles.alertList}>
           {visibleAlerts.map((alert) => (
             <AlertCard
               key={alert.id}
@@ -513,134 +465,109 @@ export default function CaregiverAlertsScreen({
               processing={
                 processingAlert === alert.id
               }
-              completedText={
-                completedActions[alert.id]
+              onAction={() =>
+                handleAction(alert.id)
               }
-              onVoiceReminder={() =>
-                handleVoiceReminder(alert.id)
-              }
-              onDismiss={() =>
-                handleDismiss(alert.id)
-              }
-              onPrompt={(message) =>
-                handlePrompt(alert.id, message)
+              onAcknowledge={() =>
+                handleAcknowledge(alert.id)
               }
             />
           ))}
+        </View>
 
-          {visibleAlerts.length === 0 && (
-            <View style={styles.emptyState}>
-              <View style={styles.emptyIcon}>
-                <MaterialIcons
-                  name="check-circle"
-                  size={40}
-                  color={COLORS.primary}
-                />
-              </View>
+        {/* ========================================================== */}
+        {/* EMPTY STATE                                                  */}
+        {/* ========================================================== */}
 
-              <Text style={styles.emptyTitle}>
-                All Clear
-              </Text>
-
-              <Text style={styles.emptyText}>
-                There are no active alerts in this category.
-              </Text>
+        {visibleAlerts.length === 0 && (
+          <View style={styles.emptyCard}>
+            <View style={styles.emptyIcon}>
+              <MaterialIcons
+                name="check-circle"
+                size={40}
+                color={COLORS.primary}
+              />
             </View>
-          )}
-        </View>
 
-        {/* ----------------------------------------------------------- */}
-        {/* Resolved Today                                               */}
-        {/* ----------------------------------------------------------- */}
-
-        <View style={styles.resolvedHeader}>
-          <View>
-            <Text style={styles.sectionLabel}>
-              TODAY
+            <Text style={styles.emptyTitle}>
+              You're all caught up
             </Text>
 
-            <Text style={styles.resolvedTitle}>
-              Resolved
+            <Text style={styles.emptyText}>
+              There are no active alerts in this category.
             </Text>
           </View>
+        )}
 
-          <View style={styles.resolvedCountBadge}>
+        {/* ========================================================== */}
+        {/* FUTURE SYSTEM PLACEHOLDER                                    */}
+        {/* ========================================================== */}
+
+        <View style={styles.systemCard}>
+          <View style={styles.systemIcon}>
             <MaterialIcons
-              name="check-circle"
-              size={17}
-              color={COLORS.primary}
-            />
-
-            <Text style={styles.resolvedCount}>
-              1 completed
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.resolvedCard}>
-          <View style={styles.resolvedIcon}>
-            <MaterialIcons
-              name="check"
-              size={19}
-              color={COLORS.onPrimary}
-            />
-          </View>
-
-          <View style={styles.resolvedText}>
-            <Text style={styles.resolvedItemTitle}>
-              Morning Medication & Breakfast
-            </Text>
-
-            <Text style={styles.resolvedDescription}>
-              Acknowledged at 9:15 AM by Ramani Barman
-            </Text>
-          </View>
-
-          <MaterialIcons
-            name="task-alt"
-            size={22}
-            color={COLORS.primary}
-          />
-        </View>
-
-        {/* ----------------------------------------------------------- */}
-        {/* Disclaimer                                                   */}
-        {/* ----------------------------------------------------------- */}
-
-        <View style={styles.disclaimer}>
-          <View style={styles.disclaimerIcon}>
-            <MaterialIcons
-              name="shield"
-              size={21}
+              name="auto-awesome"
+              size={22}
               color={COLORS.secondary}
             />
           </View>
 
-          <View style={styles.disclaimerTextContainer}>
-            <Text style={styles.disclaimerTitle}>
-              Caregiver guidance
+          <View style={styles.systemContent}>
+            <Text style={styles.systemTitle}>
+              Smart alert system
             </Text>
 
-            <Text style={styles.disclaimerText}>
-              Caregiver alerts are non-diagnostic and designed
-              to assist with daily routine coordination. For
-              medical emergencies, consult your primary
-              physician immediately.
+            <Text style={styles.systemText}>
+              Real patient alerts, reminder status,
+              acknowledgement history and care updates
+              will appear here once the alert service is connected.
+            </Text>
+
+            <View style={styles.comingSoonBadge}>
+              <Text style={styles.comingSoonText}>
+                SYSTEM PLACEHOLDER
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* ========================================================== */}
+        {/* CAREGIVER NOTE                                               */}
+        {/* ========================================================== */}
+
+        <View style={styles.noteCard}>
+          <View style={styles.noteIcon}>
+            <MaterialIcons
+              name="shield"
+              size={20}
+              color={COLORS.primary}
+            />
+          </View>
+
+          <View style={styles.noteContent}>
+            <Text style={styles.noteTitle}>
+              Caregiver support
+            </Text>
+
+            <Text style={styles.noteText}>
+              Alerts are intended to help coordinate everyday
+              care. They are not a replacement for professional
+              medical advice or emergency services.
             </Text>
           </View>
         </View>
       </ScrollView>
 
-      {/* ------------------------------------------------------------- */}
-      {/* Toast                                                          */}
-      {/* ------------------------------------------------------------- */}
+      {/* ============================================================ */}
+      {/* TOAST                                                         */}
+      {/* ============================================================ */}
 
       {toastMessage && (
         <View
           style={[
             styles.toast,
             {
-              bottom: insets.bottom + 92,
+              bottom: insets.bottom + 88,
             },
           ]}
         >
@@ -658,9 +585,9 @@ export default function CaregiverAlertsScreen({
         </View>
       )}
 
-      {/* ------------------------------------------------------------- */}
-      {/* Bottom Navigation                                              */}
-      {/* ------------------------------------------------------------- */}
+      {/* ============================================================ */}
+      {/* BOTTOM NAVIGATION                                             */}
+      {/* ============================================================ */}
 
       <View
         style={[
@@ -680,22 +607,16 @@ export default function CaregiverAlertsScreen({
         />
 
         <BottomNavItem
-          icon="sports-esports"
-          label="Games"
-          onPress={onGames}
-        />
-
-        <BottomNavItem
           icon="notifications-active"
-          label="Alerts"
-          active
+          label="Remind"
           onPress={onSchedule}
         />
 
         <BottomNavItem
-          icon="psychology"
-          label="Memory"
-          onPress={onMemory}
+          icon="warning"
+          label="Alerts"
+          active
+          onPress={onAlerts}
         />
 
         <BottomNavItem
@@ -709,70 +630,140 @@ export default function CaregiverAlertsScreen({
 }
 
 /* ========================================================================== */
-/* Alert Card                                                                 */
+/* ALERT CARD                                                                 */
 /* ========================================================================== */
 
 type AlertCardProps = {
   alert: AlertItem;
   processing: boolean;
-  completedText?: string;
-  onVoiceReminder: () => void;
-  onDismiss: () => void;
-  onPrompt: (message: string) => void;
+  onAction: () => void;
+  onAcknowledge: () => void;
 };
 
 function AlertCard({
   alert,
   processing,
-  completedText,
-  onVoiceReminder,
-  onDismiss,
-  onPrompt,
+  onAction,
+  onAcknowledge,
 }: AlertCardProps) {
-  if (alert.category === "medication") {
-    return (
-      <View style={styles.medicationAlert}>
-        <View style={styles.alertAccentError} />
+  const isMedication =
+    alert.category === "medication";
+
+  const isRoutine =
+    alert.category === "routine";
+
+  const accentColor = isMedication
+    ? COLORS.error
+    : isRoutine
+      ? COLORS.secondary
+      : COLORS.primary;
+
+  const iconBackground = isMedication
+    ? COLORS.errorContainer
+    : isRoutine
+      ? COLORS.secondaryContainer
+      : COLORS.primarySoft;
+
+  const titleColor = isMedication
+    ? COLORS.onErrorContainer
+    : isRoutine
+      ? COLORS.onSecondaryContainer
+      : COLORS.onSurface;
+
+  return (
+    <View style={styles.alertCard}>
+      {/* Accent */}
+      <View
+        style={[
+          styles.alertAccent,
+          {
+            backgroundColor: accentColor,
+          },
+        ]}
+      />
+
+      <View style={styles.alertCardContent}>
+        {/* Header */}
 
         <View style={styles.alertHeader}>
-          <View style={styles.alertTitleRow}>
-            <View style={styles.medicationIcon}>
+          <View style={styles.alertHeaderLeft}>
+            <View
+              style={[
+                styles.alertIcon,
+                {
+                  backgroundColor: iconBackground,
+                },
+              ]}
+            >
               <MaterialIcons
-                name="medication"
+                name={alert.icon}
                 size={22}
-                color={COLORS.error}
+                color={accentColor}
               />
             </View>
 
-            <View style={styles.alertTitleContainer}>
-              <Text style={styles.urgentLabel}>
-                URGENT ACTION
+            <View style={styles.alertHeading}>
+              <Text
+                style={[
+                  styles.alertCategory,
+                  {
+                    color: accentColor,
+                  },
+                ]}
+              >
+                {alert.label.toUpperCase()}
               </Text>
 
-              <Text style={styles.medicationTitle}>
+              <Text
+                style={[
+                  styles.alertTitle,
+                  {
+                    color: titleColor,
+                  },
+                ]}
+              >
                 {alert.title}
               </Text>
             </View>
           </View>
 
-          <View style={styles.unacknowledgedBadge}>
-            <Text style={styles.unacknowledgedText}>
-              {alert.badge}
+          <View style={styles.placeholderBadge}>
+            <Text style={styles.placeholderBadgeText}>
+              PLACEHOLDER
             </Text>
           </View>
         </View>
 
-        <Text style={styles.medicationDescription}>
+        {/* Description */}
+
+        <Text
+          style={[
+            styles.alertDescription,
+            {
+              color: isMedication
+                ? COLORS.onErrorContainer
+                : isRoutine
+                  ? COLORS.onSecondaryContainer
+                  : COLORS.onSurfaceVariant,
+            },
+          ]}
+        >
           {alert.description}
         </Text>
 
-        <View style={styles.alertButtonsRow}>
+        {/* Actions */}
+
+        <View style={styles.alertActions}>
           <Pressable
-            onPress={onVoiceReminder}
+            onPress={onAction}
             disabled={processing}
             style={({ pressed }) => [
-              styles.primaryAlertButton,
-              processing && styles.processingButton,
+              styles.mainAction,
+              {
+                backgroundColor: COLORS.primary,
+              },
+              processing &&
+                styles.processingButton,
               pressed && styles.pressed,
             ]}
           >
@@ -780,192 +771,45 @@ function AlertCard({
               name={
                 processing
                   ? "sync"
-                  : completedText
-                    ? "done-all"
-                    : "record-voice-over"
+                  : "notifications-active"
               }
-              size={21}
+              size={19}
               color={COLORS.onPrimary}
             />
 
-            <Text style={styles.primaryAlertButtonText}>
+            <Text style={styles.mainActionText}>
               {processing
-                ? "Sending..."
-                : completedText ||
-                  "Send Voice Reminder"}
+                ? "Processing..."
+                : "Take Action"}
             </Text>
           </Pressable>
 
           <Pressable
-            onPress={onDismiss}
+            onPress={onAcknowledge}
             disabled={processing}
             style={({ pressed }) => [
-              styles.secondaryAlertButton,
+              styles.acknowledgeButton,
               pressed && styles.pressed,
             ]}
           >
             <MaterialIcons
               name="check"
-              size={20}
+              size={19}
               color={COLORS.primary}
             />
 
-            <Text style={styles.secondaryAlertButtonText}>
-              Mark Acknowledged
+            <Text style={styles.acknowledgeText}>
+              Acknowledge
             </Text>
           </Pressable>
         </View>
       </View>
-    );
-  }
-
-  if (alert.category === "routine") {
-    return (
-      <View style={styles.routineAlert}>
-        <View style={styles.alertAccentBlue} />
-
-        <View style={styles.alertHeader}>
-          <View style={styles.alertTitleRow}>
-            <View style={styles.routineIcon}>
-              <MaterialIcons
-                name="water-drop"
-                size={21}
-                color={COLORS.secondary}
-              />
-            </View>
-
-            <View style={styles.alertTitleContainer}>
-              <Text style={styles.routineLabel}>
-                ROUTINE FOLLOW-UP
-              </Text>
-
-              <Text style={styles.routineTitle}>
-                {alert.title}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.cupsBadge}>
-            <Text style={styles.cupsBadgeText}>
-              {alert.badge}
-            </Text>
-          </View>
-        </View>
-
-        <Text style={styles.routineDescription}>
-          {alert.description}
-        </Text>
-
-        <Pressable
-          onPress={() =>
-            onPrompt(
-              "Hydration prompt sent to display"
-            )
-          }
-          disabled={processing}
-          style={({ pressed }) => [
-            styles.primaryAlertButton,
-            processing && styles.processingButton,
-            pressed && styles.pressed,
-          ]}
-        >
-          <MaterialIcons
-            name={
-              processing
-                ? "sync"
-                : completedText
-                  ? "check"
-                  : "notifications-active"
-            }
-            size={21}
-            color={COLORS.onPrimary}
-          />
-
-          <Text style={styles.primaryAlertButtonText}>
-            {processing
-              ? "Sending..."
-              : completedText ||
-                "Prompt Hydration Reminder"}
-          </Text>
-        </Pressable>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.deviceAlert}>
-      <View style={styles.alertAccentGreen} />
-
-      <View style={styles.alertHeader}>
-        <View style={styles.alertTitleRow}>
-          <View style={styles.deviceIcon}>
-            <MaterialIcons
-              name="psychology"
-              size={21}
-              color={COLORS.primary}
-            />
-          </View>
-
-          <View style={styles.alertTitleContainer}>
-            <Text style={styles.deviceLabel}>
-              BRAIN HEALTH
-            </Text>
-
-            <Text style={styles.deviceTitle}>
-              {alert.title}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.pendingBadge}>
-          <Text style={styles.pendingBadgeText}>
-            {alert.badge}
-          </Text>
-        </View>
-      </View>
-
-      <Text style={styles.deviceDescription}>
-        {alert.description}
-      </Text>
-
-      <Pressable
-        onPress={() =>
-          onPrompt(
-            "Activity reminder nudged to tablet"
-          )
-        }
-        disabled={processing}
-        style={({ pressed }) => [
-          styles.primaryAlertButton,
-          processing && styles.processingButton,
-          pressed && styles.pressed,
-        ]}
-      >
-        <MaterialIcons
-          name={
-            processing
-              ? "sync"
-              : completedText
-                ? "check"
-                : "play-circle"
-          }
-          size={21}
-          color={COLORS.onPrimary}
-        />
-
-        <Text style={styles.primaryAlertButtonText}>
-          {processing
-            ? "Sending..."
-            : completedText ||
-              "Encourage Activity"}
-        </Text>
-      </Pressable>
     </View>
   );
 }
 
 /* ========================================================================== */
-/* Bottom Navigation                                                          */
+/* BOTTOM NAVIGATION                                                          */
 /* ========================================================================== */
 
 type BottomNavItemProps = {
@@ -994,12 +838,13 @@ function BottomNavItem({
       <View
         style={[
           styles.navIconContainer,
-          active && styles.navIconContainerActive,
+          active &&
+            styles.navIconContainerActive,
         ]}
       >
         <MaterialIcons
           name={icon}
-          size={23}
+          size={22}
           color={
             active
               ? COLORS.primary
@@ -1027,7 +872,7 @@ function BottomNavItem({
 }
 
 /* ========================================================================== */
-/* Styles                                                                     */
+/* STYLES                                                                     */
 /* ========================================================================== */
 
 const styles = StyleSheet.create({
@@ -1054,34 +899,35 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 560,
     alignSelf: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
 
-  headerButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  headerIconButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  headerBrand: {
+  headerCenter: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  headerTitle: {
+  brandName: {
     color: COLORS.primary,
-    fontSize: 22,
-    lineHeight: 27,
-    fontWeight: "700",
+    fontSize: 21,
+    lineHeight: 26,
+    fontWeight: "800",
+    letterSpacing: -0.3,
   },
 
-  headerSubtitle: {
+  brandSubtitle: {
     color: COLORS.onSurfaceVariant,
     fontSize: 11,
     lineHeight: 15,
@@ -1089,7 +935,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
 
-  profileCircle: {
+  headerProfile: {
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -1099,7 +945,7 @@ const styles = StyleSheet.create({
   },
 
   /* ---------------------------------------------------------------------- */
-  /* Main                                                                   */
+  /* Content                                                                */
   /* ---------------------------------------------------------------------- */
 
   scrollView: {
@@ -1111,53 +957,52 @@ const styles = StyleSheet.create({
     maxWidth: 560,
     alignSelf: "center",
     paddingHorizontal: 20,
-    gap: 14,
+    gap: 15,
   },
 
   /* ---------------------------------------------------------------------- */
-  /* Heading                                                                */
+  /* Intro                                                                  */
   /* ---------------------------------------------------------------------- */
 
-  headingRow: {
+  introRow: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    paddingTop: 4,
-    paddingBottom: 2,
   },
 
-  headingText: {
+  introText: {
     flex: 1,
-    paddingRight: 8,
+    paddingRight: 12,
   },
 
-  dashboardLabelRow: {
+  eyebrowRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
   },
 
-  statusDot: {
+  eyebrowDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: COLORS.primary,
   },
 
-  dashboardLabel: {
+  eyebrow: {
     color: COLORS.primary,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: "700",
-    letterSpacing: 0.8,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: "800",
+    letterSpacing: 1,
   },
 
   pageTitle: {
     color: COLORS.onSurface,
-    fontSize: 30,
-    lineHeight: 37,
-    fontWeight: "700",
-    marginTop: 4,
+    fontSize: 32,
+    lineHeight: 39,
+    fontWeight: "800",
+    letterSpacing: -0.7,
+    marginTop: 3,
   },
 
   pageSubtitle: {
@@ -1165,144 +1010,187 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 21,
     marginTop: 4,
-    maxWidth: 350,
+    maxWidth: 380,
   },
 
-  headerActions: {
-    flexDirection: "row",
-    gap: 7,
+  refreshButton: {
+    width: 45,
+    height: 45,
+    borderRadius: 23,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    alignItems: "center",
+    justifyContent: "center",
     marginTop: 2,
   },
 
-  smallActionButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
   /* ---------------------------------------------------------------------- */
-  /* Patient Context                                                        */
+  /* Overview                                                               */
   /* ---------------------------------------------------------------------- */
 
-  patientContext: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-    padding: 16,
-    minHeight: 86,
+  overviewCard: {
+    backgroundColor: COLORS.primaryContainer,
+    borderRadius: 20,
+    padding: 17,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-  },
-
-  patientContextLeft: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    minWidth: 0,
     gap: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
 
-  patientAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: COLORS.greenSoft,
+  overviewIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.onPrimaryContainer,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  patientContextText: {
+  overviewContent: {
     flex: 1,
-    minWidth: 0,
   },
 
-  patientName: {
-    color: COLORS.onSurface,
+  overviewTitle: {
+    color: COLORS.onPrimary,
     fontSize: 18,
     lineHeight: 23,
-    fontWeight: "700",
+    fontWeight: "800",
   },
 
-  patientAge: {
-    color: COLORS.primary,
-    fontSize: 13,
-    lineHeight: 17,
-    fontWeight: "600",
-    marginTop: 1,
-  },
-
-  patientSubtitle: {
-    color: COLORS.onSurfaceVariant,
+  overviewText: {
+    color: COLORS.onPrimaryContainer,
     fontSize: 13,
     lineHeight: 18,
     marginTop: 2,
   },
 
-  linkedBadge: {
-    backgroundColor: COLORS.greenSoft,
-    borderWidth: 1,
-    borderColor: COLORS.greenBorder,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 16,
+  overviewStatus: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 15,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 5,
   },
 
-  linkedText: {
-    color: COLORS.primary,
-    fontSize: 12,
-    lineHeight: 16,
+  liveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: COLORS.onPrimaryContainer,
+  },
+
+  liveText: {
+    color: COLORS.onPrimary,
+    fontSize: 11,
+    lineHeight: 15,
     fontWeight: "700",
   },
 
   /* ---------------------------------------------------------------------- */
-  /* Summary                                                                */
+  /* Patient                                                                */
   /* ---------------------------------------------------------------------- */
 
-  summaryCard: {
-    backgroundColor: COLORS.surfaceContainerLow,
-    borderRadius: 16,
+  patientCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
     padding: 15,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
 
-  summaryIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.surface,
+  patientAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: COLORS.primarySoft,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  summaryText: {
+  patientInfo: {
     flex: 1,
+    minWidth: 0,
   },
 
-  summaryTitle: {
+  patientLabel: {
+    color: COLORS.primary,
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: "800",
+    letterSpacing: 0.9,
+  },
+
+  patientPlaceholder: {
     color: COLORS.onSurface,
     fontSize: 16,
     lineHeight: 21,
     fontWeight: "700",
+    marginTop: 2,
   },
 
-  summarySubtitle: {
+  patientHint: {
     color: COLORS.onSurfaceVariant,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 1,
+  },
+
+  connectedBadge: {
+    backgroundColor: COLORS.primarySoft,
+    borderWidth: 1,
+    borderColor: COLORS.primarySoftBorder,
+    borderRadius: 15,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+
+  connectedText: {
+    color: COLORS.primary,
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: "800",
+  },
+
+  /* ---------------------------------------------------------------------- */
+  /* Section                                                                */
+  /* ---------------------------------------------------------------------- */
+
+  sectionHeader: {
     marginTop: 2,
+  },
+
+  sectionEyebrow: {
+    color: COLORS.secondary,
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: "800",
+    letterSpacing: 1,
+  },
+
+  sectionTitle: {
+    color: COLORS.onSurface,
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: "800",
+    marginTop: 1,
   },
 
   /* ---------------------------------------------------------------------- */
@@ -1311,17 +1199,15 @@ const styles = StyleSheet.create({
 
   filterRow: {
     gap: 8,
-    paddingVertical: 2,
+    paddingVertical: 1,
   },
 
   filterButton: {
-    minHeight: 44,
-    paddingLeft: 15,
-    paddingRight: 8,
-    borderRadius: 22,
-    flexDirection: "row",
+    minHeight: 42,
+    paddingHorizontal: 17,
+    borderRadius: 21,
     alignItems: "center",
-    gap: 8,
+    justifyContent: "center",
   },
 
   filterButtonActive: {
@@ -1334,294 +1220,132 @@ const styles = StyleSheet.create({
     borderColor: COLORS.outlineVariant,
   },
 
-  filterButtonText: {
+  filterText: {
     fontSize: 14,
     lineHeight: 19,
     fontWeight: "700",
   },
 
-  filterButtonTextActive: {
+  filterTextActive: {
     color: COLORS.onPrimary,
   },
 
-  filterButtonTextInactive: {
-    color: COLORS.onSurfaceVariant,
-  },
-
-  filterCount: {
-    minWidth: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  filterCountActive: {
-    backgroundColor: "rgba(255,255,255,0.20)",
-  },
-
-  filterCountInactive: {
-    backgroundColor: COLORS.surfaceContainerHigh,
-  },
-
-  filterCountText: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: "700",
-  },
-
-  filterCountTextActive: {
-    color: COLORS.onPrimary,
-  },
-
-  filterCountTextInactive: {
+  filterTextInactive: {
     color: COLORS.onSurfaceVariant,
   },
 
   /* ---------------------------------------------------------------------- */
-  /* Alerts                                                                 */
+  /* Alert List                                                             */
   /* ---------------------------------------------------------------------- */
 
-  alertsStack: {
-    gap: 14,
+  alertList: {
+    gap: 13,
+  },
+
+  alertCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    overflow: "hidden",
+    position: "relative",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.04,
+    shadowRadius: 7,
+    elevation: 2,
+  },
+
+  alertAccent: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 5,
+  },
+
+  alertCardContent: {
+    padding: 17,
+    paddingLeft: 20,
+    gap: 13,
   },
 
   alertHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    gap: 8,
-  },
-
-  alertTitleRow: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    minWidth: 0,
-  },
-
-  alertTitleContainer: {
-    flex: 1,
-    minWidth: 0,
-  },
-
-  /* Medication */
-
-  medicationAlert: {
-    backgroundColor: COLORS.errorContainer,
-    borderRadius: 18,
-    padding: 18,
-    paddingLeft: 20,
-    overflow: "hidden",
-    position: "relative",
-    gap: 13,
-    borderWidth: 1,
-    borderColor: "#F4C5C0",
-  },
-
-  alertAccentError: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 5,
-    backgroundColor: COLORS.error,
-  },
-
-  medicationIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#FFD5D0",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  urgentLabel: {
-    color: COLORS.error,
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: "800",
-    letterSpacing: 0.8,
-  },
-
-  medicationTitle: {
-    color: COLORS.onErrorContainer,
-    fontSize: 19,
-    lineHeight: 25,
-    fontWeight: "700",
-    marginTop: 2,
-  },
-
-  unacknowledgedBadge: {
-    backgroundColor: "#FFD5D0",
-    paddingHorizontal: 9,
-    paddingVertical: 6,
-    borderRadius: 14,
-  },
-
-  unacknowledgedText: {
-    color: COLORS.error,
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: "700",
-  },
-
-  medicationDescription: {
-    color: COLORS.onErrorContainer,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-
-  /* Routine */
-
-  routineAlert: {
-    backgroundColor: COLORS.secondaryContainer,
-    borderRadius: 18,
-    padding: 18,
-    paddingLeft: 20,
-    overflow: "hidden",
-    position: "relative",
-    gap: 13,
-    borderWidth: 1,
-    borderColor: "#B9DDF4",
-  },
-
-  alertAccentBlue: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 5,
-    backgroundColor: COLORS.secondary,
-  },
-
-  routineIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.surface,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  routineLabel: {
-    color: COLORS.secondary,
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: "800",
-    letterSpacing: 0.8,
-  },
-
-  routineTitle: {
-    color: COLORS.onSecondaryContainer,
-    fontSize: 19,
-    lineHeight: 25,
-    fontWeight: "700",
-    marginTop: 2,
-  },
-
-  cupsBadge: {
-    backgroundColor: COLORS.surface,
-    paddingHorizontal: 9,
-    paddingVertical: 6,
-    borderRadius: 14,
-  },
-
-  cupsBadgeText: {
-    color: COLORS.secondary,
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: "700",
-  },
-
-  routineDescription: {
-    color: COLORS.onSecondaryContainer,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-
-  /* Cognitive */
-
-  deviceAlert: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 18,
-    padding: 18,
-    paddingLeft: 20,
-    overflow: "hidden",
-    position: "relative",
-    gap: 13,
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-  },
-
-  alertAccentGreen: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 5,
-    backgroundColor: COLORS.primary,
-  },
-
-  deviceIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.greenSoft,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  deviceLabel: {
-    color: COLORS.primary,
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: "800",
-    letterSpacing: 0.8,
-  },
-
-  deviceTitle: {
-    color: COLORS.onSurface,
-    fontSize: 19,
-    lineHeight: 25,
-    fontWeight: "700",
-    marginTop: 2,
-  },
-
-  pendingBadge: {
-    backgroundColor: COLORS.surfaceContainerHigh,
-    paddingHorizontal: 9,
-    paddingVertical: 6,
-    borderRadius: 14,
-  },
-
-  pendingBadgeText: {
-    color: COLORS.onSurfaceVariant,
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: "700",
-  },
-
-  deviceDescription: {
-    color: COLORS.onSurfaceVariant,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-
-  /* ---------------------------------------------------------------------- */
-  /* Buttons                                                                */
-  /* ---------------------------------------------------------------------- */
-
-  alertButtonsRow: {
     gap: 9,
   },
 
-  primaryAlertButton: {
-    minHeight: 52,
+  alertHeaderLeft: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 11,
+    minWidth: 0,
+  },
+
+  alertIcon: {
+    width: 43,
+    height: 43,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  alertHeading: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  alertCategory: {
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+  },
+
+  alertTitle: {
+    fontSize: 17,
+    lineHeight: 23,
+    fontWeight: "800",
+    marginTop: 2,
+  },
+
+  placeholderBadge: {
+    backgroundColor: COLORS.surfaceLow,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+
+  placeholderBadgeText: {
+    color: COLORS.muted,
+    fontSize: 8,
+    lineHeight: 11,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+
+  alertDescription: {
+    fontSize: 14,
+    lineHeight: 21,
+  },
+
+  /* ---------------------------------------------------------------------- */
+  /* Alert Actions                                                          */
+  /* ---------------------------------------------------------------------- */
+
+  alertActions: {
+    gap: 8,
+  },
+
+  mainAction: {
+    minHeight: 49,
     borderRadius: 14,
-    backgroundColor: COLORS.primary,
     paddingHorizontal: 15,
     flexDirection: "row",
     alignItems: "center",
@@ -1629,21 +1353,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
-  primaryAlertButtonText: {
+  mainActionText: {
     color: COLORS.onPrimary,
-    fontSize: 16,
-    lineHeight: 21,
-    fontWeight: "700",
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: "800",
   },
 
-  processingButton: {
-    opacity: 0.72,
-  },
-
-  secondaryAlertButton: {
-    minHeight: 50,
+  acknowledgeButton: {
+    minHeight: 46,
     borderRadius: 14,
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.surfaceLow,
     borderWidth: 1,
     borderColor: COLORS.outlineVariant,
     paddingHorizontal: 15,
@@ -1653,23 +1373,27 @@ const styles = StyleSheet.create({
     gap: 7,
   },
 
-  secondaryAlertButtonText: {
-    color: COLORS.onSurface,
-    fontSize: 15,
-    lineHeight: 20,
+  acknowledgeText: {
+    color: COLORS.primary,
+    fontSize: 14,
+    lineHeight: 19,
     fontWeight: "700",
   },
 
+  processingButton: {
+    opacity: 0.65,
+  },
+
   /* ---------------------------------------------------------------------- */
-  /* Empty State                                                            */
+  /* Empty                                                                  */
   /* ---------------------------------------------------------------------- */
 
-  emptyState: {
+  emptyCard: {
     backgroundColor: COLORS.surface,
-    borderRadius: 18,
+    borderRadius: 19,
     borderWidth: 1,
     borderColor: COLORS.outlineVariant,
-    padding: 32,
+    padding: 30,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1678,125 +1402,98 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: COLORS.greenSoft,
+    backgroundColor: COLORS.primarySoft,
     alignItems: "center",
     justifyContent: "center",
   },
 
   emptyTitle: {
     color: COLORS.onSurface,
-    fontSize: 22,
-    lineHeight: 29,
-    fontWeight: "700",
-    marginTop: 13,
+    fontSize: 21,
+    lineHeight: 27,
+    fontWeight: "800",
+    marginTop: 12,
   },
 
   emptyText: {
     color: COLORS.onSurfaceVariant,
-    fontSize: 15,
-    lineHeight: 21,
+    fontSize: 14,
+    lineHeight: 20,
     textAlign: "center",
-    marginTop: 5,
+    marginTop: 4,
   },
 
   /* ---------------------------------------------------------------------- */
-  /* Resolved                                                               */
+  /* System Placeholder                                                     */
   /* ---------------------------------------------------------------------- */
 
-  resolvedHeader: {
+  systemCard: {
+    backgroundColor: COLORS.secondaryContainer,
+    borderRadius: 19,
+    padding: 16,
     flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    paddingTop: 8,
-    paddingBottom: 2,
-  },
-
-  sectionLabel: {
-    color: COLORS.secondary,
-    fontSize: 10,
-    lineHeight: 14,
-    fontWeight: "800",
-    letterSpacing: 1,
-  },
-
-  resolvedTitle: {
-    color: COLORS.onSurface,
-    fontSize: 22,
-    lineHeight: 28,
-    fontWeight: "700",
-    marginTop: 1,
-  },
-
-  resolvedCountBadge: {
-    backgroundColor: COLORS.greenSoft,
-    borderRadius: 15,
-    paddingHorizontal: 9,
-    paddingVertical: 7,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-
-  resolvedCount: {
-    color: COLORS.primary,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: "700",
-  },
-
-  resolvedCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-    padding: 15,
-    flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 11,
   },
 
-  resolvedIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: COLORS.primary,
+  systemIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: COLORS.surface,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  resolvedText: {
+  systemContent: {
     flex: 1,
   },
 
-  resolvedItemTitle: {
-    color: COLORS.onSurface,
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: "700",
+  systemTitle: {
+    color: COLORS.onSecondaryContainer,
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: "800",
   },
 
-  resolvedDescription: {
-    color: COLORS.onSurfaceVariant,
+  systemText: {
+    color: COLORS.onSecondaryContainer,
     fontSize: 13,
-    lineHeight: 18,
-    marginTop: 2,
+    lineHeight: 19,
+    marginTop: 3,
+  },
+
+  comingSoonBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255,255,255,0.55)",
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginTop: 8,
+  },
+
+  comingSoonText: {
+    color: COLORS.secondary,
+    fontSize: 8,
+    lineHeight: 11,
+    fontWeight: "800",
+    letterSpacing: 0.7,
   },
 
   /* ---------------------------------------------------------------------- */
-  /* Disclaimer                                                             */
+  /* Note                                                                   */
   /* ---------------------------------------------------------------------- */
 
-  disclaimer: {
-    backgroundColor: COLORS.surfaceContainer,
-    borderRadius: 16,
-    padding: 15,
+  noteCard: {
+    backgroundColor: COLORS.surfaceLow,
+    borderRadius: 17,
+    padding: 14,
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 10,
-    marginTop: 2,
   },
 
-  disclaimerIcon: {
+  noteIcon: {
     width: 34,
     height: 34,
     borderRadius: 17,
@@ -1805,22 +1502,22 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  disclaimerTextContainer: {
+  noteContent: {
     flex: 1,
   },
 
-  disclaimerTitle: {
+  noteTitle: {
     color: COLORS.onSurface,
     fontSize: 14,
     lineHeight: 19,
-    fontWeight: "700",
-    marginBottom: 2,
+    fontWeight: "800",
   },
 
-  disclaimerText: {
+  noteText: {
     color: COLORS.onSurfaceVariant,
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 2,
   },
 
   /* ---------------------------------------------------------------------- */
@@ -1835,9 +1532,9 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     zIndex: 100,
     backgroundColor: COLORS.inverseSurface,
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
+    borderRadius: 17,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
     flexDirection: "row",
     alignItems: "center",
     gap: 9,
@@ -1847,7 +1544,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: COLORS.greenSoft,
+    backgroundColor: COLORS.primarySoft,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1866,9 +1563,9 @@ const styles = StyleSheet.create({
 
   bottomNav: {
     position: "absolute",
-    bottom: 0,
     left: 0,
     right: 0,
+    bottom: 0,
     minHeight: 76,
     backgroundColor: COLORS.surface,
     borderTopWidth: 1,
@@ -1876,28 +1573,28 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
-    paddingHorizontal: 4,
+    paddingHorizontal: 6,
     zIndex: 50,
   },
 
   navItem: {
-    minWidth: 58,
-    minHeight: 60,
+    minWidth: 65,
+    minHeight: 61,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 5,
   },
 
   navIconContainer: {
-    width: 42,
-    height: 30,
-    borderRadius: 15,
+    width: 43,
+    height: 31,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
   },
 
   navIconContainerActive: {
-    backgroundColor: COLORS.greenSoft,
+    backgroundColor: COLORS.primarySoft,
   },
 
   navLabel: {
@@ -1908,12 +1605,12 @@ const styles = StyleSheet.create({
 
   navLabelActive: {
     color: COLORS.primary,
-    fontWeight: "700",
+    fontWeight: "800",
   },
 
   navLabelInactive: {
     color: COLORS.onSurfaceVariant,
-    fontWeight: "500",
+    fontWeight: "600",
   },
 
   navIndicator: {
@@ -1925,7 +1622,7 @@ const styles = StyleSheet.create({
   },
 
   /* ---------------------------------------------------------------------- */
-  /* Pressed                                                                */
+  /* Interaction                                                            */
   /* ---------------------------------------------------------------------- */
 
   pressed: {

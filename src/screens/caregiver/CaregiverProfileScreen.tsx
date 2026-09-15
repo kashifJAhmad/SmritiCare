@@ -53,9 +53,8 @@ type ConnectedPatient = {
 type CaregiverProfileScreenProps = {
   onBack?: () => void;
   onHome?: () => void;
-  onGames?: () => void;
   onSchedule?: () => void;
-  onMemory?: () => void;
+  onAlerts?: () => void;
   onProfile?: () => void;
   onLogout?: () => void;
 };
@@ -228,9 +227,8 @@ function extractPatients(result: any): ConnectedPatient[] {
 export default function CaregiverProfileScreen({
   onBack,
   onHome,
-  onGames,
   onSchedule,
-  onMemory,
+  onAlerts,
   onProfile,
   onLogout,
 }: CaregiverProfileScreenProps) {
@@ -1852,21 +1850,15 @@ export default function CaregiverProfileScreen({
         />
 
         <BottomNavItem
-          icon="calendar-month"
-          label="Schedule"
+          icon="notifications-active"
+          label="Remind"
           onPress={onSchedule}
         />
 
         <BottomNavItem
-          icon="extension"
-          label="Games"
-          onPress={onGames}
-        />
-
-        <BottomNavItem
-          icon="psychology"
-          label="Memory"
-          onPress={onMemory}
+          icon="warning"
+          label="Alerts"
+          onPress={onAlerts}
         />
 
         <BottomNavItem

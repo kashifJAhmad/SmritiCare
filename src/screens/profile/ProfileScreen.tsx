@@ -51,6 +51,7 @@ type ProfileScreenProps = {
   onSchedule?: () => void;
   onMemory?: () => void;
   onProfile?: () => void;
+   onLogout?: () => void;
 };
 
 const COLORS = {
@@ -174,6 +175,7 @@ export default function ProfileScreen({
   onGames,
   onSchedule,
   onMemory,
+  onLogout,
 }: ProfileScreenProps) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [contacts, setContacts] = useState<EmergencyContact[]>([]);
