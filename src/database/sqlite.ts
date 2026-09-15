@@ -349,22 +349,7 @@ export async function initDatabase(): Promise<IDatabase> {
     return dbInstance;
   }
 
-  // Try loading native expo-sqlite safely without crashing Expo Go
-  try {
-    // Safe dynamic require so Expo Go doesn't throw at bundle load
-    const SQLite = require('expo-sqlite');
-    if (SQLite && typeof SQLite.openDatabaseAsync === 'function') {
-      const db = await SQLite.openDatabaseAsync('smriticare.db');
-      await db.execAsync(CREATE_TABLES_SQL);
-      dbInstance = db;
-      isInitialized = true;
-      return db;
-    }
-  } catch (error: any) {
-    console.log('SmritiCare: ExpoSQLite native module not present, using persistent storage engine.');
-  }
-
-  // Use persistent AsyncStorage storage engine for Expo Go & Web
+  // Use persistent storage engine for 100% compatibility with Expo Go, Native, and Web
   const fallback = new PersistentDatabaseFallback();
   await fallback.init();
   dbInstance = fallback;
