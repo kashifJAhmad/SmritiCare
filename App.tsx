@@ -39,6 +39,10 @@ import {
   getToken,
   removeToken,
 } from './src/services/authStorage';
+import { initDatabase } from './src/database/sqlite';
+import { syncManager } from './src/services/syncManager';
+import { getLocalProfile, saveLocalProfile } from './src/database/repositories/profileRepository';
+import SyncStatusBadge from './src/components/SyncStatusBadge';
 
 type Screen =
   | 'welcome'
@@ -80,12 +84,21 @@ function AppContent() {
   const [connectionChecked, setConnectionChecked] = useState(false);
 
   // ---------------------------------------------------------
-  // RESTORE PATIENT SESSION
+  // RESTORE PATIENT SESSION & INITIALIZE SQLITE
   // ---------------------------------------------------------
 
   useEffect(() => {
-    restorePatientSession();
+    initializeApp();
   }, []);
+
+  async function initializeApp() {
+    try {
+      await initDatabase();
+    } catch (e) {
+      console.warn('SQLite init error:', e);
+    }
+    await restorePatientSession();
+  }
 
   async function restorePatientSession() {
     try {
@@ -103,30 +116,75 @@ function AppContent() {
 
       console.log('SmritiCare: saved token found');
 
-      const result = await getCurrentPatient(token);
+      try {
+        const result = await getCurrentPatient(token);
 
-      if (result.success && result.user) {
-        console.log(
-          'SmritiCare: patient session restored:',
-          result.user.fullName,
-        );
+        if (result.success && result.user) {
+          console.log(
+            'SmritiCare: patient session restored:',
+            result.user.fullName,
+          );
 
-        setPatient(result.user);
-        setScreen('home');
-      } else {
-        console.log('SmritiCare: saved session is invalid');
-
-        await removeToken();
-        setPatient(null);
-        setScreen('welcome');
+          setPatient(result.user);
+          syncManager.setUserId(result.user.id);
+          await saveLocalProfile({
+            userId: result.user.id,
+            fullName: result.user.fullName,
+            email: result.user.email,
+            age: result.user.age,
+            language: result.user.language,
+            caregiverName: result.user.caregiverName,
+            caregiverAccess: result.user.caregiverAccess,
+            gpsSharing: result.user.gpsSharing,
+            textSize: result.user.textSize,
+            syncStatus: 'SYNCED',
+          });
+          setScreen('home');
+          return;
+        }
+      } catch (netErr) {
+        console.log('Network error restoring session online, checking local cache...');
       }
+
+      // If offline or network unavailable, check if we have cached profile
+      const cached = await getLocalProfile('patient_local');
+      if (cached) {
+        const localPatient: PatientUser = {
+          id: cached.userId,
+          fullName: cached.fullName,
+          email: cached.email,
+          role: 'PATIENT',
+          age: cached.age ?? null,
+          phone: cached.phone ?? null,
+          dateOfBirth: cached.dateOfBirth ?? null,
+          gender: cached.gender ?? null,
+          address: cached.address ?? null,
+          city: cached.city ?? null,
+          bloodGroup: cached.bloodGroup ?? null,
+          medicalNotes: cached.medicalNotes ?? null,
+          profileImageUrl: cached.profileImageUrl ?? null,
+          language: cached.language,
+          caregiverName: cached.caregiverName ?? null,
+          caregiverAccess: cached.caregiverAccess,
+          gpsSharing: cached.gpsSharing,
+          textSize: cached.textSize,
+          createdAt: cached.updatedAt,
+          updatedAt: cached.updatedAt,
+        };
+        setPatient(localPatient);
+        syncManager.setUserId(cached.userId);
+        setScreen('home');
+        return;
+      }
+
+      setPatient(null);
+      setScreen('welcome');
     } catch (error) {
       console.log(
         'SmritiCare: unable to restore patient session:',
         error,
       );
 
-      await removeToken();
       setPatient(null);
       setScreen('welcome');
     } finally {
@@ -315,36 +373,6 @@ function AppContent() {
   }
 
   // ---------------------------------------------------------
-  // OFFLINE SCREEN
-  // ---------------------------------------------------------
-
-  if (isOffline) {
-    return (
-      <OfflineScreen
-        onBack={() => {
-          if (
-            Platform.OS === 'web' &&
-            typeof window !== 'undefined' &&
-            window.navigator.onLine
-          ) {
-            setIsOffline(false);
-          }
-        }}
-        onHome={() => {
-          if (
-            Platform.OS === 'web' &&
-            typeof window !== 'undefined' &&
-            window.navigator.onLine
-          ) {
-            setScreen('home');
-            setIsOffline(false);
-          }
-        }}
-      />
-    );
-  }
-
-  // ---------------------------------------------------------
   // WELCOME
   // ---------------------------------------------------------
 
@@ -473,6 +501,7 @@ function AppContent() {
   if (screen === 'schedule') {
     return (
       <ScheduleScreen
+        userId={patient?.id}
         onBack={() => setScreen('home')}
         onHome={() => setScreen('home')}
         onGames={() => setScreen('games')}
@@ -507,6 +536,7 @@ function AppContent() {
   if (screen === 'cognitive-score') {
     return (
       <CognitiveScoreScreen
+        userId={patient?.id}
         onBack={() => setScreen('home')}
       />
     );
@@ -555,6 +585,7 @@ function AppContent() {
   if (screen === 'guess-food') {
     return (
       <GuessFoodScreen
+        userId={patient?.id}
         onBack={() => setScreen('games')}
         onNextGame={() => {
           console.log('NEXT GAME PRESSED');
@@ -570,6 +601,7 @@ function AppContent() {
   if (screen === 'memory') {
     return (
       <MemoryScreen
+        userId={patient?.id}
         onBack={() => setScreen('home')}
         onHome={() => setScreen('home')}
         onGames={() => setScreen('games')}
@@ -587,6 +619,7 @@ function AppContent() {
   if (screen === 'odd-one-out') {
     return (
       <OddOneOutScreen
+        userId={patient?.id}
         onBack={() => setScreen('games')}
         onNextGame={() => {
           console.log('NEXT GAME PRESSED');

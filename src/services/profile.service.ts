@@ -82,60 +82,160 @@ async function authenticatedRequest(
   });
 }
 
-export async function getMyProfile(): Promise<UserProfile> {
-  const response = await authenticatedRequest(
-    `${API_BASE_URL}/api/auth/me`,
-  );
+import { getLocalProfile, saveLocalProfile, updateProfileLocally } from "../database/repositories/profileRepository";
+import { networkMonitor } from "./networkMonitor";
+import { syncManager } from "./syncManager";
 
-  const result: ApiResponse<UserProfile> =
-    await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(
-      result.message || "Failed to load profile.",
-    );
+export async function getMyProfile(userId?: string): Promise<UserProfile> {
+  // If offline or no network, load from local SQLite first
+  if (!networkMonitor.getIsOnline() && userId) {
+    const local = await getLocalProfile(userId);
+    if (local) {
+      return {
+        ...local,
+        createdAt: local.updatedAt,
+      } as unknown as UserProfile;
+    }
   }
 
-  const user = result.data ?? result.user;
-
-  if (!user) {
-    throw new Error(
-      "Profile data was not returned by the server.",
+  try {
+    const response = await authenticatedRequest(
+      `${API_BASE_URL}/api/auth/me`,
     );
-  }
 
-  return user;
+    const result: ApiResponse<UserProfile> =
+      await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(
+        result.message || "Failed to load profile.",
+      );
+    }
+
+    const user = result.data ?? result.user;
+
+    if (!user) {
+      throw new Error(
+        "Profile data was not returned by the server.",
+      );
+    }
+
+    // Cache locally
+    await saveLocalProfile({
+      userId: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      age: user.age,
+      phone: user.phone,
+      dateOfBirth: user.dateOfBirth,
+      gender: user.gender,
+      address: user.address,
+      city: user.city,
+      bloodGroup: user.bloodGroup,
+      medicalNotes: user.medicalNotes,
+      profileImageUrl: user.profileImageUrl,
+      language: user.language,
+      caregiverName: user.caregiverName,
+      caregiverAccess: user.caregiverAccess,
+      gpsSharing: user.gpsSharing,
+      textSize: user.textSize,
+      syncStatus: 'SYNCED',
+    });
+
+    return user;
+  } catch (error) {
+    if (userId) {
+      const local = await getLocalProfile(userId);
+      if (local) {
+        return {
+          ...local,
+          createdAt: local.updatedAt,
+        } as unknown as UserProfile;
+      }
+    }
+    throw error;
+  }
 }
 
 export async function updateMyProfile(
   updates: UpdateProfileData,
+  userId?: string
 ): Promise<UserProfile> {
-  const response = await authenticatedRequest(
-    `${API_BASE_URL}/api/auth/me`,
-    {
-      method: "PUT",
-      body: JSON.stringify(updates),
-    },
-  );
+  const targetUserId = userId || "patient_local";
 
-  const result: ApiResponse<UserProfile> =
-    await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error(
-      result.message || "Failed to update profile.",
-    );
+  if (!networkMonitor.getIsOnline()) {
+    await updateProfileLocally(targetUserId, updates);
+    const local = await getLocalProfile(targetUserId);
+    return {
+      ...(local || {}),
+      ...updates,
+      id: targetUserId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as unknown as UserProfile;
   }
 
-  const user = result.data ?? result.user;
-
-  if (!user) {
-    throw new Error(
-      "Updated profile data was not returned by the server.",
+  try {
+    const response = await authenticatedRequest(
+      `${API_BASE_URL}/api/auth/me`,
+      {
+        method: "PUT",
+        body: JSON.stringify(updates),
+      },
     );
-  }
 
-  return user;
+    const result: ApiResponse<UserProfile> =
+      await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(
+        result.message || "Failed to update profile.",
+      );
+    }
+
+    const user = result.data ?? result.user;
+
+    if (!user) {
+      throw new Error(
+        "Updated profile data was not returned by the server.",
+      );
+    }
+
+    await saveLocalProfile({
+      userId: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      age: user.age,
+      phone: user.phone,
+      dateOfBirth: user.dateOfBirth,
+      gender: user.gender,
+      address: user.address,
+      city: user.city,
+      bloodGroup: user.bloodGroup,
+      medicalNotes: user.medicalNotes,
+      profileImageUrl: user.profileImageUrl,
+      language: user.language,
+      caregiverName: user.caregiverName,
+      caregiverAccess: user.caregiverAccess,
+      gpsSharing: user.gpsSharing,
+      textSize: user.textSize,
+      syncStatus: 'SYNCED',
+    });
+
+    return user;
+  } catch (error) {
+    // Save locally and enqueue sync on failure
+    await updateProfileLocally(targetUserId, updates);
+    syncManager.triggerSync().catch(() => {});
+    const local = await getLocalProfile(targetUserId);
+    return {
+      ...(local || {}),
+      ...updates,
+      id: targetUserId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as unknown as UserProfile;
+  }
 }
 
 export async function uploadProfileImage(

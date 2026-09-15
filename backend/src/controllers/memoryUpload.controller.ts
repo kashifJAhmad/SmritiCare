@@ -60,7 +60,7 @@ export async function uploadMemoryMediaController(
 
     const baseUrl =
       process.env.BACKEND_PUBLIC_URL ||
-      "http://192.168.137.108:5000";
+      "http://10.103.66.53:5000";
 
     const relativePath = path
       .relative(process.cwd(), file.path)

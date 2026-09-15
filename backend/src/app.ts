@@ -10,6 +10,8 @@ import memoryRoutes from "./routes/memory.routes";
 import memoryUploadRoutes from "./routes/memoryUpload.routes";
 import profileImageRoutes from "./routes/profileImage.routes";
 import locationRoutes from "./routes/location.routes";
+import gameRoutes from "./routes/game.routes";
+import syncRoutes from "./routes/sync.routes";
 
 const app = express();
 
@@ -61,5 +63,8 @@ app.use(
   "/api/location",
   locationRoutes,
 );
+
+app.use("/api/games", gameRoutes);
+app.use("/api/sync", syncRoutes);
 
 export default app;

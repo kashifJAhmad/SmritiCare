@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Image,
   Pressable,
@@ -9,6 +9,8 @@ import {
   View,
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { saveGameResultLocally, saveCognitiveScoreLocally } from '../../database/repositories/gameRepository';
+import { syncManager } from '../../services/syncManager';
 
 const COLORS = {
   background: '#F4FAFF',
@@ -47,6 +49,7 @@ const COLORS = {
 };
 
 type GuessFoodScreenProps = {
+  userId?: string;
   onBack?: () => void;
   onNextGame?: () => void;
 };
@@ -158,6 +161,7 @@ const LEVELS: Level[] = [
 ];
 
 export default function GuessFoodScreen({
+  userId,
   onBack,
   onNextGame,
 }: GuessFoodScreenProps) {
@@ -193,6 +197,32 @@ export default function GuessFoodScreen({
     (total, score) => total + score,
     0,
   );
+
+  useEffect(() => {
+    if (gameFinished) {
+      const finalScore = completedScore + currentScore;
+      const percentage = Math.round(
+        (finalScore / (LEVELS.length * 100)) * 100,
+      );
+      const targetUserId = userId || 'patient_local';
+
+      saveGameResultLocally({
+        userId: targetUserId,
+        gameName: 'guess-food',
+        score: finalScore,
+      }).catch((err) => console.warn('Failed saving game result locally:', err));
+
+      saveCognitiveScoreLocally({
+        userId: targetUserId,
+        score: percentage,
+        memory: percentage,
+        attention: Math.min(100, Math.round(percentage * 1.05)),
+        reaction: 85,
+      }).catch((err) => console.warn('Failed saving cognitive score locally:', err));
+
+      syncManager.triggerSync().catch(() => {});
+    }
+  }, [gameFinished, completedScore, currentScore, userId]);
 
   const handleAnswer = (index: number) => {
     if (hasAnswered) {
