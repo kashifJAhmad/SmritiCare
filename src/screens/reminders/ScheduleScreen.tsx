@@ -22,12 +22,22 @@ import QuickAssist from '../../components/QuickAssist';
 
 import { getToken } from '../../services/authStorage';
 import { API_BASE_URL } from '../../constants/api';
+import {
+  getLocalTasks,
+  createTaskLocally,
+  toggleTaskCompletionLocally,
+  deleteTaskLocally,
+  upsertServerTasks,
+} from '../../database/repositories/taskRepository';
+import { syncManager } from '../../services/syncManager';
+import { networkMonitor } from '../../services/networkMonitor';
 
 // ============================================================
 // TYPES
 // ============================================================
 
 type ScheduleScreenProps = {
+  userId?: string;
   onBack?: () => void;
   onHome?: () => void;
   onGames?: () => void;
@@ -350,6 +360,7 @@ function NavButton({
 // ============================================================
 
 export default function ScheduleScreen({
+  userId,
   onBack,
   onHome,
   onGames,
@@ -426,16 +437,6 @@ export default function ScheduleScreen({
   // ==========================================================
   // SYNC LOCAL NOTIFICATIONS
   // ==========================================================
-  //
-  // Tasks can be created by either the patient or a caregiver.
-  // A caregiver's phone cannot schedule a local notification on
-  // the patient's phone, so every time the patient loads/refreshes
-  // the schedule we synchronize backend reminders onto this device.
-  //
-  // Completed tasks are deliberately skipped so they do not keep
-  // reminding the patient. Existing notifications for each task
-  // are cancelled before scheduling again to avoid duplicates.
-  //
   const syncLocalNotifications = async (
     apiTasks: ApiTask[],
   ) => {
@@ -455,9 +456,6 @@ export default function ScheduleScreen({
       );
 
       for (const task of apiTasks) {
-        // Remove old scheduled notifications first. This prevents
-        // duplicate reminders after refresh, caregiver edits, or
-        // changes to a repeating task.
         try {
           await cancelTaskRemindersByTaskId(
             task.id,
@@ -470,7 +468,6 @@ export default function ScheduleScreen({
           );
         }
 
-        // Completed tasks must never continue reminding.
         if (
           task.completed ||
           !task.reminderEnabled
@@ -481,7 +478,6 @@ export default function ScheduleScreen({
         const scheduledAt =
           new Date(task.scheduledAt);
 
-        // Do not schedule reminders that are already in the past.
         if (
           Number.isNaN(
             scheduledAt.getTime(),
@@ -525,85 +521,72 @@ export default function ScheduleScreen({
   const loadTasks = async () => {
     try {
       setLoading(true);
+      const targetUserId = userId || 'patient_local';
 
-      const token =
-        await getToken();
-
-      if (!token) {
-        Alert.alert(
-          'Login Required',
-          'Please sign in to view your schedule.',
+      // 1. Instant offline load from SQLite
+      const local = await getLocalTasks(targetUserId);
+      if (local && local.length > 0) {
+        const converted = local.map((t) =>
+          convertApiTask({
+            id: t.id,
+            title: t.title,
+            description: t.description ?? null,
+            category: t.category ?? null,
+            scheduledAt: t.scheduledAt,
+            completed: t.completed,
+            reminderEnabled: t.reminderEnabled,
+            repeatType: t.repeatType,
+            createdAt: t.createdAt,
+            updatedAt: t.updatedAt,
+          })
         );
-
-        return;
+        setTasks(converted);
       }
 
-      const response =
-        await fetch(
-          `${API_BASE_URL}/api/tasks`,
-          {
-            method: 'GET',
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
+      // 2. Fetch server updates if online
+      const token = await getToken();
+      if (token && networkMonitor.getIsOnline()) {
+        try {
+          const response = await fetch(
+            `${API_BASE_URL}/api/tasks`,
+            {
+              method: 'GET',
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
             },
-          },
-        );
-
-      const result =
-        await response.json();
-
-      if (
-        !response.ok ||
-        !result.success
-      ) {
-        throw new Error(
-          result.message ||
-            'Unable to load your schedule.',
-        );
-      }
-
-      const apiTasks:
-        ApiTask[] =
-        result.tasks || [];
-
-      // Synchronize backend reminders onto this patient's device.
-      // This also picks up reminders created by a caregiver.
-      await syncLocalNotifications(
-        apiTasks,
-      );
-
-      const convertedTasks =
-        apiTasks
-          .sort(
-            (a, b) =>
-              new Date(
-                a.scheduledAt,
-              ).getTime() -
-              new Date(
-                b.scheduledAt,
-              ).getTime(),
-          )
-          .map(
-            convertApiTask,
           );
 
-      setTasks(
-        convertedTasks,
-      );
-    } catch (error) {
-      console.error(
-        'LOAD TASKS ERROR:',
-        error,
-      );
+          const result = await response.json();
 
-      Alert.alert(
-        'Schedule Error',
-        error instanceof
-          Error
-          ? error.message
-          : 'Unable to load your schedule.',
-      );
+          if (response.ok && result.success && Array.isArray(result.tasks)) {
+            const apiTasks: ApiTask[] = result.tasks;
+            await upsertServerTasks(targetUserId, apiTasks);
+            await syncLocalNotifications(apiTasks);
+
+            const refreshedLocal = await getLocalTasks(targetUserId);
+            const converted = refreshedLocal.map((t) =>
+              convertApiTask({
+                id: t.id,
+                title: t.title,
+                description: t.description ?? null,
+                category: t.category ?? null,
+                scheduledAt: t.scheduledAt,
+                completed: t.completed,
+                reminderEnabled: t.reminderEnabled,
+                repeatType: t.repeatType,
+                createdAt: t.createdAt,
+                updatedAt: t.updatedAt,
+              })
+            );
+            setTasks(converted);
+          }
+        } catch (netErr) {
+          console.log('ScheduleScreen: offline or fetch error', netErr);
+        }
+      }
+    } catch (error) {
+      console.error('LOAD TASKS ERROR:', error);
     } finally {
       setLoading(false);
     }
@@ -611,7 +594,7 @@ export default function ScheduleScreen({
 
   useEffect(() => {
     loadTasks();
-  }, []);
+  }, [userId]);
 
   // ==========================================================
   // RENEW REPEATING TASKS AFTER MIDNIGHT
@@ -780,96 +763,42 @@ export default function ScheduleScreen({
 
     try {
       setAddingTask(true);
+      const targetUserId = userId || 'patient_local';
 
-      const token =
-        await getToken();
+      const created = await createTaskLocally({
+        userId: targetUserId,
+        title: title.trim(),
+        description: description.trim() || null,
+        category: category.trim() || 'General',
+        scheduledAt: scheduledAt.toISOString(),
+        reminderEnabled,
+        repeatType,
+      });
 
-      if (!token) {
-        throw new Error(
-          'Please sign in again.',
-        );
-      }
+      const newTask = convertApiTask({
+        id: created.id,
+        title: created.title,
+        description: created.description ?? null,
+        category: created.category ?? null,
+        scheduledAt: created.scheduledAt,
+        completed: created.completed,
+        reminderEnabled: created.reminderEnabled,
+        repeatType: created.repeatType,
+        createdAt: created.createdAt,
+        updatedAt: created.updatedAt,
+      });
 
-      const response =
-        await fetch(
-          `${API_BASE_URL}/api/tasks`,
-          {
-            method: 'POST',
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-              'Content-Type':
-                'application/json',
-            },
-            body: JSON.stringify({
-              title:
-                title.trim(),
-
-              description:
-                description.trim() ||
-                undefined,
-
-              category:
-                category.trim() ||
-                'General',
-
-              scheduledAt:
-                scheduledAt.toISOString(),
-
-              reminderEnabled,
-
-              repeatType,
-            }),
-          },
-        );
-
-      const result =
-        await response.json();
-
-      if (
-        !response.ok ||
-        !result.success
-      ) {
-        throw new Error(
-          result.message ||
-            'Unable to create task.',
-        );
-      }
-
-      const newTask =
-        convertApiTask(
-          result.task,
-        );
-
-      setTasks(
-        (currentTasks) =>
-          [
-            ...currentTasks,
-            newTask,
-          ].sort(
-            (a, b) =>
-              new Date(
-                a.scheduledAt,
-              ).getTime() -
-              new Date(
-                b.scheduledAt,
-              ).getTime(),
-          ),
+      setTasks((currentTasks) =>
+        [...currentTasks, newTask].sort(
+          (a, b) =>
+            new Date(a.scheduledAt).getTime() -
+            new Date(b.scheduledAt).getTime(),
+        ),
       );
 
-      // ======================================================
-      // SCHEDULE LOCAL NOTIFICATION
-      // ======================================================
-      //
-      // The task was saved on the backend first. Synchronizing the
-      // new task here schedules its reminder on this device when
-      // running in a development/production build.
-      //
-      // Expo Go is intentionally skipped because local notification
-      // support is not available there in the same way.
-      let notificationScheduled =
-        false;
+      syncManager.triggerSync().catch(() => {});
 
+      // Schedule local notification if supported
       if (
         newTask.reminderEnabled &&
         !newTask.completed &&
@@ -877,26 +806,18 @@ export default function ScheduleScreen({
         Constants.appOwnership !== 'expo'
       ) {
         try {
-          const {
-            scheduleTaskReminder,
-          } = await import(
+          const { scheduleTaskReminder } = await import(
             '../../services/notifications'
           );
 
-          const notificationId =
-            await scheduleTaskReminder(
-              newTask.id,
-              newTask.title,
-              newTask.scheduledAt,
-              newTask.reminderEnabled,
-              newTask.repeatType,
-              newTask.completed,
-            );
-
-          notificationScheduled =
-            Boolean(
-              notificationId,
-            );
+          await scheduleTaskReminder(
+            newTask.id,
+            newTask.title,
+            newTask.scheduledAt,
+            newTask.reminderEnabled,
+            newTask.repeatType,
+            newTask.completed,
+          );
         } catch (notificationError) {
           console.warn(
             'LOCAL NOTIFICATION COULD NOT BE SCHEDULED:',
@@ -905,42 +826,13 @@ export default function ScheduleScreen({
         }
       }
 
-      setShowAddModal(
-        false,
-      );
-
+      setShowAddModal(false);
       resetForm();
 
-      if (
-        newTask.reminderEnabled &&
-        notificationScheduled
-      ) {
-        Alert.alert(
-          'Task Added',
-          `${newTask.title} has been added and the reminder is scheduled.`,
-        );
-      } else if (
-        newTask.reminderEnabled &&
-        Constants.appOwnership === 'expo'
-      ) {
-        Alert.alert(
-          'Task Added',
-          `${newTask.title} was added successfully. Notification scheduling is disabled while testing in Expo Go. It will work in a development build.`,
-        );
-      } else if (
-        newTask.reminderEnabled &&
-        !notificationScheduled
-      ) {
-        Alert.alert(
-          'Task Added',
-          `${newTask.title} was added successfully, but the reminder could not be scheduled.`,
-        );
-      } else {
-        Alert.alert(
-          'Task Added',
-          `${newTask.title} has been added to your schedule.`,
-        );
-      }
+      Alert.alert(
+        'Task Added',
+        `${newTask.title} has been added to your schedule.`,
+      );
     } catch (error) {
       console.error(
         'CREATE TASK ERROR:',
@@ -1038,40 +930,9 @@ export default function ScheduleScreen({
       async () => {
         try {
           setDeletingTaskId(id);
+          const targetUserId = userId || 'patient_local';
 
-          const token =
-            await getToken();
-
-          if (!token) {
-            throw new Error(
-              'Please sign in again.',
-            );
-          }
-
-          const response =
-            await fetch(
-              `${API_BASE_URL}/api/tasks/${id}`,
-              {
-                method: 'DELETE',
-                headers: {
-                  Authorization:
-                    `Bearer ${token}`,
-                },
-              },
-            );
-
-          const result =
-            await response.json();
-
-          if (
-            !response.ok ||
-            !result.success
-          ) {
-            throw new Error(
-              result.message ||
-                'Unable to delete task.',
-            );
-          }
+          await deleteTaskLocally(targetUserId, id);
 
           setTasks(
             (currentTasks) =>
@@ -1080,6 +941,8 @@ export default function ScheduleScreen({
                   task.id !== id,
               ),
           );
+
+          syncManager.triggerSync().catch(() => {});
 
           if (
             Platform.OS !== 'web' &&
@@ -1170,58 +1033,10 @@ export default function ScheduleScreen({
           id,
         );
 
-        const token =
-          await getToken();
+        const targetUserId = userId || 'patient_local';
+        const nextCompleted = !currentTask.completed;
 
-        if (!token) {
-          throw new Error(
-            'Please sign in again.',
-          );
-        }
-
-        const response =
-          currentTask.completed
-            ? await fetch(
-                `${API_BASE_URL}/api/tasks/${id}`,
-                {
-                  method: 'PUT',
-                  headers: {
-                    Authorization:
-                      `Bearer ${token}`,
-                    'Content-Type':
-                      'application/json',
-                  },
-                  body: JSON.stringify({
-                    completed: false,
-                  }),
-                },
-              )
-            : await fetch(
-                `${API_BASE_URL}/api/tasks/${id}/complete`,
-                {
-                  method: 'PATCH',
-                  headers: {
-                    Authorization:
-                      `Bearer ${token}`,
-                  },
-                },
-              );
-
-        const result =
-          await response.json();
-
-        if (
-          !response.ok ||
-          !result.success
-        ) {
-          throw new Error(
-            result.message ||
-              'Unable to complete task.',
-          );
-        }
-
-        const nextCompleted =
-          !currentTask.completed;
+        await toggleTaskCompletionLocally(targetUserId, id, nextCompleted);
 
         setTasks(
           (currentTasks) =>
@@ -1236,6 +1051,8 @@ export default function ScheduleScreen({
                   : task,
             ),
         );
+
+        syncManager.triggerSync().catch(() => {});
 
         if (
           Platform.OS !== 'web' &&

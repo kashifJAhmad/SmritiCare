@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Image,
   Pressable,
@@ -9,8 +9,11 @@ import {
   View,
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { saveGameResultLocally, saveCognitiveScoreLocally } from '../../database/repositories/gameRepository';
+import { syncManager } from '../../services/syncManager';
 
 type OddOneOutScreenProps = {
+  userId?: string;
   onBack?: () => void;
   onNextGame?: () => void;
 };
@@ -249,6 +252,7 @@ const LEVELS: Level[] = [
 ];
 
 export default function OddOneOutScreen({
+  userId,
   onBack,
   onNextGame,
 }: OddOneOutScreenProps) {
@@ -285,6 +289,32 @@ export default function OddOneOutScreen({
     (total, score) => total + score,
     0,
   );
+
+  useEffect(() => {
+    if (gameFinished) {
+      const finalScore = completedScore + currentScore;
+      const percentage = Math.round(
+        (finalScore / (LEVELS.length * 100)) * 100,
+      );
+      const targetUserId = userId || 'patient_local';
+
+      saveGameResultLocally({
+        userId: targetUserId,
+        gameName: 'odd-one-out',
+        score: finalScore,
+      }).catch((err) => console.warn('Failed saving odd-one-out result locally:', err));
+
+      saveCognitiveScoreLocally({
+        userId: targetUserId,
+        score: percentage,
+        memory: Math.min(100, Math.round(percentage * 0.95)),
+        attention: percentage,
+        reaction: 90,
+      }).catch((err) => console.warn('Failed saving cognitive score locally:', err));
+
+      syncManager.triggerSync().catch(() => {});
+    }
+  }, [gameFinished, completedScore, currentScore, userId]);
 
   const chooseAnswer = (index: number) => {
     if (hasAnswered) {

@@ -26,6 +26,10 @@ import {
   getToken,
   removeToken,
 } from "./src/services/authStorage";
+import { initDatabase } from './src/database/sqlite';
+import { syncManager } from './src/services/syncManager';
+import { getLocalProfile, saveLocalProfile } from './src/database/repositories/profileRepository';
+import SyncStatusBadge from './src/components/SyncStatusBadge';
 
 type Screen =
   | "home"
@@ -45,32 +49,125 @@ export default function App() {
   const [screen, setScreen] =
     useState<Screen>("login");
 
-  const [loading, setLoading] =
-    useState(true);
+  const [patient, setPatient] = useState<PatientUser | null>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  // ---------------------------------------------------------
+  // OFFLINE DETECTION
+  // ---------------------------------------------------------
+
+  const [isOffline, setIsOffline] = useState(false);
+  const [connectionChecked, setConnectionChecked] = useState(false);
+
+  const [loading, setLoading] = useState(true);
+
+  // ---------------------------------------------------------
+  // RESTORE PATIENT SESSION & INITIALIZE SQLITE
+  // ---------------------------------------------------------
 
   useEffect(() => {
-    checkAuthentication();
+    initializeApp();
   }, []);
 
-  /**
-   * Restore the existing authentication session.
-   */
-  const checkAuthentication = async () => {
+  async function initializeApp() {
+    try {
+      await initDatabase();
+    } catch (e) {
+      console.warn('SQLite init error:', e);
+    }
+
+    await restorePatientSession();
+  }
+
+  async function restorePatientSession() {
     try {
       const token = await getToken();
 
-      if (token) {
-        setScreen("home");
-      } else {
-        setScreen("login");
+    try {
+      const token = await getToken();
+
+      if (!token) {
+        console.log('SmritiCare: no saved login found');
+
+        setPatient(null);
+        setScreen('welcome');
+        return;
       }
+
+      console.log('SmritiCare: saved token found');
+
+      try {
+        const result = await getCurrentPatient(token);
+
+        if (result.success && result.user) {
+          console.log(
+            'SmritiCare: patient session restored:',
+            result.user.fullName,
+          );
+
+          setPatient(result.user);
+          syncManager.setUserId(result.user.id);
+          await saveLocalProfile({
+            userId: result.user.id,
+            fullName: result.user.fullName,
+            email: result.user.email,
+            age: result.user.age,
+            language: result.user.language,
+            caregiverName: result.user.caregiverName,
+            caregiverAccess: result.user.caregiverAccess,
+            gpsSharing: result.user.gpsSharing,
+            textSize: result.user.textSize,
+            syncStatus: 'SYNCED',
+          });
+          setScreen('home');
+          return;
+        }
+      } catch (netErr) {
+        console.log('Network error restoring session online, checking local cache...');
+
+      }
+
+      // If offline or network unavailable, check if we have cached profile
+      const cached = await getLocalProfile('patient_local');
+      if (cached) {
+        const localPatient: PatientUser = {
+          id: cached.userId,
+          fullName: cached.fullName,
+          email: cached.email,
+          role: 'PATIENT',
+          age: cached.age ?? null,
+          phone: cached.phone ?? null,
+          dateOfBirth: cached.dateOfBirth ?? null,
+          gender: cached.gender ?? null,
+          address: cached.address ?? null,
+          city: cached.city ?? null,
+          bloodGroup: cached.bloodGroup ?? null,
+          medicalNotes: cached.medicalNotes ?? null,
+          profileImageUrl: cached.profileImageUrl ?? null,
+          language: cached.language,
+          caregiverName: cached.caregiverName ?? null,
+          caregiverAccess: cached.caregiverAccess,
+          gpsSharing: cached.gpsSharing,
+          textSize: cached.textSize,
+          createdAt: cached.updatedAt,
+          updatedAt: cached.updatedAt,
+        };
+        setPatient(localPatient);
+        syncManager.setUserId(cached.userId);
+        setScreen('home');
+        return;
+      }
+
+      setPatient(null);
+      setScreen('welcome');
     } catch (error) {
       console.warn(
         "Unable to restore authentication:",
         error
       );
 
-      setScreen("login");
+      setPatient(null);
+      setScreen('welcome');
     } finally {
       setLoading(false);
     }
@@ -113,7 +210,56 @@ export default function App() {
   // PATIENT AUTHENTICATION
   // ============================================================
 
-  if (screen === "login") {
+  if (!connectionChecked) {
+    return null;
+  }
+
+  // ---------------------------------------------------------
+  // WELCOME
+  // ---------------------------------------------------------
+
+  if (screen === 'welcome') {
+    return (
+      <WelcomeScreen
+        onPatient={() => setScreen('patient-auth')}
+        onFamilyMember={() => setScreen('caregiver-auth')}
+      />
+    );
+  }
+
+  // ---------------------------------------------------------
+  // PATIENT AUTH
+  // ---------------------------------------------------------
+
+  if (screen === 'patient-auth') {
+    return (
+      <PatientAuthScreen
+        onBack={() => setScreen('welcome')}
+        onSignIn={() => setScreen('login')}
+        onSignUp={() => setScreen('signup')}
+      />
+    );
+  }
+
+  // ---------------------------------------------------------
+  // CAREGIVER AUTH
+  // ---------------------------------------------------------
+
+  if (screen === 'caregiver-auth') {
+    return (
+      <CaregiverAuthScreen
+        onBack={() => setScreen('welcome')}
+        onSignIn={() => setScreen('caregiver-login')}
+        onSignUp={() => setScreen('caregiver-signup')}
+      />
+    );
+  }
+
+  // ---------------------------------------------------------
+  // PATIENT LOGIN
+  // ---------------------------------------------------------
+
+  if (screen === 'login') {
     return (
       <LoginScreen
         onLogin={(token?: string) => {
@@ -191,11 +337,193 @@ export default function App() {
   if (screen === "caregiver-dashboard") {
     return (
       <CaregiverDashboardScreen
-        onBack={() => {
-          setScreen("login");
+        onBack={() => setScreen('caregiver-auth')}
+        onLogout={() => setScreen('caregiver-auth')}
+      />
+    );
+  }
+
+  // ---------------------------------------------------------
+  // MEDICAL HELP
+  // ---------------------------------------------------------
+
+  if (screen === 'medical-help') {
+    return (
+      <MedicalHelpScreen
+        onBack={() => setScreen('home')}
+      />
+    );
+  }
+
+  // ---------------------------------------------------------
+  // SCHEDULE
+  // ---------------------------------------------------------
+
+  if (screen === 'schedule') {
+    return (
+      <ScheduleScreen
+        userId={patient?.id}
+        onBack={() => setScreen('home')}
+        onHome={() => setScreen('home')}
+        onGames={() => setScreen('games')}
+        onSchedule={() => setScreen('schedule')}
+        onMemory={() => setScreen('memory')}
+        onProfile={() => setScreen('profile')}
+      />
+    );
+  }
+
+  // ---------------------------------------------------------
+  // CALL FAMILY
+  // ---------------------------------------------------------
+
+  if (screen === 'call-family') {
+    return (
+      <CallFamilyScreen
+        onBack={() => setScreen('home')}
+        onHome={() => setScreen('home')}
+        onGames={() => setScreen('games')}
+        onSchedule={() => setScreen('schedule')}
+        onMemory={() => setScreen('memory')}
+        onProfile={() => setScreen('profile')}
+      />
+    );
+  }
+
+  // ---------------------------------------------------------
+  // COGNITIVE SCORE
+  // ---------------------------------------------------------
+
+  if (screen === 'cognitive-score') {
+    return (
+      <CognitiveScoreScreen
+        userId={patient?.id}
+        onBack={() => setScreen('home')}
+      />
+    );
+  }
+
+  // ---------------------------------------------------------
+  // PROFILE
+  // ---------------------------------------------------------
+
+  if (screen === 'profile') {
+    return (
+      <ProfileScreen
+        onBack={() => setScreen('home')}
+        onHome={() => setScreen('home')}
+        onGames={() => setScreen('games')}
+        onSchedule={() => setScreen('schedule')}
+        onMemory={() => setScreen('memory')}
+        onProfile={() => setScreen('profile')}
+      />
+    );
+  }
+
+  // ---------------------------------------------------------
+  // GAMES
+  // ---------------------------------------------------------
+
+  if (screen === 'games') {
+    return (
+      <GamesScreen
+        onBack={() => setScreen('home')}
+        onHome={() => setScreen('home')}
+        onSchedule={() => setScreen('schedule')}
+        onMemory={() => setScreen('memory')}
+        onProfile={() => setScreen('profile')}
+        onVoiceAssistant={() => setScreen('voice-assistant')}
+        onOddOneOut={() => setScreen('odd-one-out')}
+        onGuessFood={() => setScreen('guess-food')}
+      />
+    );
+  }
+
+  // ---------------------------------------------------------
+  // GUESS FOOD
+  // ---------------------------------------------------------
+
+  if (screen === 'guess-food') {
+    return (
+      <GuessFoodScreen
+        userId={patient?.id}
+        onBack={() => setScreen('games')}
+        onNextGame={() => {
+          console.log('NEXT GAME PRESSED');
         }}
-        onHome={() => {
-          setScreen("caregiver-dashboard");
+      />
+    );
+  }
+
+  // ---------------------------------------------------------
+  // MEMORY
+  // ---------------------------------------------------------
+
+  if (screen === 'memory') {
+    return (
+      <MemoryScreen
+        userId={patient?.id}
+        onBack={() => setScreen('home')}
+        onHome={() => setScreen('home')}
+        onGames={() => setScreen('games')}
+        onSchedule={() => setScreen('schedule')}
+        onProfile={() => setScreen('profile')}
+        onVoiceAssistant={() => setScreen('voice-assistant')}
+      />
+    );
+  }
+
+  // ---------------------------------------------------------
+  // ODD ONE OUT
+  // ---------------------------------------------------------
+
+  if (screen === 'odd-one-out') {
+    return (
+      <OddOneOutScreen
+        userId={patient?.id}
+        onBack={() => setScreen('games')}
+        onNextGame={() => {
+          console.log('NEXT GAME PRESSED');
+        }}
+      />
+    );
+  }
+
+  // ---------------------------------------------------------
+  // PATIENT DASHBOARD
+  // ---------------------------------------------------------
+
+  if (screen === 'patient-dashboard') {
+    return (
+      <PatientDashboardScreen
+        onHome={() => setScreen('home')}
+        onGames={() => setScreen('games')}
+        onSchedule={() => setScreen('schedule')}
+        onMemory={() => setScreen('memory')}
+        onProfile={() => setScreen('profile')}
+      />
+    );
+  }
+
+  // ---------------------------------------------------------
+  // VOICE ASSISTANT
+  // ---------------------------------------------------------
+
+  if (screen === 'voice-assistant') {
+    return (
+      <VoiceAssistantScreen
+        onBack={() => setScreen('home')}
+        onMedicine={() => {
+          setScreen('schedule');
+        }}
+        onProfile={() => {
+          setScreen('profile');
+        }}
+        onFamily={() => {
+          setScreen('call-family');
+        }}
+        onGame={() => {
+          setScreen('games');
         }}
         onSchedule={() => {
           setScreen("caregiver-reminders");

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -9,8 +9,11 @@ import {
   View,
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { getLocalCognitiveScores, LocalCognitiveScore } from '../../database/repositories/gameRepository';
+import { syncManager } from '../../services/syncManager';
 
 type CognitiveScoreScreenProps = {
+  userId?: string;
   onBack?: () => void;
   onMemoryGame?: () => void;
   onFamilyPhotos?: () => void;
@@ -28,11 +31,32 @@ const weeklyScores = [
 ];
 
 export default function CognitiveScoreScreen({
+  userId,
   onBack,
   onMemoryGame,
   onFamilyPhotos,
   onStartExercise,
 }: CognitiveScoreScreenProps) {
+  const [latestScore, setLatestScore] = useState<number>(82);
+  const [scoresList, setScoresList] = useState<LocalCognitiveScore[]>([]);
+
+  useEffect(() => {
+    const loadScores = async () => {
+      try {
+        const targetUserId = userId || 'patient_local';
+        const scores = await getLocalCognitiveScores(targetUserId);
+        if (scores && scores.length > 0) {
+          setScoresList(scores);
+          setLatestScore(scores[0].score);
+        }
+      } catch (e) {
+        console.log('Error loading cognitive scores:', e);
+      }
+    };
+
+    loadScores();
+    syncManager.triggerSync().catch(() => {});
+  }, [userId]);
   const handleMemoryGame = () => {
     if (onMemoryGame) {
       onMemoryGame();

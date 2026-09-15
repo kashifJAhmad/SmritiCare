@@ -30,6 +30,14 @@ import {
 
 import { getToken } from "../../services/authStorage";
 import { API_BASE_URL } from "../../constants/api";
+import {
+  getLocalMemories,
+  createMemoryLocally,
+  deleteMemoryLocally,
+  upsertServerMemories,
+} from "../../database/repositories/memoryRepository";
+import { syncManager } from "../../services/syncManager";
+import { networkMonitor } from "../../services/networkMonitor";
 
 type MemoryType = "text" | "photo" | "voice";
 
@@ -45,6 +53,7 @@ type Memory = {
 };
 
 type Props = {
+  userId?: string;
   onBack?: () => void;
   onHome?: () => void;
   onGames?: () => void;
@@ -76,6 +85,7 @@ const COLORS = {
 };
 
 export default function MemoryScreen({
+  userId,
   onBack,
   onHome,
   onGames,
@@ -116,45 +126,45 @@ export default function MemoryScreen({
 
   useEffect(() => {
     loadMemories();
-  }, []);
+  }, [userId]);
 
   const loadMemories = async () => {
     try {
       setLoading(true);
+      const targetUserId = userId || "patient_local";
 
+      // 1. Instant offline load from SQLite
+      const local = await getLocalMemories(targetUserId);
+      if (local && local.length > 0) {
+        setMemories(local as any);
+      }
+
+      // 2. Fetch server updates if online
       const token = await getToken();
+      if (token && networkMonitor.getIsOnline()) {
+        try {
+          const response = await fetch(
+            `${API_BASE_URL}/api/memories`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
 
-      if (!token) {
-        throw new Error("Please log in again.");
-      }
+          const data = await response.json();
 
-      const response = await fetch(
-        `${API_BASE_URL}/api/memories`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          if (response.ok && Array.isArray(data.memories)) {
+            await upsertServerMemories(targetUserId, data.memories);
+            const refreshed = await getLocalMemories(targetUserId);
+            setMemories(refreshed as any);
+          }
+        } catch (netErr) {
+          console.log("MemoryScreen: network fetch skipped or offline", netErr);
         }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.message || "Unable to load memories."
-        );
       }
-
-      setMemories(data.memories || []);
     } catch (error) {
       console.error("LOAD MEMORIES ERROR:", error);
-
-      Alert.alert(
-        "Unable to load memories",
-        error instanceof Error
-          ? error.message
-          : "Please try again."
-      );
     } finally {
       setLoading(false);
     }
@@ -208,40 +218,20 @@ export default function MemoryScreen({
 
     try {
       setSaving(true);
+      const targetUserId = userId || "patient_local";
 
-      const token = await getToken();
+      const created = await createMemoryLocally({
+        userId: targetUserId,
+        title: title.trim(),
+        description: description.trim(),
+        category: category.trim() || "Text",
+        type: "text",
+      });
 
-      if (!token) {
-        throw new Error("Please log in again.");
-      }
-
-      const response = await fetch(
-        `${API_BASE_URL}/api/memories`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            title: title.trim(),
-            description: description.trim(),
-            category: category.trim() || "Text",
-            type: "text",
-          }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.message || "Unable to save memory."
-        );
-      }
-
+      setMemories((prev) => [created as any, ...prev]);
       resetForm();
-      await loadMemories();
+
+      syncManager.triggerSync().catch(() => {});
 
       Alert.alert(
         "Memory saved",
@@ -249,12 +239,9 @@ export default function MemoryScreen({
       );
     } catch (error) {
       console.error("SAVE TEXT MEMORY ERROR:", error);
-
       Alert.alert(
         "Unable to save",
-        error instanceof Error
-          ? error.message
-          : "Please try again."
+        error instanceof Error ? error.message : "Please try again."
       );
     } finally {
       setSaving(false);
@@ -589,36 +576,16 @@ export default function MemoryScreen({
   const deleteMemory = async (id: string) => {
     const performDelete = async () => {
       try {
-        const token = await getToken();
-
-        if (!token) {
-          throw new Error("Please log in again.");
-        }
-
-        const response = await fetch(
-          `${API_BASE_URL}/api/memories/${id}`,
-          {
-            method: "DELETE",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(
-            data.message ||
-              "Unable to delete memory."
-          );
-        }
+        const targetUserId = userId || "patient_local";
+        await deleteMemoryLocally(targetUserId, id);
 
         setMemories((current) =>
           current.filter(
             (memory) => memory.id !== id
           )
         );
+
+        syncManager.triggerSync().catch(() => {});
       } catch (error) {
         Alert.alert(
           "Delete failed",
