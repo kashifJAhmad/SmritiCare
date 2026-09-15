@@ -4,50 +4,93 @@ import {
   StyleSheet,
   View,
 } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+
+// ============================================================
+// WELCOME
+// ============================================================
+
+import WelcomeScreen from "./src/screens/WelcomeScreen";
+
+// ============================================================
+// PATIENT SCREENS
+// ============================================================
 
 import HomeScreen from "./src/screens/home/HomeScreen";
 import LoginScreen from "./src/screens/auth/LoginScreen";
 import SignupScreen from "./src/screens/auth/SignupScreen";
+import ProfileScreen from "./src/screens/profile/ProfileScreen";
+import ScheduleScreen from "./src/screens/reminders/ScheduleScreen";
+import MemoryScreen from "./src/screens/memories/MemoryScreen";
+
+// ============================================================
+// CAREGIVER AUTH
+// ============================================================
 
 import CaregiverAuthScreen from "./src/screens/auth/CaregiverAuthScreen";
+import CaregiverLoginScreen from "./src/screens/caregiver/CaregiverLoginScreen";
 import CaregiverSignupScreen from "./src/screens/caregiver/CaregiverSignupScreen";
+
+// ============================================================
+// CAREGIVER APP
+// ============================================================
 
 import CaregiverDashboardScreen from "./src/screens/caregiver/CaregiverDashboardScreen";
 import CaregiverProfileScreen from "./src/screens/caregiver/CaregiverProfileScreen";
 import CaregiverAlertsScreen from "./src/screens/caregiver/CaregiverAlertsScreen";
 import CaregiverRemindersScreen from "./src/screens/caregiver/CaregiverRemindersScreen";
 
-import ScheduleScreen from "./src/screens/reminders/ScheduleScreen";
-import ProfileScreen from "./src/screens/profile/ProfileScreen";
-
-import MemoryScreen from "./src/screens/memories/MemoryScreen";
+// ============================================================
+// AUTH STORAGE
+// ============================================================
 
 import {
+  clearAuthSession,
+  getAuthRole,
   getToken,
-  removeToken,
+  saveAuthSession,
 } from "./src/services/authStorage";
 import { initDatabase } from './src/database/sqlite';
 import { syncManager } from './src/services/syncManager';
 import { getLocalProfile, saveLocalProfile } from './src/database/repositories/profileRepository';
 import SyncStatusBadge from './src/components/SyncStatusBadge';
 
+// ============================================================
+// SCREEN TYPE
+// ============================================================
+
 type Screen =
-  | "home"
+  // Welcome
+  | "welcome"
+
+  // Patient authentication
   | "login"
   | "signup"
+
+  // Patient application
+  | "home"
   | "profile"
   | "schedule"
   | "memory"
+
+  // Caregiver authentication
   | "caregiver-auth"
+  | "caregiver-login"
   | "caregiver-signup"
+
+  // Caregiver application
   | "caregiver-dashboard"
   | "caregiver-profile"
   | "caregiver-alerts"
   | "caregiver-reminders";
 
-export default function App() {
+// ============================================================
+// APP CONTENT
+// ============================================================
+
+function AppContent() {
   const [screen, setScreen] =
-    useState<Screen>("login");
+    useState<Screen>("welcome");
 
   const [patient, setPatient] = useState<PatientUser | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -65,10 +108,15 @@ export default function App() {
   // RESTORE PATIENT SESSION & INITIALIZE SQLITE
   // ---------------------------------------------------------
 
+  // ============================================================
+  // RESTORE AUTHENTICATION
+  // ============================================================
+
   useEffect(() => {
     initializeApp();
   }, []);
 
+<<<<<<< Updated upstream
   async function initializeApp() {
     try {
       await initDatabase();
@@ -80,9 +128,14 @@ export default function App() {
   }
 
   async function restorePatientSession() {
+=======
+  const checkAuthentication = async () => {
+>>>>>>> Stashed changes
     try {
       const token = await getToken();
+      const role = await getAuthRole();
 
+<<<<<<< Updated upstream
     try {
       const token = await getToken();
 
@@ -160,41 +213,176 @@ export default function App() {
 
       setPatient(null);
       setScreen('welcome');
+=======
+      // No saved session
+      if (!token) {
+        setScreen("welcome");
+        return;
+      }
+
+      // --------------------------------------------------------
+      // CAREGIVER SESSION
+      // --------------------------------------------------------
+
+      if (role === "caregiver") {
+        setScreen("caregiver-dashboard");
+        return;
+      }
+
+      // --------------------------------------------------------
+      // PATIENT SESSION
+      // --------------------------------------------------------
+
+      if (role === "patient") {
+        setScreen("home");
+        return;
+      }
+
+      /*
+       * Backward compatibility:
+       *
+       * Older versions of the app only stored the token
+       * without storing the role.
+       *
+       * We treat that old session as a patient session.
+       */
+      setScreen("home");
+>>>>>>> Stashed changes
     } catch (error) {
       console.warn(
         "Unable to restore authentication:",
-        error
+        error,
       );
 
+<<<<<<< Updated upstream
       setPatient(null);
       setScreen('welcome');
+=======
+      // If the stored session is corrupted,
+      // start cleanly from Welcome.
+      try {
+        await clearAuthSession();
+      } catch (clearError) {
+        console.warn(
+          "Unable to clear invalid authentication:",
+          clearError,
+        );
+      }
+
+      setScreen("welcome");
+>>>>>>> Stashed changes
     } finally {
       setLoading(false);
     }
   };
 
-  /**
-   * Shared logout handler.
-   *
-   * Used by both patient and caregiver
-   * profile/dashboard screens.
-   */
-  const handleLogout = async () => {
-    try {
-      await removeToken();
-    } catch (error) {
-      console.warn(
-        "Unable to remove authentication token:",
-        error
+  // ============================================================
+  // PATIENT LOGIN
+  // ============================================================
+
+  const handlePatientLogin = async (
+    token?: string,
+  ) => {
+    /*
+     * LoginScreen normally saves its token itself.
+     *
+     * Saving here as well makes App resilient if the
+     * login screen only returns the token.
+     */
+    if (token) {
+      await saveAuthSession(
+        token,
+        "patient",
       );
     }
 
-    setScreen("login");
+    setScreen("home");
   };
 
-  /**
-   * Initial loading state.
-   */
+  // ============================================================
+  // PATIENT SIGNUP
+  // ============================================================
+
+  const handlePatientSignup = async (
+    token?: string,
+  ) => {
+    if (token) {
+      await saveAuthSession(
+        token,
+        "patient",
+      );
+    }
+
+    setScreen("home");
+  };
+
+  // ============================================================
+  // CAREGIVER LOGIN
+  // ============================================================
+
+  const handleCaregiverLogin = async (
+    token?: string,
+  ) => {
+    /*
+     * CaregiverLoginScreen saves the session itself.
+     *
+     * We also accept a returned token here so App remains
+     * safe if the login screen returns the token.
+     */
+    if (token) {
+      await saveAuthSession(
+        token,
+        "caregiver",
+      );
+    }
+
+    setScreen("caregiver-dashboard");
+  };
+
+  // ============================================================
+  // CAREGIVER SIGNUP
+  // ============================================================
+
+  const handleCaregiverSignup = async (
+    token?: string,
+  ) => {
+    /*
+     * If caregiver signup returns a JWT, save it as a
+     * caregiver session.
+     *
+     * If the signup screen already saves it, this is harmless.
+     */
+    if (token) {
+      await saveAuthSession(
+        token,
+        "caregiver",
+      );
+    }
+
+    setScreen("caregiver-dashboard");
+  };
+
+  // ============================================================
+  // LOGOUT
+  // ============================================================
+
+  const handleLogout = async () => {
+    try {
+      await clearAuthSession();
+    } catch (error) {
+      console.warn(
+        "Unable to clear authentication session:",
+        error,
+      );
+    }
+
+    setScreen("welcome");
+  };
+
+  // ============================================================
+  // INITIAL LOADING
+  // ============================================================
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -207,7 +395,24 @@ export default function App() {
   }
 
   // ============================================================
-  // PATIENT AUTHENTICATION
+  // WELCOME
+  // ============================================================
+
+  if (screen === "welcome") {
+    return (
+      <WelcomeScreen
+        onPatient={() => {
+          setScreen("login");
+        }}
+        onFamilyMember={() => {
+          setScreen("caregiver-auth");
+        }}
+      />
+    );
+  }
+
+  // ============================================================
+  // PATIENT LOGIN
   // ============================================================
 
   if (!connectionChecked) {
@@ -262,14 +467,12 @@ export default function App() {
   if (screen === 'login') {
     return (
       <LoginScreen
-        onLogin={(token?: string) => {
-          setScreen("home");
-        }}
+        onLogin={handlePatientLogin}
         onSignup={() => {
           setScreen("signup");
         }}
         onBack={() => {
-          setScreen("home");
+          setScreen("welcome");
         }}
         onCaregiver={() => {
           setScreen("caregiver-auth");
@@ -278,12 +481,14 @@ export default function App() {
     );
   }
 
+  // ============================================================
+  // PATIENT SIGNUP
+  // ============================================================
+
   if (screen === "signup") {
     return (
       <SignupScreen
-        onSignup={(token?: string) => {
-          setScreen("home");
-        }}
+        onSignup={handlePatientSignup}
         onLogin={() => {
           setScreen("login");
         }}
@@ -295,17 +500,23 @@ export default function App() {
   }
 
   // ============================================================
-  // CAREGIVER AUTHENTICATION
+  // CAREGIVER AUTH LANDING
   // ============================================================
 
   if (screen === "caregiver-auth") {
     return (
       <CaregiverAuthScreen
         onBack={() => {
-          setScreen("login");
+          setScreen("welcome");
         }}
         onSignIn={() => {
-          setScreen("caregiver-dashboard");
+          /*
+           * IMPORTANT:
+           *
+           * Do NOT go directly to caregiver-dashboard.
+           * The caregiver must actually authenticate first.
+           */
+          setScreen("caregiver-login");
         }}
         onSignUp={() => {
           setScreen("caregiver-signup");
@@ -314,6 +525,28 @@ export default function App() {
     );
   }
 
+  // ============================================================
+  // CAREGIVER LOGIN
+  // ============================================================
+
+  if (screen === "caregiver-login") {
+    return (
+      <CaregiverLoginScreen
+        onBack={() => {
+          setScreen("caregiver-auth");
+        }}
+        onSignup={() => {
+          setScreen("caregiver-signup");
+        }}
+        onLogin={handleCaregiverLogin}
+      />
+    );
+  }
+
+  // ============================================================
+  // CAREGIVER SIGNUP
+  // ============================================================
+
   if (screen === "caregiver-signup") {
     return (
       <CaregiverSignupScreen
@@ -321,11 +554,13 @@ export default function App() {
           setScreen("caregiver-auth");
         }}
         onLogin={() => {
-          setScreen("caregiver-auth");
+          /*
+           * Going to the actual caregiver login screen,
+           * not the caregiver landing page.
+           */
+          setScreen("caregiver-login");
         }}
-        onSignup={() => {
-          setScreen("caregiver-dashboard");
-        }}
+        onSignup={handleCaregiverSignup}
       />
     );
   }
@@ -337,6 +572,7 @@ export default function App() {
   if (screen === "caregiver-dashboard") {
     return (
       <CaregiverDashboardScreen
+<<<<<<< Updated upstream
         onBack={() => setScreen('caregiver-auth')}
         onLogout={() => setScreen('caregiver-auth')}
       />
@@ -450,6 +686,10 @@ export default function App() {
         onBack={() => setScreen('games')}
         onNextGame={() => {
           console.log('NEXT GAME PRESSED');
+=======
+        onBack={() => {
+          setScreen("welcome");
+>>>>>>> Stashed changes
         }}
       />
     );
@@ -541,13 +781,6 @@ export default function App() {
 
   // ============================================================
   // CAREGIVER REMINDERS
-  //
-  // This is the caregiver's separate Remind section.
-  //
-  // It displays reminders/tasks belonging to the
-  // connected patient selected by the caregiver.
-  //
-  // It does NOT open the patient's ScheduleScreen.
   // ============================================================
 
   if (screen === "caregiver-reminders") {
@@ -642,30 +875,19 @@ export default function App() {
           setScreen("memory");
         }}
         onLogout={handleLogout}
-
-        /*
-         * These callbacks are required by HomeScreen.
-         *
-         * The corresponding screens are not currently
-         * registered in this App.tsx, so they remain
-         * placeholders for now.
-         *
-         * Once Medical Help / Call Family / Cognitive Score
-         * screens are available, these can navigate to them.
-         */
         onMedicalHelp={() => {
           console.log(
-            "Medical Help screen is not registered yet."
+            "Medical Help screen is not registered yet.",
           );
         }}
         onCallFamily={() => {
           console.log(
-            "Call Family screen is not registered yet."
+            "Call Family screen is not registered yet.",
           );
         }}
         onCognitiveScore={() => {
           console.log(
-            "Cognitive Score screen is not registered yet."
+            "Cognitive Score screen is not registered yet.",
           );
         }}
       />
@@ -674,8 +896,6 @@ export default function App() {
 
   // ============================================================
   // PATIENT SCHEDULE
-  //
-  // Completely separate from CaregiverRemindersScreen.
   // ============================================================
 
   if (screen === "schedule") {
@@ -757,6 +977,22 @@ export default function App() {
     </View>
   );
 }
+
+// ============================================================
+// ROOT APP
+// ============================================================
+
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppContent />
+    </SafeAreaProvider>
+  );
+}
+
+// ============================================================
+// STYLES
+// ============================================================
 
 const styles = StyleSheet.create({
   loadingContainer: {
