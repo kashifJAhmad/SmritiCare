@@ -1,4 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
+
 import {
   ActivityIndicator,
   Alert,
@@ -11,19 +16,15 @@ import {
   Text,
   TextInput,
   View,
-} from 'react-native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { getToken } from '../../services/authStorage';
+} from "react-native";
 
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+
+import { getToken } from "../../services/authStorage";
 import { API_BASE_URL } from "../../constants/api";
 
 type CallFamilyScreenProps = {
   onBack?: () => void;
-  onHome?: () => void;
-  onGames?: () => void;
-  onSchedule?: () => void;
-  onMemory?: () => void;
-  onProfile?: () => void;
 };
 
 type FamilyMember = {
@@ -46,22 +47,48 @@ type ContactResponse = {
   message?: string;
 };
 
+const COLORS = {
+  background: "#FBF9F1",
+  surface: "#FFFFFF",
+  surfaceLow: "#F1F0E7",
+  surfaceVariant: "#D9DDD4",
+
+  primary: "#3F6F45",
+  primaryContainer: "#315A36",
+  onPrimary: "#FFFFFF",
+  onPrimaryContainer: "#D7E7D2",
+
+  secondary: "#8A6040",
+  secondaryContainer: "#E9D7C5",
+  onSecondaryContainer: "#68472F",
+
+  tertiary: "#A65D43",
+
+  error: "#9B3F32",
+  errorContainer: "#E7C9B9",
+
+  text: "#1B1C17",
+  textSecondary: "#565A52",
+
+  outline: "#72766D",
+  outlineVariant: "#CDD2C8",
+};
+
 export default function CallFamilyScreen({
   onBack,
-  onHome,
-  onGames,
-  onSchedule,
-  onMemory,
-  onProfile,
 }: CallFamilyScreenProps) {
-  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
+  const [familyMembers, setFamilyMembers] = useState<
+    FamilyMember[]
+  >([]);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const [showAddModal, setShowAddModal] = useState(false);
-  const [name, setName] = useState('');
-  const [relationship, setRelationship] = useState('');
-  const [phone, setPhone] = useState('');
+
+  const [name, setName] = useState("");
+  const [relationship, setRelationship] = useState("");
+  const [phone, setPhone] = useState("");
 
   const loadContacts = useCallback(async () => {
     try {
@@ -70,35 +97,37 @@ export default function CallFamilyScreen({
       const token = await getToken();
 
       if (!token) {
-        throw new Error('Please log in again.');
+        throw new Error("Please log in again.");
       }
 
       const response = await fetch(
         `${API_BASE_URL}/api/emergency-contacts`,
         {
-          method: 'GET',
+          method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
-      const result: ContactsResponse = await response.json();
+      const result: ContactsResponse =
+        await response.json();
 
       if (!response.ok || !result.success) {
         throw new Error(
-          result.message || 'Unable to load family contacts.'
+          result.message ||
+            "Unable to load family contacts.",
         );
       }
 
       setFamilyMembers(result.contacts || []);
     } catch (error) {
-      const message =
+      Alert.alert(
+        "Unable to Load Contacts",
         error instanceof Error
           ? error.message
-          : 'Unable to load family contacts.';
-
-      Alert.alert('Unable to Load Contacts', message);
+          : "Unable to load family contacts.",
+      );
     } finally {
       setLoading(false);
     }
@@ -109,9 +138,9 @@ export default function CallFamilyScreen({
   }, [loadContacts]);
 
   const resetForm = () => {
-    setName('');
-    setRelationship('');
-    setPhone('');
+    setName("");
+    setRelationship("");
+    setPhone("");
   };
 
   const openAddModal = () => {
@@ -134,22 +163,25 @@ export default function CallFamilyScreen({
     const trimmedPhone = phone.trim();
 
     if (!trimmedName) {
-      Alert.alert('Missing Name', 'Please enter the family member’s name.');
+      Alert.alert(
+        "Missing Name",
+        "Please enter the family member's name.",
+      );
       return;
     }
 
     if (!trimmedRelationship) {
       Alert.alert(
-        'Missing Relationship',
-        'Please enter the relationship, such as Son or Daughter.'
+        "Missing Relationship",
+        "Please enter the relationship, such as Son or Daughter.",
       );
       return;
     }
 
     if (!trimmedPhone) {
       Alert.alert(
-        'Missing Phone Number',
-        'Please enter a phone number.'
+        "Missing Phone Number",
+        "Please enter a phone number.",
       );
       return;
     }
@@ -160,30 +192,36 @@ export default function CallFamilyScreen({
       const token = await getToken();
 
       if (!token) {
-        throw new Error('Please log in again.');
+        throw new Error("Please log in again.");
       }
 
       const response = await fetch(
         `${API_BASE_URL}/api/emergency-contacts`,
         {
-          method: 'POST',
+          method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             name: trimmedName,
             relationship: trimmedRelationship,
             phone: trimmedPhone,
           }),
-        }
+        },
       );
 
-      const result: ContactResponse = await response.json();
+      const result: ContactResponse =
+        await response.json();
 
-      if (!response.ok || !result.success || !result.contact) {
+      if (
+        !response.ok ||
+        !result.success ||
+        !result.contact
+      ) {
         throw new Error(
-          result.message || 'Unable to add family member.'
+          result.message ||
+            "Unable to add family member.",
         );
       }
 
@@ -196,49 +234,51 @@ export default function CallFamilyScreen({
       resetForm();
 
       Alert.alert(
-        'Family Member Added',
-        `${result.contact.name} has been added successfully.`
+        "Family Member Added",
+        `${result.contact.name} has been added successfully.`,
       );
     } catch (error) {
-      const message =
+      Alert.alert(
+        "Unable to Add Contact",
         error instanceof Error
           ? error.message
-          : 'Unable to add family member.';
-
-      Alert.alert('Unable to Add Contact', message);
+          : "Unable to add family member.",
+      );
     } finally {
       setSaving(false);
     }
   };
 
-  const deleteFamilyMember = (member: FamilyMember) => {
+  const deleteFamilyMember = (
+    member: FamilyMember,
+  ) => {
     Alert.alert(
-      'Remove Family Member',
+      "Remove Family Member",
       `Are you sure you want to remove ${member.name} from your family contacts?`,
       [
         {
-          text: 'Cancel',
-          style: 'cancel',
+          text: "Cancel",
+          style: "cancel",
         },
         {
-          text: 'Remove',
-          style: 'destructive',
+          text: "Remove",
+          style: "destructive",
           onPress: async () => {
             try {
               const token = await getToken();
 
               if (!token) {
-                throw new Error('Please log in again.');
+                throw new Error("Please log in again.");
               }
 
               const response = await fetch(
                 `${API_BASE_URL}/api/emergency-contacts/${member.id}`,
                 {
-                  method: 'DELETE',
+                  method: "DELETE",
                   headers: {
                     Authorization: `Bearer ${token}`,
                   },
-                }
+                },
               );
 
               const result: ContactResponse =
@@ -247,39 +287,43 @@ export default function CallFamilyScreen({
               if (!response.ok || !result.success) {
                 throw new Error(
                   result.message ||
-                    'Unable to remove family member.'
+                    "Unable to remove family member.",
                 );
               }
 
               setFamilyMembers((current) =>
-                current.filter((item) => item.id !== member.id)
+                current.filter(
+                  (item) => item.id !== member.id,
+                ),
               );
 
               Alert.alert(
-                'Contact Removed',
-                `${member.name} has been removed.`
+                "Contact Removed",
+                `${member.name} has been removed.`,
               );
             } catch (error) {
-              const message =
+              Alert.alert(
+                "Unable to Remove Contact",
                 error instanceof Error
                   ? error.message
-                  : 'Unable to remove family member.';
-
-              Alert.alert('Unable to Remove Contact', message);
+                  : "Unable to remove family member.",
+              );
             }
           },
         },
-      ]
+      ],
     );
   };
 
-  const callFamilyMember = async (member: FamilyMember) => {
+  const callFamilyMember = async (
+    member: FamilyMember,
+  ) => {
     const phoneNumber = member.phone.trim();
 
     if (!phoneNumber) {
       Alert.alert(
-        'No Phone Number',
-        `${member.name} does not have a phone number.`
+        "No Phone Number",
+        `${member.name} does not have a phone number.`,
       );
       return;
     }
@@ -287,12 +331,13 @@ export default function CallFamilyScreen({
     const phoneUrl = `tel:${phoneNumber}`;
 
     try {
-      const supported = await Linking.canOpenURL(phoneUrl);
+      const supported =
+        await Linking.canOpenURL(phoneUrl);
 
       if (!supported) {
         Alert.alert(
-          'Calling Not Available',
-          'This device cannot open the phone dialer.'
+          "Calling Not Available",
+          "This device cannot open the phone dialer.",
         );
         return;
       }
@@ -300,20 +345,31 @@ export default function CallFamilyScreen({
       await Linking.openURL(phoneUrl);
     } catch {
       Alert.alert(
-        'Unable to Call',
-        `We could not open the phone dialer for ${member.name}.`
+        "Unable to Call",
+        `We could not open the phone dialer for ${member.name}.`,
       );
     }
   };
 
   const getInitials = (memberName: string) => {
-    const parts = memberName.trim().split(/\s+/);
+    const parts = memberName
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
 
-    if (parts.length === 1) {
-      return parts[0].slice(0, 2).toUpperCase();
+    if (parts.length === 0) {
+      return "FM";
     }
 
-    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+    if (parts.length === 1) {
+      return parts[0]
+        .slice(0, 2)
+        .toUpperCase();
+    }
+
+    return `${parts[0][0]}${
+      parts[parts.length - 1][0]
+    }`.toUpperCase();
   };
 
   return (
@@ -323,25 +379,36 @@ export default function CallFamilyScreen({
         <View style={styles.header}>
           <Pressable
             onPress={onBack}
-            style={styles.backButton}
+            style={({ pressed }) => [
+              styles.backButton,
+              pressed && styles.pressed,
+            ]}
             accessibilityRole="button"
-            accessibilityLabel="Go back"
+            accessibilityLabel="Go back to home"
           >
             <Ionicons
               name="arrow-back"
-              size={28}
-              color="#3F6F45"
+              size={29}
+              color={COLORS.primary}
             />
+
+            <Text style={styles.backText}>
+              Back
+            </Text>
           </Pressable>
 
-          <Text style={styles.headerTitle}>SmritiCare</Text>
+          <View style={styles.headerText}>
+            <Text style={styles.headerTitle}>
+              Call Family
+            </Text>
 
-          <Text style={styles.headerSectionTitle}>
-            Call Family
-          </Text>
+            <Text style={styles.headerSubtitle}>
+              Quickly reach someone you trust
+            </Text>
+          </View>
         </View>
 
-        {/* Main Content */}
+        {/* Main content */}
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
@@ -351,7 +418,7 @@ export default function CallFamilyScreen({
               <MaterialIcons
                 name="family-restroom"
                 size={34}
-                color="#3F6F45"
+                color={COLORS.primary}
               />
             </View>
 
@@ -359,6 +426,7 @@ export default function CallFamilyScreen({
               <Text style={styles.introTitle}>
                 Your Family Contacts
               </Text>
+
               <Text style={styles.introText}>
                 Tap Call to contact someone you trust.
               </Text>
@@ -369,36 +437,48 @@ export default function CallFamilyScreen({
             <View style={styles.loadingContainer}>
               <ActivityIndicator
                 size="large"
-                color="#3F6F45"
+                color={COLORS.primary}
               />
+
               <Text style={styles.loadingText}>
                 Loading family contacts...
               </Text>
             </View>
           ) : familyMembers.length === 0 ? (
             <View style={styles.emptyCard}>
-              <MaterialIcons
-                name="people-outline"
-                size={58}
-                color="#8A6040"
-              />
+              <View style={styles.emptyIcon}>
+                <MaterialIcons
+                  name="people-outline"
+                  size={52}
+                  color={COLORS.secondary}
+                />
+              </View>
 
               <Text style={styles.emptyTitle}>
                 No Family Members Yet
               </Text>
 
               <Text style={styles.emptyText}>
-                Add a trusted family member so you can call them
-                quickly when you need help.
+                Add a trusted family member so you can
+                call them quickly when you need help.
               </Text>
             </View>
           ) : (
             familyMembers.map((member) => (
-              <View key={member.id} style={styles.contactCard}>
-                <View style={styles.topPattern}>
-                  <View style={styles.patternStripeOne} />
-                  <View style={styles.patternStripeTwo} />
-                  <View style={styles.patternStripeThree} />
+              <View
+                key={member.id}
+                style={styles.contactCard}
+              >
+                <View style={styles.contactAccent}>
+                  <View
+                    style={styles.accentOne}
+                  />
+                  <View
+                    style={styles.accentTwo}
+                  />
+                  <View
+                    style={styles.accentThree}
+                  />
                 </View>
 
                 <View style={styles.contactInfo}>
@@ -413,7 +493,9 @@ export default function CallFamilyScreen({
                       {member.name}
                     </Text>
 
-                    <Text style={styles.memberRelation}>
+                    <Text
+                      style={styles.memberRelation}
+                    >
                       {member.relationship}
                     </Text>
 
@@ -425,7 +507,9 @@ export default function CallFamilyScreen({
 
                 <View style={styles.actionColumn}>
                   <Pressable
-                    onPress={() => callFamilyMember(member)}
+                    onPress={() =>
+                      callFamilyMember(member)
+                    }
                     style={({ pressed }) => [
                       styles.callButton,
                       pressed && styles.pressed,
@@ -435,8 +519,8 @@ export default function CallFamilyScreen({
                   >
                     <Ionicons
                       name="call"
-                      size={25}
-                      color="#FFFFFF"
+                      size={24}
+                      color={COLORS.onPrimary}
                     />
 
                     <Text style={styles.callButtonText}>
@@ -445,7 +529,9 @@ export default function CallFamilyScreen({
                   </Pressable>
 
                   <Pressable
-                    onPress={() => deleteFamilyMember(member)}
+                    onPress={() =>
+                      deleteFamilyMember(member)
+                    }
                     style={({ pressed }) => [
                       styles.deleteButton,
                       pressed && styles.pressed,
@@ -455,8 +541,8 @@ export default function CallFamilyScreen({
                   >
                     <MaterialIcons
                       name="delete-outline"
-                      size={23}
-                      color="#9B3F32"
+                      size={22}
+                      color={COLORS.error}
                     />
 
                     <Text style={styles.deleteText}>
@@ -468,7 +554,6 @@ export default function CallFamilyScreen({
             ))
           )}
 
-          {/* Add Family Member */}
           <Pressable
             onPress={openAddModal}
             style={({ pressed }) => [
@@ -480,8 +565,8 @@ export default function CallFamilyScreen({
           >
             <MaterialIcons
               name="add-circle"
-              size={48}
-              color="#3F6F45"
+              size={45}
+              color={COLORS.primary}
             />
 
             <Text style={styles.addFamilyText}>
@@ -501,8 +586,8 @@ export default function CallFamilyScreen({
             >
               <MaterialIcons
                 name="refresh"
-                size={25}
-                color="#3F6F45"
+                size={24}
+                color={COLORS.primary}
               />
 
               <Text style={styles.refreshText}>
@@ -512,41 +597,7 @@ export default function CallFamilyScreen({
           )}
         </ScrollView>
 
-        {/* Bottom Navigation */}
-        <View style={styles.bottomNav}>
-          <NavItem
-            icon="home"
-            label="Home"
-            active
-            onPress={onHome}
-          />
-
-          <NavItem
-            icon="extension"
-            label="Games"
-            onPress={onGames}
-          />
-
-          <NavItem
-            icon="alarm"
-            label="Remind"
-            onPress={onSchedule}
-          />
-
-          <NavItem
-            icon="auto-stories"
-            label="Memory"
-            onPress={onMemory}
-          />
-
-          <NavItem
-            icon="person"
-            label="Profile"
-            onPress={onProfile}
-          />
-        </View>
-
-        {/* Add Family Member Modal */}
+        {/* Add family member modal */}
         <Modal
           visible={showAddModal}
           transparent
@@ -569,8 +620,8 @@ export default function CallFamilyScreen({
                 >
                   <Ionicons
                     name="close"
-                    size={28}
-                    color="#565A52"
+                    size={27}
+                    color={COLORS.textSecondary}
                   />
                 </Pressable>
               </View>
@@ -583,7 +634,7 @@ export default function CallFamilyScreen({
                 value={name}
                 onChangeText={setName}
                 placeholder="e.g. Aman"
-                placeholderTextColor="#72766D"
+                placeholderTextColor={COLORS.outline}
                 style={styles.input}
                 editable={!saving}
                 autoCapitalize="words"
@@ -597,7 +648,7 @@ export default function CallFamilyScreen({
                 value={relationship}
                 onChangeText={setRelationship}
                 placeholder="e.g. Son"
-                placeholderTextColor="#72766D"
+                placeholderTextColor={COLORS.outline}
                 style={styles.input}
                 editable={!saving}
                 autoCapitalize="words"
@@ -611,7 +662,7 @@ export default function CallFamilyScreen({
                 value={phone}
                 onChangeText={setPhone}
                 placeholder="e.g. 9876543210"
-                placeholderTextColor="#72766D"
+                placeholderTextColor={COLORS.outline}
                 style={styles.input}
                 editable={!saving}
                 keyboardType="phone-pad"
@@ -623,25 +674,29 @@ export default function CallFamilyScreen({
                 style={({ pressed }) => [
                   styles.saveButton,
                   saving && styles.disabledButton,
-                  pressed && !saving && styles.pressed,
+                  pressed &&
+                    !saving &&
+                    styles.pressed,
                 ]}
                 accessibilityRole="button"
                 accessibilityLabel="Save family member"
               >
                 {saving ? (
                   <ActivityIndicator
-                    color="#FFFFFF"
+                    color={COLORS.onPrimary}
                     size="small"
                   />
                 ) : (
                   <>
                     <MaterialIcons
                       name="save"
-                      size={25}
-                      color="#FFFFFF"
+                      size={24}
+                      color={COLORS.onPrimary}
                     />
 
-                    <Text style={styles.saveButtonText}>
+                    <Text
+                      style={styles.saveButtonText}
+                    >
                       Save Family Member
                     </Text>
                   </>
@@ -655,504 +710,421 @@ export default function CallFamilyScreen({
   );
 }
 
-type NavItemProps = {
-  icon: keyof typeof MaterialIcons.glyphMap;
-  label: string;
-  active?: boolean;
-  onPress?: () => void;
-};
-
-function NavItem({
-  icon,
-  label,
-  active,
-  onPress,
-}: NavItemProps) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.navItem,
-        active && styles.navItemActive,
-        pressed && styles.navPressed,
-      ]}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-    >
-      <MaterialIcons
-        name={icon}
-        size={28}
-        color={active ? '#D7E7D2' : '#565A52'}
-      />
-
-      <Text
-        style={[
-          styles.navLabel,
-          active && styles.navLabelActive,
-        ]}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FBF9F1',
+    backgroundColor: COLORS.background,
   },
 
   container: {
     flex: 1,
-    backgroundColor: '#FBF9F1',
+    backgroundColor: COLORS.background,
   },
 
-  // Header
   header: {
-    height: 72,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FBF9F1',
-    borderBottomWidth: 2,
-    borderBottomColor: '#CDD2C8',
+    minHeight: 82,
+    paddingHorizontal: 16,
+    backgroundColor: COLORS.background,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.outlineVariant,
+    flexDirection: "row",
+    alignItems: "center",
   },
 
   backButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
+    minWidth: 110,
+    minHeight: 54,
+    paddingHorizontal: 12,
+    borderRadius: 17,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+  },
+
+  backText: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: COLORS.primary,
+  },
+
+  headerText: {
+    flex: 1,
+    marginLeft: 14,
   },
 
   headerTitle: {
-    fontSize: 28,
-    lineHeight: 36,
-    fontWeight: '700',
-    color: '#3F6F45',
+    fontSize: 25,
+    lineHeight: 31,
+    fontWeight: "800",
+    color: COLORS.text,
   },
 
-  headerSectionTitle: {
-    marginLeft: 'auto',
-    fontSize: 20,
-    lineHeight: 24,
-    fontWeight: '700',
-    color: '#3F6F45',
+  headerSubtitle: {
+    marginTop: 2,
+    fontSize: 14,
+    lineHeight: 20,
+    color: COLORS.textSecondary,
   },
 
-  // Content
   content: {
-    paddingHorizontal: 24,
+    width: "100%",
+    maxWidth: 900,
+    alignSelf: "center",
+    paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 125,
+    paddingBottom: 35,
   },
 
   introCard: {
-    minHeight: 92,
-    backgroundColor: '#F1F0E7',
-    borderWidth: 2,
-    borderColor: '#D9DDD4',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
+    minHeight: 100,
+    padding: 17,
+    borderRadius: 22,
+    backgroundColor: COLORS.surfaceLow,
+    borderWidth: 1,
+    borderColor: COLORS.surfaceVariant,
+    flexDirection: "row",
+    alignItems: "center",
   },
 
   introIcon: {
     width: 60,
     height: 60,
-    borderRadius: 30,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
+    borderRadius: 20,
+    backgroundColor: COLORS.surface,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   introTextBlock: {
     flex: 1,
+    marginLeft: 14,
   },
 
   introTitle: {
-    fontSize: 21,
-    lineHeight: 27,
-    fontWeight: '700',
-    color: '#3F6F45',
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: "800",
+    color: COLORS.primary,
   },
 
   introText: {
-    marginTop: 3,
-    fontSize: 16,
-    lineHeight: 22,
-    color: '#565A52',
+    marginTop: 4,
+    fontSize: 15,
+    lineHeight: 21,
+    color: COLORS.textSecondary,
   },
 
-  // Loading
   loadingContainer: {
-    minHeight: 180,
-    alignItems: 'center',
-    justifyContent: 'center',
+    minHeight: 220,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   loadingText: {
     marginTop: 12,
-    fontSize: 18,
-    color: '#565A52',
+    fontSize: 16,
+    color: COLORS.textSecondary,
   },
 
-  // Empty
   emptyCard: {
-    minHeight: 220,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: '#CDD2C8',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 28,
-    marginBottom: 18,
+    marginTop: 16,
+    minHeight: 240,
+    padding: 25,
+    borderRadius: 22,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  emptyIcon: {
+    width: 78,
+    height: 78,
+    borderRadius: 27,
+    backgroundColor: COLORS.secondaryContainer,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   emptyTitle: {
-    marginTop: 12,
-    fontSize: 24,
-    lineHeight: 30,
-    fontWeight: '700',
-    color: '#1B1C17',
-    textAlign: 'center',
+    marginTop: 14,
+    fontSize: 22,
+    lineHeight: 29,
+    fontWeight: "800",
+    color: COLORS.text,
+    textAlign: "center",
   },
 
   emptyText: {
-    marginTop: 8,
-    fontSize: 17,
-    lineHeight: 25,
-    color: '#565A52',
-    textAlign: 'center',
+    marginTop: 7,
+    fontSize: 15,
+    lineHeight: 22,
+    color: COLORS.textSecondary,
+    textAlign: "center",
   },
 
-  // Contact
   contactCard: {
-    minHeight: 128,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: '#CDD2C8',
-    borderRadius: 8,
+    minHeight: 140,
+    marginTop: 16,
     padding: 16,
-    marginBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    position: 'relative',
-    overflow: 'hidden',
-    elevation: 2,
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
+    borderRadius: 20,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    flexDirection: "row",
+    alignItems: "center",
+    position: "relative",
+    overflow: "hidden",
   },
 
-  topPattern: {
-    position: 'absolute',
-    top: 0,
+  contactAccent: {
+    position: "absolute",
     left: 0,
     right: 0,
+    top: 0,
     height: 5,
-    flexDirection: 'row',
+    flexDirection: "row",
   },
 
-  patternStripeOne: {
+  accentOne: {
     flex: 1,
-    backgroundColor: '#A65D43',
+    backgroundColor: COLORS.primary,
   },
 
-  patternStripeTwo: {
+  accentTwo: {
     flex: 1,
-    backgroundColor: '#A65D43',
-    opacity: 0.55,
+    backgroundColor: COLORS.secondary,
   },
 
-  patternStripeThree: {
+  accentThree: {
     flex: 1,
-    backgroundColor: '#A65D43',
-    opacity: 0.25,
+    backgroundColor: COLORS.tertiary,
   },
 
   contactInfo: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     minWidth: 0,
   },
 
   profilePlaceholder: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: '#E7EFE3',
-    borderWidth: 2,
-    borderColor: '#CDD2C8',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: COLORS.surfaceLow,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   initials: {
-    fontSize: 25,
-    lineHeight: 30,
-    fontWeight: '700',
-    color: '#3F6F45',
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: "900",
+    color: COLORS.primary,
   },
 
   nameBlock: {
     flex: 1,
     minWidth: 0,
+    marginLeft: 13,
   },
 
   memberName: {
-    fontSize: 25,
-    lineHeight: 31,
-    fontWeight: '700',
-    color: '#1B1C17',
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: "800",
+    color: COLORS.text,
   },
 
   memberRelation: {
     marginTop: 2,
-    fontSize: 17,
-    lineHeight: 23,
-    color: '#565A52',
+    fontSize: 14,
+    lineHeight: 20,
+    color: COLORS.textSecondary,
   },
 
   memberPhone: {
     marginTop: 3,
-    fontSize: 16,
-    lineHeight: 22,
-    color: '#8A6040',
+    fontSize: 14,
+    lineHeight: 20,
+    color: COLORS.secondary,
   },
 
   actionColumn: {
-    alignItems: 'stretch',
     marginLeft: 10,
+    alignItems: "stretch",
   },
 
   callButton: {
-    minHeight: 54,
-    minWidth: 94,
-    paddingHorizontal: 17,
-    borderRadius: 8,
-    backgroundColor: '#3F6F45',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 2,
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
+    minHeight: 50,
+    minWidth: 88,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
   },
 
   callButtonText: {
-    marginLeft: 7,
-    color: '#FFFFFF',
-    fontSize: 19,
-    lineHeight: 24,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: "800",
+    color: COLORS.onPrimary,
   },
 
   deleteButton: {
-    minHeight: 42,
-    marginTop: 5,
-    paddingHorizontal: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    minHeight: 40,
+    marginTop: 4,
+    paddingHorizontal: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
   },
 
   deleteText: {
-    marginLeft: 4,
-    fontSize: 14,
-    lineHeight: 18,
-    fontWeight: '700',
-    color: '#9B3F32',
+    fontSize: 13,
+    fontWeight: "800",
+    color: COLORS.error,
   },
 
-  pressed: {
-    opacity: 0.78,
-  },
-
-  // Add member
   addFamilyButton: {
-    width: '100%',
-    minHeight: 116,
-    marginTop: 2,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: '#3F6F45',
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
+    width: "100%",
+    minHeight: 110,
+    marginTop: 16,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: COLORS.primary,
+    borderRadius: 20,
+    backgroundColor: COLORS.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 18,
   },
 
   addFamilyText: {
-    marginTop: 8,
-    fontSize: 25,
-    lineHeight: 32,
-    fontWeight: '700',
-    color: '#3F6F45',
-    textAlign: 'center',
+    marginTop: 7,
+    fontSize: 20,
+    lineHeight: 27,
+    fontWeight: "800",
+    color: COLORS.primary,
+    textAlign: "center",
   },
 
   addPressed: {
-    backgroundColor: '#F1F0E7',
+    backgroundColor: COLORS.surfaceLow,
   },
 
   refreshButton: {
-    minHeight: 56,
-    marginTop: 12,
-    borderWidth: 2,
-    borderColor: '#CDD2C8',
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    minHeight: 54,
+    marginTop: 11,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    backgroundColor: COLORS.surface,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
   },
 
   refreshText: {
-    marginLeft: 8,
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#3F6F45',
+    fontSize: 15,
+    fontWeight: "800",
+    color: COLORS.primary,
   },
 
-  // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(40, 42, 36, 0.45)',
-    justifyContent: 'center',
+    backgroundColor: "rgba(40, 42, 36, 0.45)",
+    justifyContent: "center",
     paddingHorizontal: 20,
   },
 
   modalCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
     padding: 22,
-    borderWidth: 2,
-    borderColor: '#CDD2C8',
-    elevation: 8,
+    borderRadius: 24,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
   },
 
   modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 13,
   },
 
   modalTitle: {
     flex: 1,
-    fontSize: 27,
-    lineHeight: 34,
-    fontWeight: '700',
-    color: '#3F6F45',
+    fontSize: 23,
+    lineHeight: 30,
+    fontWeight: "800",
+    color: COLORS.primary,
   },
 
   modalCloseButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: COLORS.surfaceLow,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   inputLabel: {
     marginTop: 10,
     marginBottom: 6,
-    fontSize: 17,
-    lineHeight: 22,
-    fontWeight: '700',
-    color: '#1B1C17',
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: "800",
+    color: COLORS.text,
   },
 
   input: {
     minHeight: 54,
-    borderWidth: 2,
-    borderColor: '#CDD2C8',
-    borderRadius: 8,
     paddingHorizontal: 14,
-    fontSize: 18,
-    color: '#1B1C17',
-    backgroundColor: '#FBF9F1',
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    backgroundColor: COLORS.background,
+    fontSize: 16,
+    color: COLORS.text,
   },
 
   saveButton: {
     minHeight: 58,
-    marginTop: 22,
-    borderRadius: 8,
-    backgroundColor: '#3F6F45',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginTop: 21,
+    borderRadius: 17,
+    backgroundColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
   },
 
   saveButtonText: {
-    marginLeft: 8,
-    color: '#FFFFFF',
-    fontSize: 19,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: "800",
+    color: COLORS.onPrimary,
   },
 
   disabledButton: {
     opacity: 0.6,
   },
 
-  // Bottom navigation
-  bottomNav: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 90,
-    paddingHorizontal: 8,
-    paddingVertical: 12,
-    backgroundColor: '#FBF9F1',
-    borderTopWidth: 2,
-    borderTopColor: '#CDD2C8',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-  },
-
-  navItem: {
-    minWidth: 64,
-    minHeight: 60,
-    paddingHorizontal: 8,
-    paddingVertical: 7,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  navItemActive: {
-    backgroundColor: '#315A36',
-  },
-
-  navLabel: {
-    marginTop: 3,
-    fontSize: 14,
-    lineHeight: 18,
-    fontWeight: '700',
-    color: '#565A52',
-  },
-
-  navLabelActive: {
-    color: '#D7E7D2',
-  },
-
-  navPressed: {
+  pressed: {
     opacity: 0.75,
+    transform: [{ scale: 0.98 }],
   },
 });

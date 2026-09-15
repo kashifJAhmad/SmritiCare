@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -7,10 +7,14 @@ import {
   StyleSheet,
   Text,
   View,
-} from 'react-native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { getLocalCognitiveScores, LocalCognitiveScore } from '../../database/repositories/gameRepository';
-import { syncManager } from '../../services/syncManager';
+} from "react-native";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+
+import {
+  getLocalCognitiveScores,
+  LocalCognitiveScore,
+} from "../../database/repositories/gameRepository";
+import { syncManager } from "../../services/syncManager";
 
 type CognitiveScoreScreenProps = {
   userId?: string;
@@ -20,14 +24,38 @@ type CognitiveScoreScreenProps = {
   onStartExercise?: () => void;
 };
 
+const COLORS = {
+  background: "#FBF9F1",
+  surface: "#FFFFFF",
+  surfaceLow: "#F1F0E7",
+  surfaceVariant: "#D9DDD4",
+
+  primary: "#3F6F45",
+  primaryContainer: "#315A36",
+  onPrimary: "#FFFFFF",
+  onPrimaryContainer: "#D7E7D2",
+
+  secondary: "#8A6040",
+  secondaryContainer: "#E9D7C5",
+  onSecondaryContainer: "#68472F",
+
+  tertiary: "#A65D43",
+
+  text: "#1B1C17",
+  textSecondary: "#565A52",
+
+  outline: "#72766D",
+  outlineVariant: "#CDD2C8",
+};
+
 const weeklyScores = [
-  { day: 'Mon', score: 60 },
-  { day: 'Tue', score: 75 },
-  { day: 'Wed', score: 85 },
-  { day: 'Thu', score: 82, current: true },
-  { day: 'Fri', score: 20, muted: true },
-  { day: 'Sat', score: 20, muted: true },
-  { day: 'Sun', score: 20, muted: true },
+  { day: "Mon", score: 60 },
+  { day: "Tue", score: 75 },
+  { day: "Wed", score: 85 },
+  { day: "Thu", score: 82, current: true },
+  { day: "Fri", score: 20, muted: true },
+  { day: "Sat", score: 20, muted: true },
+  { day: "Sun", score: 20, muted: true },
 ];
 
 export default function CognitiveScoreScreen({
@@ -37,26 +65,36 @@ export default function CognitiveScoreScreen({
   onFamilyPhotos,
   onStartExercise,
 }: CognitiveScoreScreenProps) {
-  const [latestScore, setLatestScore] = useState<number>(82);
-  const [scoresList, setScoresList] = useState<LocalCognitiveScore[]>([]);
+  const [latestScore, setLatestScore] = useState(82);
+  const [scoresList, setScoresList] = useState<
+    LocalCognitiveScore[]
+  >([]);
 
   useEffect(() => {
     const loadScores = async () => {
       try {
-        const targetUserId = userId || 'patient_local';
-        const scores = await getLocalCognitiveScores(targetUserId);
+        const targetUserId = userId || "patient_local";
+
+        const scores =
+          await getLocalCognitiveScores(targetUserId);
+
         if (scores && scores.length > 0) {
           setScoresList(scores);
           setLatestScore(scores[0].score);
         }
-      } catch (e) {
-        console.log('Error loading cognitive scores:', e);
+      } catch (error) {
+        console.log(
+          "Error loading cognitive scores:",
+          error,
+        );
       }
     };
 
     loadScores();
+
     syncManager.triggerSync().catch(() => {});
   }, [userId]);
+
   const handleMemoryGame = () => {
     if (onMemoryGame) {
       onMemoryGame();
@@ -64,8 +102,8 @@ export default function CognitiveScoreScreen({
     }
 
     Alert.alert(
-      'Memory Game',
-      'The memory game will be connected next.'
+      "Memory Game",
+      "The memory game is not available right now.",
     );
   };
 
@@ -76,8 +114,8 @@ export default function CognitiveScoreScreen({
     }
 
     Alert.alert(
-      'Family Photos',
-      'Family photos will be connected next.'
+      "Family Photos",
+      "Family photos are not available right now.",
     );
   };
 
@@ -88,15 +126,15 @@ export default function CognitiveScoreScreen({
     }
 
     Alert.alert(
-      'Daily Exercise',
-      'Daily exercise will be connected next.'
+      "Daily Exercise",
+      "Daily exercise is not available right now.",
     );
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {/* Top App Bar */}
+        {/* Header */}
         <View style={styles.header}>
           <Pressable
             onPress={onBack}
@@ -105,62 +143,72 @@ export default function CognitiveScoreScreen({
               pressed && styles.pressed,
             ]}
             accessibilityRole="button"
-            accessibilityLabel="Go back"
+            accessibilityLabel="Go back to home"
           >
             <Ionicons
               name="arrow-back"
-              size={25}
-              color="#3F6F45"
+              size={29}
+              color={COLORS.primary}
             />
-            <Text style={styles.backText}>Back</Text>
+
+            <Text style={styles.backText}>
+              Back
+            </Text>
           </Pressable>
 
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>SmritiCare</Text>
-          </View>
-
-          <View style={styles.headerSpacer} />
+          <Text style={styles.headerTitle}>
+            Cognitive Score
+          </Text>
         </View>
 
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
         >
-          <Text style={styles.pageTitle}>Cognitive Score</Text>
+          {/* Title */}
+          <Text style={styles.pageTitle}>
+            Your Cognitive Progress
+          </Text>
 
-          {/* Score Gauge */}
+          <Text style={styles.pageSubtitle}>
+            A simple view of your recent mental exercise progress.
+          </Text>
+
+          {/* Score card */}
           <View style={styles.scoreCard}>
-            <View style={styles.scoreIntro}>
-              <Text style={styles.scoreHeading}>
-                Doing Great, Aita!
-              </Text>
-              <Text style={styles.scoreDescription}>
-                Your mind is active and engaged today.
-              </Text>
-            </View>
+            <Text style={styles.scoreHeading}>
+              Doing Great!
+            </Text>
+
+            <Text style={styles.scoreDescription}>
+              Your mind is active and engaged today.
+            </Text>
 
             <View style={styles.gaugeContainer}>
-              <View style={styles.gauge}>
-                <View
-                  style={[
-                    styles.gaugeProgress,
-                    {
-                      transform: [
-                        { rotate: '-90deg' },
-                      ],
-                    },
-                  ]}
-                />
-                <View style={styles.gaugeCenter}>
-                  <Text style={styles.scoreNumber}>82</Text>
-                  <Text style={styles.scoreOutOf}>/ 100</Text>
+              <View style={styles.gaugeOuter}>
+                <View style={styles.gaugeProgress} />
+
+                <View style={styles.gaugeInner}>
+                  <Text style={styles.scoreNumber}>
+                    {latestScore}
+                  </Text>
+
+                  <Text style={styles.scoreOutOf}>
+                    / 100
+                  </Text>
                 </View>
               </View>
             </View>
+
+            {scoresList.length > 0 ? (
+              <Text style={styles.updatedText}>
+                Based on your latest recorded exercise
+              </Text>
+            ) : null}
           </View>
 
-          {/* Weekly Progress */}
-          <View style={styles.weeklyCard}>
+          {/* Weekly progress */}
+          <View style={styles.card}>
             <Text style={styles.sectionTitle}>
               Weekly Progress
             </Text>
@@ -172,13 +220,13 @@ export default function CognitiveScoreScreen({
                   style={styles.barColumn}
                 >
                   <View style={styles.barArea}>
-                    {item.current && (
+                    {item.current ? (
                       <View style={styles.scoreTooltip}>
                         <Text style={styles.tooltipText}>
-                          82
+                          {latestScore}
                         </Text>
                       </View>
-                    )}
+                    ) : null}
 
                     <View
                       style={[
@@ -186,8 +234,10 @@ export default function CognitiveScoreScreen({
                         {
                           height: `${item.score}%`,
                         },
-                        item.current && styles.currentBar,
-                        item.muted && styles.mutedBar,
+                        item.current &&
+                          styles.currentBar,
+                        item.muted &&
+                          styles.mutedBar,
                       ]}
                     />
                   </View>
@@ -195,7 +245,8 @@ export default function CognitiveScoreScreen({
                   <Text
                     style={[
                       styles.dayLabel,
-                      item.current && styles.currentDayLabel,
+                      item.current &&
+                        styles.currentDayLabel,
                     ]}
                   >
                     {item.day}
@@ -205,7 +256,7 @@ export default function CognitiveScoreScreen({
             </View>
           </View>
 
-          {/* Daily Insights */}
+          {/* Insights */}
           <View style={styles.insightsSection}>
             <Text style={styles.sectionTitle}>
               Daily Insights
@@ -223,8 +274,8 @@ export default function CognitiveScoreScreen({
               <View style={styles.greenInsightIcon}>
                 <MaterialIcons
                   name="extension"
-                  size={26}
-                  color="#D7E7D2"
+                  size={27}
+                  color={COLORS.onPrimaryContainer}
                 />
               </View>
 
@@ -232,6 +283,7 @@ export default function CognitiveScoreScreen({
                 <Text style={styles.insightTitle}>
                   Try a Memory Game
                 </Text>
+
                 <Text style={styles.insightDescription}>
                   A quick 5-minute puzzle to boost focus.
                 </Text>
@@ -239,8 +291,8 @@ export default function CognitiveScoreScreen({
 
               <MaterialIcons
                 name="chevron-right"
-                size={28}
-                color="#565A52"
+                size={29}
+                color={COLORS.outline}
               />
             </Pressable>
 
@@ -253,11 +305,11 @@ export default function CognitiveScoreScreen({
               accessibilityRole="button"
               accessibilityLabel="View Family Photos"
             >
-              <View style={styles.blueInsightIcon}>
+              <View style={styles.photoInsightIcon}>
                 <MaterialIcons
                   name="auto-stories"
-                  size={26}
-                  color="#68472F"
+                  size={27}
+                  color={COLORS.onSecondaryContainer}
                 />
               </View>
 
@@ -265,6 +317,7 @@ export default function CognitiveScoreScreen({
                 <Text style={styles.insightTitle}>
                   View Family Photos
                 </Text>
+
                 <Text style={styles.insightDescription}>
                   Look at recent pictures shared by your family.
                 </Text>
@@ -272,13 +325,13 @@ export default function CognitiveScoreScreen({
 
               <MaterialIcons
                 name="chevron-right"
-                size={28}
-                color="#565A52"
+                size={29}
+                color={COLORS.outline}
               />
             </Pressable>
           </View>
 
-          {/* Start Daily Exercise */}
+          {/* Exercise */}
           <Pressable
             onPress={handleExercise}
             style={({ pressed }) => [
@@ -290,9 +343,10 @@ export default function CognitiveScoreScreen({
           >
             <MaterialIcons
               name="play-arrow"
-              size={27}
-              color="#FFFFFF"
+              size={28}
+              color={COLORS.onPrimary}
             />
+
             <Text style={styles.exerciseButtonText}>
               Start Daily Exercise
             </Text>
@@ -306,299 +360,319 @@ export default function CognitiveScoreScreen({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FBF9F1',
+    backgroundColor: COLORS.background,
   },
+
   container: {
     flex: 1,
-    backgroundColor: '#FBF9F1',
+    backgroundColor: COLORS.background,
   },
 
-  // Header
   header: {
-    height: 64,
-    paddingHorizontal: 24,
-    backgroundColor: '#FBF9F1',
-    borderBottomWidth: 2,
-    borderBottomColor: '#CDD2C8',
-    flexDirection: 'row',
-    alignItems: 'center',
+    minHeight: 76,
+    paddingHorizontal: 16,
+    backgroundColor: COLORS.background,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.outlineVariant,
+    flexDirection: "row",
+    alignItems: "center",
   },
+
   backButton: {
-    minHeight: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 8,
-    borderRadius: 8,
+    minWidth: 110,
+    minHeight: 54,
+    paddingHorizontal: 12,
+    borderRadius: 17,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
   },
+
   backText: {
-    fontSize: 28,
-    lineHeight: 34,
-    fontWeight: '700',
-    color: '#3F6F45',
+    fontSize: 18,
+    fontWeight: "800",
+    color: COLORS.primary,
   },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
-  },
+
   headerTitle: {
-    fontSize: 28,
-    lineHeight: 36,
-    fontWeight: '700',
-    color: '#3F6F45',
-  },
-  headerSpacer: {
-    width: 72,
+    flex: 1,
+    marginLeft: 14,
+    fontSize: 24,
+    lineHeight: 31,
+    fontWeight: "800",
+    color: COLORS.text,
   },
 
-  // Main
   content: {
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 36,
+    width: "100%",
+    maxWidth: 900,
+    alignSelf: "center",
+    paddingHorizontal: 20,
+    paddingTop: 22,
+    paddingBottom: 35,
   },
+
   pageTitle: {
-    fontSize: 34,
-    lineHeight: 42,
-    fontWeight: '700',
-    color: '#1B1C17',
-    marginBottom: 16,
+    fontSize: 30,
+    lineHeight: 38,
+    fontWeight: "800",
+    color: COLORS.text,
   },
 
-  // Score
+  pageSubtitle: {
+    marginTop: 5,
+    marginBottom: 17,
+    fontSize: 16,
+    lineHeight: 23,
+    color: COLORS.textSecondary,
+  },
+
   scoreCard: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: '#CDD2C8',
-    borderRadius: 8,
-    padding: 24,
-    elevation: 2,
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  scoreIntro: {
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  scoreHeading: {
-    fontSize: 28,
-    lineHeight: 34,
-    fontWeight: '700',
-    color: '#3F6F45',
-    textAlign: 'center',
-  },
-  scoreDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    lineHeight: 28,
-    color: '#565A52',
-    textAlign: 'center',
-  },
-  gaugeContainer: {
-    height: 240,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-  },
-  gauge: {
-    width: 190,
-    height: 190,
-    borderRadius: 95,
-    borderWidth: 15,
-    borderColor: '#E7EFE3',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  gaugeProgress: {
-    position: 'absolute',
-    width: 190,
-    height: 190,
-    borderRadius: 95,
-    borderWidth: 15,
-    borderColor: '#3F6F45',
-    borderLeftColor: 'transparent',
-    borderBottomColor: 'transparent',
-    transformOrigin: 'center',
-  },
-  gaugeCenter: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scoreNumber: {
-    fontSize: 46,
-    lineHeight: 54,
-    fontWeight: '700',
-    color: '#3F6F45',
-  },
-  scoreOutOf: {
-    marginTop: 2,
-    fontSize: 18,
-    lineHeight: 28,
-    color: '#565A52',
+    padding: 22,
+    borderRadius: 24,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    alignItems: "center",
   },
 
-  // Weekly progress
-  weeklyCard: {
-    marginTop: 16,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: '#CDD2C8',
-    borderRadius: 8,
-    padding: 24,
-    elevation: 2,
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  sectionTitle: {
-    fontSize: 28,
+  scoreHeading: {
+    fontSize: 27,
     lineHeight: 34,
-    fontWeight: '700',
-    color: '#1B1C17',
-    marginBottom: 22,
+    fontWeight: "800",
+    color: COLORS.primary,
+    textAlign: "center",
   },
+
+  scoreDescription: {
+    marginTop: 6,
+    fontSize: 16,
+    lineHeight: 23,
+    color: COLORS.textSecondary,
+    textAlign: "center",
+  },
+
+  gaugeContainer: {
+    width: 220,
+    height: 220,
+    marginTop: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  gaugeOuter: {
+    width: 190,
+    height: 190,
+    borderRadius: 95,
+    borderWidth: 15,
+    borderColor: COLORS.surfaceVariant,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+
+  gaugeProgress: {
+    position: "absolute",
+    width: 190,
+    height: 190,
+    borderRadius: 95,
+    borderWidth: 15,
+    borderColor: COLORS.primary,
+    borderLeftColor: "transparent",
+    borderBottomColor: "transparent",
+    transform: [{ rotate: "-45deg" }],
+  },
+
+  gaugeInner: {
+    width: 145,
+    height: 145,
+    borderRadius: 73,
+    backgroundColor: COLORS.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  scoreNumber: {
+    fontSize: 47,
+    lineHeight: 55,
+    fontWeight: "900",
+    color: COLORS.primary,
+  },
+
+  scoreOutOf: {
+    marginTop: 1,
+    fontSize: 17,
+    color: COLORS.textSecondary,
+  },
+
+  updatedText: {
+    marginTop: 2,
+    fontSize: 13,
+    color: COLORS.secondary,
+  },
+
+  card: {
+    marginTop: 16,
+    padding: 20,
+    borderRadius: 22,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+  },
+
+  sectionTitle: {
+    marginBottom: 19,
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: "800",
+    color: COLORS.text,
+  },
+
   chart: {
     height: 190,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
+    flexDirection: "row",
+    alignItems: "flex-end",
     gap: 8,
   },
+
   barColumn: {
     flex: 1,
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "flex-end",
   },
+
   barArea: {
-    width: '100%',
-    height: 150,
-    justifyContent: 'flex-end',
-    position: 'relative',
+    width: "100%",
+    height: 145,
+    justifyContent: "flex-end",
+    position: "relative",
   },
+
   bar: {
-    width: '100%',
-    backgroundColor: '#D9DDD4',
-    borderTopLeftRadius: 4,
-    borderTopRightRadius: 4,
+    width: "100%",
+    minHeight: 10,
+    backgroundColor: COLORS.surfaceVariant,
+    borderTopLeftRadius: 6,
+    borderTopRightRadius: 6,
   },
+
   currentBar: {
-    backgroundColor: '#3F6F45',
+    backgroundColor: COLORS.primary,
   },
+
   mutedBar: {
-    opacity: 0.5,
+    opacity: 0.55,
   },
+
   scoreTooltip: {
-    position: 'absolute',
+    position: "absolute",
     top: -2,
-    alignSelf: 'center',
-    backgroundColor: '#68472F',
-    borderRadius: 4,
-    paddingHorizontal: 7,
+    alignSelf: "center",
+    backgroundColor: COLORS.secondary,
+    borderRadius: 9,
+    paddingHorizontal: 8,
     paddingVertical: 4,
     zIndex: 2,
   },
+
   tooltipText: {
-    fontSize: 14,
-    color: '#FBF9F1',
-    fontWeight: '400',
+    fontSize: 12,
+    fontWeight: "800",
+    color: COLORS.surface,
   },
+
   dayLabel: {
     marginTop: 8,
-    fontSize: 18,
-    lineHeight: 28,
-    color: '#565A52',
-  },
-  currentDayLabel: {
-    color: '#3F6F45',
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: "700",
+    color: COLORS.textSecondary,
   },
 
-  // Insights
-  insightsSection: {
-    marginTop: 16,
+  currentDayLabel: {
+    color: COLORS.primary,
   },
+
+  insightsSection: {
+    marginTop: 20,
+  },
+
   insightCard: {
     minHeight: 100,
-    marginBottom: 16,
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: '#CDD2C8',
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    elevation: 2,
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
-  },
-  greenInsightIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#315A36',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  blueInsightIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#E9D7C5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  insightText: {
-    flex: 1,
-  },
-  insightTitle: {
-    fontSize: 22,
-    lineHeight: 32,
-    fontWeight: '700',
-    color: '#1B1C17',
-  },
-  insightDescription: {
-    marginTop: 2,
-    fontSize: 18,
-    lineHeight: 28,
-    color: '#565A52',
+    marginBottom: 12,
+    padding: 15,
+    borderRadius: 20,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    flexDirection: "row",
+    alignItems: "center",
   },
 
-  // Exercise
+  greenInsightIcon: {
+    width: 54,
+    height: 54,
+    borderRadius: 18,
+    backgroundColor: COLORS.primaryContainer,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  photoInsightIcon: {
+    width: 54,
+    height: 54,
+    borderRadius: 18,
+    backgroundColor: COLORS.secondaryContainer,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  insightText: {
+    flex: 1,
+    marginHorizontal: 13,
+  },
+
+  insightTitle: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: "800",
+    color: COLORS.text,
+  },
+
+  insightDescription: {
+    marginTop: 3,
+    fontSize: 14,
+    lineHeight: 20,
+    color: COLORS.textSecondary,
+  },
+
   exerciseButton: {
     minHeight: 60,
-    marginTop: 8,
-    borderRadius: 8,
-    backgroundColor: '#3F6F45',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginTop: 7,
+    borderRadius: 18,
+    backgroundColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 8,
-    elevation: 2,
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
   },
+
   exerciseButtonText: {
-    fontSize: 20,
-    lineHeight: 24,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: "800",
+    color: COLORS.onPrimary,
   },
 
   pressed: {
-    opacity: 0.78,
+    opacity: 0.75,
+    transform: [{ scale: 0.98 }],
   },
+
   cardPressed: {
-    backgroundColor: '#F1F0E7',
+    backgroundColor: COLORS.surfaceLow,
   },
 });
