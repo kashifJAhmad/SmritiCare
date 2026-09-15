@@ -25,6 +25,7 @@ import {
   type UserProfile,
 } from "../../services/profile.service";
 import { getToken } from "../../services/authStorage";
+import { API_BASE_URL } from "../../constants/api";
 
 type EmergencyContact = {
   id: string;
@@ -35,6 +36,14 @@ type EmergencyContact = {
   updatedAt?: string;
 };
 
+type ConnectedCaregiver = {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  profileImageUrl?: string;
+};
+
 type ProfileScreenProps = {
   onBack?: () => void;
   onHome?: () => void;
@@ -43,8 +52,6 @@ type ProfileScreenProps = {
   onMemory?: () => void;
   onProfile?: () => void;
 };
-
-import { API_BASE_URL } from "../../constants/api";
 
 const COLORS = {
   background: "#FBF9F1",
@@ -198,19 +205,8 @@ export default function ProfileScreen({
   const [caregiverAccess, setCaregiverAccess] = useState(false);
   const [gpsSharing, setGpsSharing] = useState(false);
 
-  const locationSubscriptionRef =
-    useRef<Location.LocationSubscription | null>(null);
-  const gpsStartingRef = useRef(false);
-
-  const [caregiverConnection, setCaregiverConnection] = useState<{
-    id: string;
-    name: string;
-    email?: string;
-    phone?: string;
-  } | null>(null);
-  const [connectCaregiverVisible, setConnectCaregiverVisible] = useState(false);
-  const [inviteCode, setInviteCode] = useState("");
-  const [connectingCaregiver, setConnectingCaregiver] = useState(false);
+  const [caregiverConnection, setCaregiverConnection] =
+    useState<ConnectedCaregiver | null>(null);
 
   const [patientCode, setPatientCode] = useState("");
   const [loadingPatientCode, setLoadingPatientCode] = useState(false);
@@ -219,6 +215,11 @@ export default function ProfileScreen({
   const [contactName, setContactName] = useState("");
   const [contactRelationship, setContactRelationship] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+
+  const locationSubscriptionRef =
+    useRef<Location.LocationSubscription | null>(null);
+
+  const gpsStartingRef = useRef(false);
 
   const stopLocationSharing = useCallback(() => {
     if (locationSubscriptionRef.current) {
@@ -286,7 +287,10 @@ export default function ProfileScreen({
 
   const startLocationSharing = useCallback(
     async (showErrors = true) => {
-      if (gpsStartingRef.current || locationSubscriptionRef.current) {
+      if (
+        gpsStartingRef.current ||
+        locationSubscriptionRef.current
+      ) {
         return true;
       }
 
@@ -297,6 +301,7 @@ export default function ProfileScreen({
             "GPS location sharing is currently supported on Android and iOS."
           );
         }
+
         return false;
       }
 
@@ -313,6 +318,7 @@ export default function ProfileScreen({
               "Please allow SmritiCare to access your location so your connected caregiver can see your current location."
             );
           }
+
           return false;
         }
 
@@ -352,6 +358,7 @@ export default function ProfileScreen({
               : "Unable to get or share your current location."
           );
         }
+
         return false;
       } finally {
         gpsStartingRef.current = false;
@@ -372,6 +379,7 @@ export default function ProfileScreen({
           });
 
           setProfile(updated);
+
           await removeLocationFromServer();
 
           showMessage(
@@ -401,6 +409,7 @@ export default function ProfileScreen({
             "Location permission required",
             "GPS sharing was not enabled because location permission was not granted."
           );
+
           return;
         }
 
@@ -441,6 +450,7 @@ export default function ProfileScreen({
           const reverted = await updateMyProfile({
             gpsSharing: false,
           });
+
           setProfile(reverted);
         } catch {
           // Keep local state disabled if rollback fails.
@@ -461,124 +471,210 @@ export default function ProfileScreen({
     ]
   );
 
-  const loadConnectedCaregiver = async (token?: string) => {
-    try {
-      const authToken = token || (await getToken());
+  /**
+   * Loads the caregiver connected to this patient.
+   *
+   * Backend:
+   * GET /api/caregiver-connections/caregiver
+   *
+   * Backend response:
+   * {
+   *   success: true,
+   *   caregiver: {
+   *     id: "...",
+   *     patientId: "...",
+   *     caregiverId: "...",
+   *     caregiver: {
+   *       id: "...",
+   *       fullName: "...",
+   *       email: "...",
+   *       phone: "...",
+   *       profileImageUrl: "..."
+   *     }
+   *   }
+   * }
+   */
+  const loadConnectedCaregiver = useCallback(
+    async (token?: string) => {
+      try {
+        const authToken = token || (await getToken());
 
-      if (!authToken) return;
-
-      const response = await fetch(
-        `${API_BASE_URL}/api/caregiver-connections/caregiver`,
-        {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-          },
+        if (!authToken) {
+          return;
         }
-      );
 
-      const result = await response.json();
+        const response = await fetch(
+          `${API_BASE_URL}/api/caregiver-connections/caregiver`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+              Accept: "application/json",
+            },
+          }
+        );
 
-      if (!response.ok || !result.success) {
-        setCaregiverConnection(null);
-        return;
-      }
+        const result = await response.json();
 
-      const data = result.data;
+        if (!response.ok || !result.success) {
+          setCaregiverConnection(null);
+          return;
+        }
 
-      const connection = data?.connection || data;
-      const caregiver = connection?.caregiver || data?.caregiver || connection;
+        // IMPORTANT:
+        // Your controller returns `caregiver` directly.
+        const connection = result.caregiver;
 
-      if (caregiver && (caregiver.id || connection?.caregiverId)) {
+        if (!connection) {
+          setCaregiverConnection(null);
+          return;
+        }
+
+        // The service includes the actual caregiver
+        // inside connection.caregiver.
+        const caregiver = connection.caregiver;
+
+        if (!caregiver) {
+          setCaregiverConnection(null);
+          return;
+        }
+
         setCaregiverConnection({
-          id: connection?.id || caregiver.id || connection.caregiverId,
-          name:
-            caregiver.fullName ||
-            caregiver.name ||
-            caregiver.caregiverName ||
-            "Connected Caregiver",
+          id: caregiver.id || connection.caregiverId,
+          name: caregiver.fullName || "Connected Caregiver",
           email: caregiver.email || undefined,
           phone: caregiver.phone || undefined,
+          profileImageUrl:
+            caregiver.profileImageUrl || undefined,
         });
-      } else {
+      } catch (error) {
+        console.warn(
+          "Unable to load connected caregiver:",
+          error
+        );
+
         setCaregiverConnection(null);
       }
-    } catch {
-      setCaregiverConnection(null);
-    }
-  };
+    },
+    []
+  );
 
-  const loadPatientCode = async (token?: string) => {
-    try {
-      setLoadingPatientCode(true);
+  const loadPatientCode = useCallback(
+    async (token?: string) => {
+      try {
+        setLoadingPatientCode(true);
 
-      const authToken = token || (await getToken());
+        const authToken = token || (await getToken());
 
-      if (!authToken) {
-        throw new Error("Please log in again.");
-      }
-
-      const response = await fetch(
-        `${API_BASE_URL}/api/caregiver-connections/patient-code`,
-        {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-          },
+        if (!authToken) {
+          throw new Error("Please log in again.");
         }
-      );
 
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(
-          result.message || "Unable to get your patient code."
+        const response = await fetch(
+          `${API_BASE_URL}/api/caregiver-connections/patient-code`,
+          {
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+            },
+          }
         );
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          throw new Error(
+            result.message ||
+              "Unable to get your patient code."
+          );
+        }
+
+        setPatientCode(
+          result.patientCode ||
+            result.data?.patientCode ||
+            ""
+        );
+      } catch (error) {
+        setPatientCode("");
+
+        showMessage(
+          "Patient code",
+          error instanceof Error
+            ? error.message
+            : "Unable to get your patient code."
+        );
+      } finally {
+        setLoadingPatientCode(false);
       }
-
-      setPatientCode(
-        result.patientCode ||
-          result.data?.patientCode ||
-          ""
-      );
-    } catch (error) {
-      setPatientCode("");
-
-      showMessage(
-        "Patient code",
-        error instanceof Error
-          ? error.message
-          : "Unable to get your patient code."
-      );
-    } finally {
-      setLoadingPatientCode(false);
-    }
-  };
+    },
+    []
+  );
 
   const copyPatientCode = async () => {
-    if (!patientCode) {
-      await loadPatientCode();
-      return;
-    }
+  if (!patientCode) {
+    await loadPatientCode();
+    return;
+  }
 
-    try {
-      setCopyingPatientCode(true);
+  try {
+    setCopyingPatientCode(true);
 
-      await Clipboard.setStringAsync(patientCode);
+    await Clipboard.setStringAsync(patientCode);
 
-      showMessage(
-        "Code copied",
-        "Your patient code has been copied. Share it with your caregiver."
-      );
-    } catch (error) {
-      showMessage(
-        "Unable to copy",
-        error instanceof Error
-          ? error.message
-          : "Unable to copy your patient code."
-      );
-    } finally {
-      setCopyingPatientCode(false);
-    }
-  };
+    showMessage(
+      "Code copied",
+      "Your patient code has been copied. Share it with your caregiver."
+    );
+  } catch (error) {
+    showMessage(
+      "Unable to copy",
+      error instanceof Error
+        ? error.message
+        : "Unable to copy your patient code."
+    );
+  } finally {
+    setCopyingPatientCode(false);
+  }
+};
+
+  const loadEmergencyContacts = useCallback(
+    async (token?: string) => {
+      try {
+        const authToken = token || (await getToken());
+
+        if (!authToken) {
+          return;
+        }
+
+        const response = await fetch(
+          `${API_BASE_URL}/api/emergency-contacts`,
+          {
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+            },
+          }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          return;
+        }
+
+        const data = result.data;
+
+        if (Array.isArray(data)) {
+          setContacts(data);
+        } else if (Array.isArray(data?.contacts)) {
+          setContacts(data.contacts);
+        } else {
+          setContacts([]);
+        }
+      } catch {
+        setContacts([]);
+      }
+    },
+    []
+  );
 
   const loadProfile = useCallback(async () => {
     try {
@@ -595,7 +691,11 @@ export default function ProfileScreen({
       setProfile(data);
 
       setFullName(data.fullName || "");
-      setAge(data.age !== null && data.age !== undefined ? String(data.age) : "");
+      setAge(
+        data.age !== null && data.age !== undefined
+          ? String(data.age)
+          : ""
+      );
       setPhone(data.phone || "");
       setDateOfBirth(formatDateForInput(data.dateOfBirth));
       setGender(data.gender || "");
@@ -610,9 +710,12 @@ export default function ProfileScreen({
       setCaregiverAccess(Boolean(data.caregiverAccess));
       setGpsSharing(Boolean(data.gpsSharing));
 
-      await loadEmergencyContacts(token);
-      await loadConnectedCaregiver(token);
-      await loadPatientCode(token);
+      // Load all related information.
+      await Promise.all([
+        loadEmergencyContacts(token),
+        loadConnectedCaregiver(token),
+        loadPatientCode(token),
+      ]);
     } catch (error) {
       const message =
         error instanceof Error
@@ -623,42 +726,11 @@ export default function ProfileScreen({
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  const loadEmergencyContacts = async (token?: string) => {
-    try {
-      const authToken = token || (await getToken());
-
-      if (!authToken) return;
-
-      const response = await fetch(
-        `${API_BASE_URL}/api/emergency-contacts`,
-        {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-          },
-        }
-      );
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        return;
-      }
-
-      const data = result.data;
-
-      if (Array.isArray(data)) {
-        setContacts(data);
-      } else if (Array.isArray(data?.contacts)) {
-        setContacts(data.contacts);
-      } else {
-        setContacts([]);
-      }
-    } catch {
-      setContacts([]);
-    }
-  };
+  }, [
+    loadConnectedCaregiver,
+    loadEmergencyContacts,
+    loadPatientCode,
+  ]);
 
   useEffect(() => {
     loadProfile();
@@ -675,7 +747,10 @@ export default function ProfileScreen({
     const subscription = AppState.addEventListener(
       "change",
       (nextState) => {
-        if (nextState === "active" && profile.gpsSharing) {
+        if (
+          nextState === "active" &&
+          profile.gpsSharing
+        ) {
           startLocationSharing(false);
         }
       }
@@ -692,20 +767,30 @@ export default function ProfileScreen({
   ]);
 
   const initials = useMemo(
-    () => getInitials(profile?.fullName || fullName || "SmritiCare"),
+    () =>
+      getInitials(
+        profile?.fullName ||
+          fullName ||
+          "SmritiCare"
+      ),
     [profile?.fullName, fullName]
   );
 
   const saveProfile = async () => {
     if (!fullName.trim()) {
-      showMessage("Missing information", "Please enter your full name.");
+      showMessage(
+        "Missing information",
+        "Please enter your full name."
+      );
       return;
     }
 
     try {
       setSaving(true);
 
-      const parsedAge = age.trim() ? Number(age) : null;
+      const parsedAge = age.trim()
+        ? Number(age)
+        : null;
 
       if (
         parsedAge !== null &&
@@ -756,69 +841,6 @@ export default function ProfileScreen({
     }
   };
 
-  const connectCaregiver = async () => {
-    const code = inviteCode.trim().toUpperCase();
-
-    if (!code) {
-      showMessage(
-        "Invite code required",
-        "Please enter the invite code provided by your caregiver."
-      );
-      return;
-    }
-
-    try {
-      setConnectingCaregiver(true);
-
-      const token = await getToken();
-
-      if (!token) {
-        throw new Error("Please log in again.");
-      }
-
-      const response = await fetch(
-        `${API_BASE_URL}/api/caregiver-connections/connect`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            inviteCode: code,
-          }),
-        }
-      );
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(
-          result.message || "Unable to connect to the caregiver."
-        );
-      }
-
-      setInviteCode("");
-      setConnectCaregiverVisible(false);
-
-      await loadProfile();
-
-      showMessage(
-        "Caregiver connected",
-        "Your caregiver has been connected to your SmritiCare account successfully."
-      );
-    } catch (error) {
-      showMessage(
-        "Unable to connect",
-        error instanceof Error
-          ? error.message
-          : "Something went wrong while connecting your caregiver."
-      );
-    } finally {
-      setConnectingCaregiver(false);
-    }
-  };
-
   const choosePhoto = async () => {
     try {
       const permission =
@@ -834,13 +856,17 @@ export default function ProfileScreen({
 
       const result =
         await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes:
+            ImagePicker.MediaTypeOptions.Images,
           allowsEditing: true,
           aspect: [1, 1],
           quality: 0.85,
         });
 
-      if (result.canceled || !result.assets?.[0]?.uri) {
+      if (
+        result.canceled ||
+        !result.assets?.[0]?.uri
+      ) {
         return;
       }
 
@@ -875,7 +901,10 @@ export default function ProfileScreen({
           quality: 0.85,
         });
 
-      if (result.canceled || !result.assets?.[0]?.uri) {
+      if (
+        result.canceled ||
+        !result.assets?.[0]?.uri
+      ) {
         return;
       }
 
@@ -965,7 +994,9 @@ export default function ProfileScreen({
     setContactModalVisible(true);
   };
 
-  const openEditContact = (contact: EmergencyContact) => {
+  const openEditContact = (
+    contact: EmergencyContact
+  ) => {
     setEditingContact(contact);
     setContactName(contact.name);
     setContactRelationship(contact.relationship);
@@ -975,12 +1006,18 @@ export default function ProfileScreen({
 
   const saveContact = async () => {
     if (!contactName.trim()) {
-      showMessage("Missing information", "Please enter the contact name.");
+      showMessage(
+        "Missing information",
+        "Please enter the contact name."
+      );
       return;
     }
 
     if (!contactPhone.trim()) {
-      showMessage("Missing information", "Please enter the phone number.");
+      showMessage(
+        "Missing information",
+        "Please enter the phone number."
+      );
       return;
     }
 
@@ -1022,7 +1059,8 @@ export default function ProfileScreen({
 
       if (!response.ok || !result.success) {
         throw new Error(
-          result.message || "Unable to save emergency contact."
+          result.message ||
+            "Unable to save emergency contact."
         );
       }
 
@@ -1031,7 +1069,9 @@ export default function ProfileScreen({
       await loadEmergencyContacts(token);
 
       showMessage(
-        editingContact ? "Contact updated" : "Contact added",
+        editingContact
+          ? "Contact updated"
+          : "Contact added",
         editingContact
           ? "The emergency contact has been updated."
           : "The emergency contact has been added."
@@ -1046,7 +1086,9 @@ export default function ProfileScreen({
     }
   };
 
-  const deleteContact = (contact: EmergencyContact) => {
+  const deleteContact = (
+    contact: EmergencyContact
+  ) => {
     confirmAction(
       "Delete emergency contact",
       `Remove ${contact.name} from your emergency contacts?`,
@@ -1072,7 +1114,8 @@ export default function ProfileScreen({
 
           if (!response.ok || !result.success) {
             throw new Error(
-              result.message || "Unable to delete contact."
+              result.message ||
+                "Unable to delete contact."
             );
           }
 
@@ -1109,10 +1152,14 @@ export default function ProfileScreen({
       </View>
 
       <View style={styles.sectionHeaderText}>
-        <Text style={styles.sectionTitle}>{title}</Text>
+        <Text style={styles.sectionTitle}>
+          {title}
+        </Text>
 
         {subtitle ? (
-          <Text style={styles.sectionSubtitle}>{subtitle}</Text>
+          <Text style={styles.sectionSubtitle}>
+            {subtitle}
+          </Text>
         ) : null}
       </View>
     </View>
@@ -1131,8 +1178,13 @@ export default function ProfileScreen({
       />
 
       <View style={styles.infoTextContainer}>
-        <Text style={styles.infoLabel}>{label}</Text>
-        <Text style={styles.infoValue}>{value || "Not provided"}</Text>
+        <Text style={styles.infoLabel}>
+          {label}
+        </Text>
+
+        <Text style={styles.infoValue}>
+          {value || "Not provided"}
+        </Text>
       </View>
     </View>
   );
@@ -1154,7 +1206,10 @@ export default function ProfileScreen({
       </View>
 
       <View style={styles.switchText}>
-        <Text style={styles.switchTitle}>{title}</Text>
+        <Text style={styles.switchTitle}>
+          {title}
+        </Text>
+
         <Text style={styles.switchDescription}>
           {description}
         </Text>
@@ -1162,7 +1217,9 @@ export default function ProfileScreen({
 
       <Pressable
         accessibilityRole="switch"
-        accessibilityState={{ checked: value }}
+        accessibilityState={{
+          checked: value,
+        }}
         onPress={() => onChange(!value)}
         style={[
           styles.switch,
@@ -1226,7 +1283,9 @@ export default function ProfileScreen({
   return (
     <View style={styles.container}>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={
+          styles.scrollContent
+        }
         showsVerticalScrollIndicator={false}
       >
         {/* Top bar */}
@@ -1243,10 +1302,14 @@ export default function ProfileScreen({
             />
           </Pressable>
 
-          <Text style={styles.topTitle}>My Profile</Text>
+          <Text style={styles.topTitle}>
+            My Profile
+          </Text>
 
           <Pressable
-            onPress={() => setEditProfileVisible(true)}
+            onPress={() =>
+              setEditProfileVisible(true)
+            }
             style={styles.iconButton}
             accessibilityLabel="Edit profile"
           >
@@ -1261,17 +1324,25 @@ export default function ProfileScreen({
         {/* Profile hero */}
         <View style={styles.heroCard}>
           <Pressable
-            onPress={() => setPhotoModalVisible(true)}
+            onPress={() =>
+              setPhotoModalVisible(true)
+            }
             style={styles.avatarWrapper}
           >
             {profile.profileImageUrl ? (
               <Image
-                source={{ uri: profile.profileImageUrl }}
+                source={{
+                  uri: profile.profileImageUrl,
+                }}
                 style={styles.avatarImage}
               />
             ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarInitials}>
+              <View
+                style={styles.avatarPlaceholder}
+              >
+                <Text
+                  style={styles.avatarInitials}
+                >
                   {initials}
                 </Text>
               </View>
@@ -1301,7 +1372,9 @@ export default function ProfileScreen({
               color={COLORS.primary}
             />
 
-            <Text style={styles.profileBadgeText}>
+            <Text
+              style={styles.profileBadgeText}
+            >
               SmritiCare Member
             </Text>
           </View>
@@ -1326,13 +1399,16 @@ export default function ProfileScreen({
           {renderInfoRow(
             "cake",
             "Date of Birth",
-            formatDisplayDate(profile.dateOfBirth)
+            formatDisplayDate(
+              profile.dateOfBirth
+            )
           )}
 
           {renderInfoRow(
             "calendar-today",
             "Age",
-            profile.age !== null
+            profile.age !== null &&
+              profile.age !== undefined
               ? `${profile.age} years`
               : "Not provided"
           )}
@@ -1340,13 +1416,15 @@ export default function ProfileScreen({
           {renderInfoRow(
             "wc",
             "Gender",
-            profile.gender || "Not provided"
+            profile.gender ||
+              "Not provided"
           )}
 
           {renderInfoRow(
             "phone",
             "Phone",
-            profile.phone || "Not provided"
+            profile.phone ||
+              "Not provided"
           )}
         </View>
 
@@ -1363,35 +1441,44 @@ export default function ProfileScreen({
           {renderInfoRow(
             "bloodtype",
             "Blood Group",
-            profile.bloodGroup || "Not provided"
+            profile.bloodGroup ||
+              "Not provided"
           )}
 
           {renderInfoRow(
             "location-city",
             "City",
-            profile.city || "Not provided"
+            profile.city ||
+              "Not provided"
           )}
 
           {renderInfoRow(
             "home",
             "Address",
-            profile.address || "Not provided"
+            profile.address ||
+              "Not provided"
           )}
 
           <View style={styles.medicalNotesBox}>
-            <View style={styles.medicalNotesHeader}>
+            <View
+              style={styles.medicalNotesHeader}
+            >
               <MaterialIcons
                 name="medical-information"
                 size={21}
                 color={COLORS.primary}
               />
 
-              <Text style={styles.medicalNotesTitle}>
+              <Text
+                style={styles.medicalNotesTitle}
+              >
                 Medical Notes
               </Text>
             </View>
 
-            <Text style={styles.medicalNotesText}>
+            <Text
+              style={styles.medicalNotesText}
+            >
               {profile.medicalNotes ||
                 "No medical notes have been added yet."}
             </Text>
@@ -1408,23 +1495,32 @@ export default function ProfileScreen({
 
           <View style={styles.divider} />
 
-          <View style={styles.patientCodeInfoBox}>
+          <View
+            style={styles.patientCodeInfoBox}
+          >
             <MaterialIcons
               name="info-outline"
               size={22}
               color={COLORS.secondary}
             />
 
-            <Text style={styles.patientCodeInfoText}>
-              Your patient code identifies your SmritiCare account.
-              Give this code to your caregiver so they can add you
-              from their dashboard.
+            <Text
+              style={styles.patientCodeInfoText}
+            >
+              Your patient code identifies your
+              SmritiCare account. Give this code
+              to your caregiver so they can add
+              you from their dashboard.
             </Text>
           </View>
 
           <View style={styles.patientCodeBox}>
-            <View style={styles.patientCodeLabelRow}>
-              <Text style={styles.patientCodeLabel}>
+            <View
+              style={styles.patientCodeLabelRow}
+            >
+              <Text
+                style={styles.patientCodeLabel}
+              >
                 Patient Code
               </Text>
 
@@ -1436,19 +1532,28 @@ export default function ProfileScreen({
             </View>
 
             {loadingPatientCode ? (
-              <View style={styles.patientCodeLoading}>
+              <View
+                style={styles.patientCodeLoading}
+              >
                 <ActivityIndicator
                   size="small"
                   color={COLORS.primary}
                 />
 
-                <Text style={styles.patientCodeLoadingText}>
+                <Text
+                  style={
+                    styles.patientCodeLoadingText
+                  }
+                >
                   Generating your code...
                 </Text>
               </View>
             ) : (
-              <Text style={styles.patientCodeValue}>
-                {patientCode || "Unavailable"}
+              <Text
+                style={styles.patientCodeValue}
+              >
+                {patientCode ||
+                  "Unavailable"}
               </Text>
             )}
           </View>
@@ -1456,11 +1561,15 @@ export default function ProfileScreen({
           <Pressable
             style={[
               styles.copyPatientCodeButton,
-              (!patientCode || copyingPatientCode) &&
+              (!patientCode ||
+                copyingPatientCode) &&
                 styles.disabledButton,
             ]}
             onPress={copyPatientCode}
-            disabled={!patientCode || copyingPatientCode}
+            disabled={
+              !patientCode ||
+              copyingPatientCode
+            }
           >
             {copyingPatientCode ? (
               <ActivityIndicator
@@ -1475,7 +1584,11 @@ export default function ProfileScreen({
               />
             )}
 
-            <Text style={styles.copyPatientCodeButtonText}>
+            <Text
+              style={
+                styles.copyPatientCodeButtonText
+              }
+            >
               {copyingPatientCode
                 ? "Copying..."
                 : "Copy Patient Code"}
@@ -1488,66 +1601,186 @@ export default function ProfileScreen({
           {renderSectionHeader(
             "supervisor-account",
             "Caregiver",
-            "Manage trusted caregiver access"
+            "Your connected caregiver"
           )}
 
           <View style={styles.divider} />
 
-          {renderInfoRow(
-            "person",
-            "Caregiver Name",
-            caregiverConnection?.name ||
-              profile.caregiverName ||
-              "Not assigned"
-          )}
-
           {caregiverConnection ? (
-            <View style={styles.connectedCaregiverBox}>
-              <View style={styles.connectedCaregiverIcon}>
+            <>
+              <View
+                style={
+                  styles.caregiverProfileCard
+                }
+              >
+                {caregiverConnection.profileImageUrl ? (
+                  <Image
+                    source={{
+                      uri: caregiverConnection.profileImageUrl,
+                    }}
+                    style={
+                      styles.caregiverAvatarImage
+                    }
+                  />
+                ) : (
+                  <View
+                    style={
+                      styles.caregiverAvatarPlaceholder
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.caregiverAvatarInitials
+                      }
+                    >
+                      {getInitials(
+                        caregiverConnection.name
+                      )}
+                    </Text>
+                  </View>
+                )}
+
+                <View
+                  style={
+                    styles.caregiverProfileText
+                  }
+                >
+                  <Text
+                    style={
+                      styles.caregiverProfileName
+                    }
+                  >
+                    {caregiverConnection.name}
+                  </Text>
+
+                  <View
+                    style={
+                      styles.caregiverConnectedRow
+                    }
+                  >
+                    <View
+                      style={
+                        styles.caregiverStatusDot
+                      }
+                    />
+
+                    <Text
+                      style={
+                        styles.caregiverConnectedText
+                      }
+                    >
+                      Connected
+                    </Text>
+                  </View>
+                </View>
+
                 <MaterialIcons
                   name="verified-user"
-                  size={22}
+                  size={25}
                   color={COLORS.primary}
                 />
               </View>
 
-              <View style={styles.connectedCaregiverText}>
-                <Text style={styles.connectedCaregiverTitle}>
-                  Caregiver connected
-                </Text>
+              {caregiverConnection.email ? (
+                renderInfoRow(
+                  "email",
+                  "Email",
+                  caregiverConnection.email
+                )
+              ) : null}
 
-                <Text style={styles.connectedCaregiverSubtitle}>
-                  {caregiverConnection.email ||
-                    caregiverConnection.phone ||
-                    "Your trusted caregiver is connected to your account."}
+              {caregiverConnection.phone ? (
+                renderInfoRow(
+                  "phone",
+                  "Phone",
+                  caregiverConnection.phone
+                )
+              ) : null}
+
+              <View
+                style={
+                  styles.caregiverInfoBox
+                }
+              >
+                <MaterialIcons
+                  name="info-outline"
+                  size={21}
+                  color={COLORS.secondary}
+                />
+
+                <Text
+                  style={
+                    styles.caregiverInfoText
+                  }
+                >
+                  This caregiver connected with
+                  you using your patient code.
+                  They can access the information
+                  allowed by your caregiver access
+                  settings.
                 </Text>
               </View>
+            </>
+          ) : (
+            <View
+              style={styles.noCaregiverBox}
+            >
+              <View
+                style={
+                  styles.noCaregiverIcon
+                }
+              >
+                <MaterialIcons
+                  name="supervisor-account"
+                  size={30}
+                  color={COLORS.outline}
+                />
+              </View>
+
+              <Text
+                style={styles.noCaregiverTitle}
+              >
+                No caregiver connected
+              </Text>
+
+              <Text
+                style={styles.noCaregiverText}
+              >
+                When a caregiver connects to you
+                using your patient code, their
+                information will appear here.
+              </Text>
             </View>
-          ) : null}
-
-          <Pressable
-            style={styles.connectCaregiverButton}
-            onPress={() => setConnectCaregiverVisible(true)}
-          >
-            <MaterialIcons
-              name="link"
-              size={22}
-              color={COLORS.white}
-            />
-
-            <Text style={styles.connectCaregiverButtonText}>
-              {caregiverConnection
-                ? "Change Caregiver"
-                : "Connect Caregiver"}
-            </Text>
-          </Pressable>
+          )}
 
           {renderSwitchRow(
             "security",
             "Caregiver Access",
-            "Allow your caregiver to access your care information.",
+            "Allow your connected caregiver to access your care information.",
             profile.caregiverAccess,
-            setCaregiverAccess
+            async (value) => {
+              setCaregiverAccess(value);
+
+              try {
+                const updated =
+                  await updateMyProfile({
+                    caregiverAccess: value,
+                  });
+
+                setProfile(updated);
+              } catch (error) {
+                setCaregiverAccess(
+                  profile.caregiverAccess
+                );
+
+                showMessage(
+                  "Unable to update access",
+                  error instanceof Error
+                    ? error.message
+                    : "Could not update caregiver access."
+                );
+              }
+            }
           )}
         </View>
 
@@ -1569,13 +1802,17 @@ export default function ProfileScreen({
                 color={COLORS.outline}
               />
 
-              <Text style={styles.noContactsTitle}>
+              <Text
+                style={styles.noContactsTitle}
+              >
                 No emergency contacts
               </Text>
 
-              <Text style={styles.noContactsText}>
-                Add a trusted person for quick access during an
-                emergency.
+              <Text
+                style={styles.noContactsText}
+              >
+                Add a trusted person for quick
+                access during an emergency.
               </Text>
             </View>
           ) : (
@@ -1584,30 +1821,56 @@ export default function ProfileScreen({
                 key={contact.id}
                 style={styles.contactRow}
               >
-                <View style={styles.contactAvatar}>
-                  <Text style={styles.contactInitials}>
-                    {getInitials(contact.name)}
+                <View
+                  style={styles.contactAvatar}
+                >
+                  <Text
+                    style={
+                      styles.contactInitials
+                    }
+                  >
+                    {getInitials(
+                      contact.name
+                    )}
                   </Text>
                 </View>
 
-                <View style={styles.contactInfo}>
-                  <Text style={styles.contactName}>
+                <View
+                  style={styles.contactInfo}
+                >
+                  <Text
+                    style={styles.contactName}
+                  >
                     {contact.name}
                   </Text>
 
-                  <Text style={styles.contactRelationship}>
+                  <Text
+                    style={
+                      styles.contactRelationship
+                    }
+                  >
                     {contact.relationship}
                   </Text>
 
-                  <Text style={styles.contactPhone}>
+                  <Text
+                    style={styles.contactPhone}
+                  >
                     {contact.phone}
                   </Text>
                 </View>
 
-                <View style={styles.contactActions}>
+                <View
+                  style={styles.contactActions}
+                >
                   <Pressable
-                    onPress={() => openEditContact(contact)}
-                    style={styles.smallIconButton}
+                    onPress={() =>
+                      openEditContact(
+                        contact
+                      )
+                    }
+                    style={
+                      styles.smallIconButton
+                    }
                   >
                     <MaterialIcons
                       name="edit"
@@ -1617,8 +1880,14 @@ export default function ProfileScreen({
                   </Pressable>
 
                   <Pressable
-                    onPress={() => deleteContact(contact)}
-                    style={styles.smallIconButton}
+                    onPress={() =>
+                      deleteContact(
+                        contact
+                      )
+                    }
+                    style={
+                      styles.smallIconButton
+                    }
                   >
                     <MaterialIcons
                       name="delete-outline"
@@ -1641,7 +1910,9 @@ export default function ProfileScreen({
               color={COLORS.primary}
             />
 
-            <Text style={styles.outlineButtonText}>
+            <Text
+              style={styles.outlineButtonText}
+            >
               Add Emergency Contact
             </Text>
           </Pressable>
@@ -1660,7 +1931,7 @@ export default function ProfileScreen({
           {renderSwitchRow(
             "location-on",
             "GPS Location Sharing",
-            "Allow trusted caregivers to access your current location.",
+            "Allow your trusted caregiver to access your current location.",
             profile.gpsSharing,
             handleGpsSharingChange
           )}
@@ -1675,7 +1946,9 @@ export default function ProfileScreen({
               ]}
             />
 
-            <Text style={styles.gpsStatusText}>
+            <Text
+              style={styles.gpsStatusText}
+            >
               {gpsSharing
                 ? "Location sharing is enabled"
                 : "Location sharing is disabled"}
@@ -1693,80 +1966,43 @@ export default function ProfileScreen({
 
           <View style={styles.divider} />
 
-          <Text style={styles.preferenceLabel}>
+          <Text
+            style={styles.preferenceLabel}
+          >
             Language
           </Text>
 
           <View style={styles.optionRow}>
-            {["English", "Hindi"].map((option) => (
-              <Pressable
-                key={option}
-                onPress={async () => {
-                  setLanguage(option);
-
-                  try {
-                    const updated =
-                      await updateMyProfile({
-                        language: option,
-                      });
-
-                    setProfile(updated);
-                  } catch {
-                    setLanguage(profile.language);
-                  }
-                }}
-                style={[
-                  styles.optionButton,
-                  language === option &&
-                    styles.optionButtonActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.optionButtonText,
-                    language === option &&
-                      styles.optionButtonTextActive,
-                  ]}
-                >
-                  {option}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          <Text style={styles.preferenceLabel}>
-            Text Size
-          </Text>
-
-          <View style={styles.optionRow}>
-            {["Normal", "Large", "Extra Large"].map(
+            {["English", "Hindi"].map(
               (option) => (
                 <Pressable
                   key={option}
                   onPress={async () => {
-                    setTextSize(option);
+                    setLanguage(option);
 
                     try {
                       const updated =
                         await updateMyProfile({
-                          textSize: option,
+                          language: option,
                         });
 
                       setProfile(updated);
                     } catch {
-                      setTextSize(profile.textSize);
+                      setLanguage(
+                        profile.language
+                      );
                     }
                   }}
                   style={[
                     styles.optionButton,
-                    textSize === option &&
+                    language === option &&
                       styles.optionButtonActive,
                   ]}
                 >
                   <Text
                     style={[
                       styles.optionButtonText,
-                      textSize === option &&
+                      language === option &&
                         styles.optionButtonTextActive,
                     ]}
                   >
@@ -1775,6 +2011,55 @@ export default function ProfileScreen({
                 </Pressable>
               )
             )}
+          </View>
+
+          <Text
+            style={styles.preferenceLabel}
+          >
+            Text Size
+          </Text>
+
+          <View style={styles.optionRow}>
+            {[
+              "Normal",
+              "Large",
+              "Extra Large",
+            ].map((option) => (
+              <Pressable
+                key={option}
+                onPress={async () => {
+                  setTextSize(option);
+
+                  try {
+                    const updated =
+                      await updateMyProfile({
+                        textSize: option,
+                      });
+
+                    setProfile(updated);
+                  } catch {
+                    setTextSize(
+                      profile.textSize
+                    );
+                  }
+                }}
+                style={[
+                  styles.optionButton,
+                  textSize === option &&
+                    styles.optionButtonActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.optionButtonText,
+                    textSize === option &&
+                      styles.optionButtonTextActive,
+                  ]}
+                >
+                  {option}
+                </Text>
+              </Pressable>
+            ))}
           </View>
         </View>
 
@@ -1797,18 +2082,24 @@ export default function ProfileScreen({
           {renderInfoRow(
             "calendar-month",
             "Member Since",
-            formatDisplayDate(profile.createdAt)
+            formatDisplayDate(
+              profile.createdAt
+            )
           )}
 
           {renderInfoRow(
             "update",
             "Last Updated",
-            formatDisplayDate(profile.updatedAt)
+            formatDisplayDate(
+              profile.updatedAt
+            )
           )}
         </View>
 
         {/* Bottom navigation */}
-        <View style={styles.bottomNavigation}>
+        <View
+          style={styles.bottomNavigation}
+        >
           <Pressable
             style={styles.navItem}
             onPress={onHome}
@@ -1818,7 +2109,10 @@ export default function ProfileScreen({
               size={25}
               color={COLORS.secondary}
             />
-            <Text style={styles.navText}>Home</Text>
+
+            <Text style={styles.navText}>
+              Home
+            </Text>
           </Pressable>
 
           <Pressable
@@ -1830,7 +2124,10 @@ export default function ProfileScreen({
               size={25}
               color={COLORS.secondary}
             />
-            <Text style={styles.navText}>Schedule</Text>
+
+            <Text style={styles.navText}>
+              Schedule
+            </Text>
           </Pressable>
 
           <Pressable
@@ -1842,16 +2139,29 @@ export default function ProfileScreen({
               size={25}
               color={COLORS.secondary}
             />
-            <Text style={styles.navText}>Games</Text>
+
+            <Text style={styles.navText}>
+              Games
+            </Text>
           </Pressable>
 
-          <View style={[styles.navItem, styles.navItemActive]}>
+          <View
+            style={[
+              styles.navItem,
+              styles.navItemActive,
+            ]}
+          >
             <MaterialIcons
               name="person"
               size={25}
               color={COLORS.primary}
             />
-            <Text style={styles.navTextActive}>Profile</Text>
+
+            <Text
+              style={styles.navTextActive}
+            >
+              Profile
+            </Text>
           </View>
         </View>
       </ScrollView>
@@ -1869,12 +2179,17 @@ export default function ProfileScreen({
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>
+                <Text
+                  style={styles.modalTitle}
+                >
                   Edit Profile
                 </Text>
 
-                <Text style={styles.modalSubtitle}>
-                  Update your personal and health information
+                <Text
+                  style={styles.modalSubtitle}
+                >
+                  Update your personal and health
+                  information
                 </Text>
               </View>
 
@@ -1893,8 +2208,12 @@ export default function ProfileScreen({
             </View>
 
             <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.modalScroll}
+              showsVerticalScrollIndicator={
+                false
+              }
+              contentContainerStyle={
+                styles.modalScroll
+              }
             >
               <Text style={styles.inputLabel}>
                 Full Name *
@@ -1904,7 +2223,9 @@ export default function ProfileScreen({
                 value={fullName}
                 onChangeText={setFullName}
                 placeholder="Enter your full name"
-                placeholderTextColor={COLORS.outline}
+                placeholderTextColor={
+                  COLORS.outline
+                }
                 style={styles.input}
               />
 
@@ -1916,7 +2237,9 @@ export default function ProfileScreen({
                 value={age}
                 onChangeText={setAge}
                 placeholder="Enter your age"
-                placeholderTextColor={COLORS.outline}
+                placeholderTextColor={
+                  COLORS.outline
+                }
                 keyboardType="numeric"
                 style={styles.input}
               />
@@ -1929,7 +2252,9 @@ export default function ProfileScreen({
                 value={phone}
                 onChangeText={setPhone}
                 placeholder="Enter your phone number"
-                placeholderTextColor={COLORS.outline}
+                placeholderTextColor={
+                  COLORS.outline
+                }
                 keyboardType="phone-pad"
                 style={styles.input}
               />
@@ -1940,9 +2265,13 @@ export default function ProfileScreen({
 
               <TextInput
                 value={dateOfBirth}
-                onChangeText={setDateOfBirth}
+                onChangeText={
+                  setDateOfBirth
+                }
                 placeholder="YYYY-MM-DD"
-                placeholderTextColor={COLORS.outline}
+                placeholderTextColor={
+                  COLORS.outline
+                }
                 style={styles.input}
               />
 
@@ -1958,7 +2287,9 @@ export default function ProfileScreen({
                 value={gender}
                 onChangeText={setGender}
                 placeholder="Male, Female, Other..."
-                placeholderTextColor={COLORS.outline}
+                placeholderTextColor={
+                  COLORS.outline
+                }
                 style={styles.input}
               />
 
@@ -1968,9 +2299,13 @@ export default function ProfileScreen({
 
               <TextInput
                 value={bloodGroup}
-                onChangeText={setBloodGroup}
+                onChangeText={
+                  setBloodGroup
+                }
                 placeholder="e.g. O+, A+, B-"
-                placeholderTextColor={COLORS.outline}
+                placeholderTextColor={
+                  COLORS.outline
+                }
                 style={styles.input}
               />
 
@@ -1982,7 +2317,9 @@ export default function ProfileScreen({
                 value={city}
                 onChangeText={setCity}
                 placeholder="Enter your city"
-                placeholderTextColor={COLORS.outline}
+                placeholderTextColor={
+                  COLORS.outline
+                }
                 style={styles.input}
               />
 
@@ -1994,7 +2331,9 @@ export default function ProfileScreen({
                 value={address}
                 onChangeText={setAddress}
                 placeholder="Enter your address"
-                placeholderTextColor={COLORS.outline}
+                placeholderTextColor={
+                  COLORS.outline
+                }
                 multiline
                 numberOfLines={3}
                 style={[
@@ -2009,9 +2348,13 @@ export default function ProfileScreen({
 
               <TextInput
                 value={medicalNotes}
-                onChangeText={setMedicalNotes}
+                onChangeText={
+                  setMedicalNotes
+                }
                 placeholder="Add important medical information"
-                placeholderTextColor={COLORS.outline}
+                placeholderTextColor={
+                  COLORS.outline
+                }
                 multiline
                 numberOfLines={5}
                 style={[
@@ -2026,9 +2369,13 @@ export default function ProfileScreen({
 
               <TextInput
                 value={caregiverName}
-                onChangeText={setCaregiverName}
+                onChangeText={
+                  setCaregiverName
+                }
                 placeholder="Enter caregiver name"
-                placeholderTextColor={COLORS.outline}
+                placeholderTextColor={
+                  COLORS.outline
+                }
                 style={styles.input}
               />
 
@@ -2040,15 +2387,25 @@ export default function ProfileScreen({
                 setCaregiverAccess
               )}
 
-              <View style={styles.modalButtons}>
+              <View
+                style={styles.modalButtons}
+              >
                 <Pressable
-                  style={styles.cancelButton}
+                  style={
+                    styles.cancelButton
+                  }
                   onPress={() =>
-                    setEditProfileVisible(false)
+                    setEditProfileVisible(
+                      false
+                    )
                   }
                   disabled={saving}
                 >
-                  <Text style={styles.cancelButtonText}>
+                  <Text
+                    style={
+                      styles.cancelButtonText
+                    }
+                  >
                     Cancel
                   </Text>
                 </Pressable>
@@ -2056,7 +2413,8 @@ export default function ProfileScreen({
                 <Pressable
                   style={[
                     styles.saveButton,
-                    saving && styles.disabledButton,
+                    saving &&
+                      styles.disabledButton,
                   ]}
                   onPress={saveProfile}
                   disabled={saving}
@@ -2074,7 +2432,11 @@ export default function ProfileScreen({
                         color={COLORS.white}
                       />
 
-                      <Text style={styles.saveButtonText}>
+                      <Text
+                        style={
+                          styles.saveButtonText
+                        }
+                      >
                         Save Changes
                       </Text>
                     </>
@@ -2082,142 +2444,6 @@ export default function ProfileScreen({
                 </Pressable>
               </View>
             </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Connect caregiver modal */}
-      <Modal
-        visible={connectCaregiverVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => {
-          if (!connectingCaregiver) {
-            setConnectCaregiverVisible(false);
-          }
-        }}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.connectCaregiverModalContainer}>
-            <View style={styles.modalHeader}>
-              <View style={styles.connectCaregiverHeaderText}>
-                <View style={styles.connectCaregiverHeaderIcon}>
-                  <MaterialIcons
-                    name="link"
-                    size={24}
-                    color={COLORS.primary}
-                  />
-                </View>
-
-                <View style={styles.connectCaregiverHeaderCopy}>
-                  <Text style={styles.modalTitle}>
-                    Connect Caregiver
-                  </Text>
-
-                  <Text style={styles.modalSubtitle}>
-                    Enter the invite code provided by your caregiver.
-                  </Text>
-                </View>
-              </View>
-
-              <Pressable
-                onPress={() => {
-                  if (!connectingCaregiver) {
-                    setConnectCaregiverVisible(false);
-                  }
-                }}
-                style={styles.closeButton}
-                disabled={connectingCaregiver}
-              >
-                <MaterialIcons
-                  name="close"
-                  size={25}
-                  color={COLORS.onSurface}
-                />
-              </Pressable>
-            </View>
-
-            <View style={styles.connectCaregiverContent}>
-              <View style={styles.inviteInfoBox}>
-                <MaterialIcons
-                  name="info-outline"
-                  size={22}
-                  color={COLORS.secondary}
-                />
-
-                <Text style={styles.inviteInfoText}>
-                  Ask your caregiver for their SmritiCare invite code.
-                  Enter it below to connect your accounts.
-                </Text>
-              </View>
-
-              <Text style={styles.inputLabel}>
-                Invite Code *
-              </Text>
-
-              <TextInput
-                value={inviteCode}
-                onChangeText={(value) =>
-                  setInviteCode(value.toUpperCase())
-                }
-                placeholder="Enter invite code"
-                placeholderTextColor={COLORS.outline}
-                autoCapitalize="characters"
-                autoCorrect={false}
-                maxLength={32}
-                style={[
-                  styles.input,
-                  styles.inviteCodeInput,
-                ]}
-              />
-
-              <Text style={styles.inputHint}>
-                The code is case-insensitive.
-              </Text>
-
-              <Pressable
-                style={[
-                  styles.connectSubmitButton,
-                  connectingCaregiver &&
-                    styles.disabledButton,
-                ]}
-                onPress={connectCaregiver}
-                disabled={connectingCaregiver}
-              >
-                {connectingCaregiver ? (
-                  <ActivityIndicator
-                    size="small"
-                    color={COLORS.white}
-                  />
-                ) : (
-                  <>
-                    <MaterialIcons
-                      name="link"
-                      size={22}
-                      color={COLORS.white}
-                    />
-
-                    <Text style={styles.connectSubmitButtonText}>
-                      Connect Caregiver
-                    </Text>
-                  </>
-                )}
-              </Pressable>
-
-              <Pressable
-                style={styles.photoCancelButton}
-                onPress={() => {
-                  if (!connectingCaregiver) {
-                    setConnectCaregiverVisible(false);
-                  }
-                }}
-                disabled={connectingCaregiver}
-              >
-                <Text style={styles.photoCancelText}>
-                  Cancel
-                </Text>
-              </Pressable>
-            </View>
           </View>
         </View>
       </Modal>
@@ -2231,49 +2457,73 @@ export default function ProfileScreen({
           setPhotoModalVisible(false)
         }
       >
-        <View style={styles.photoModalOverlay}>
-          <View style={styles.photoModalContainer}>
+        <View
+          style={styles.photoModalOverlay}
+        >
+          <View
+            style={styles.photoModalContainer}
+          >
             <View style={styles.photoPreview}>
               {profile.profileImageUrl ? (
                 <Image
                   source={{
                     uri: profile.profileImageUrl,
                   }}
-                  style={styles.photoPreviewImage}
+                  style={
+                    styles.photoPreviewImage
+                  }
                 />
               ) : (
-                <View style={styles.photoPreviewPlaceholder}>
-                  <Text style={styles.photoPreviewInitials}>
+                <View
+                  style={
+                    styles.photoPreviewPlaceholder
+                  }
+                >
+                  <Text
+                    style={
+                      styles.photoPreviewInitials
+                    }
+                  >
                     {initials}
                   </Text>
                 </View>
               )}
             </View>
 
-            <Text style={styles.photoModalTitle}>
+            <Text
+              style={styles.photoModalTitle}
+            >
               Profile Photo
             </Text>
 
-            <Text style={styles.photoModalText}>
-              Choose a new photo from your device or take a
-              new picture.
+            <Text
+              style={styles.photoModalText}
+            >
+              Choose a new photo from your
+              device or take a new picture.
             </Text>
 
             {uploadingPhoto ? (
-              <View style={styles.uploadingBox}>
+              <View
+                style={styles.uploadingBox}
+              >
                 <ActivityIndicator
                   size="large"
                   color={COLORS.primary}
                 />
 
-                <Text style={styles.uploadingText}>
+                <Text
+                  style={styles.uploadingText}
+                >
                   Saving photo...
                 </Text>
               </View>
             ) : (
               <>
                 <Pressable
-                  style={styles.photoActionButton}
+                  style={
+                    styles.photoActionButton
+                  }
                   onPress={choosePhoto}
                 >
                   <MaterialIcons
@@ -2282,13 +2532,19 @@ export default function ProfileScreen({
                     color={COLORS.primary}
                   />
 
-                  <Text style={styles.photoActionText}>
+                  <Text
+                    style={
+                      styles.photoActionText
+                    }
+                  >
                     Choose from Gallery
                   </Text>
                 </Pressable>
 
                 <Pressable
-                  style={styles.photoActionButton}
+                  style={
+                    styles.photoActionButton
+                  }
                   onPress={takePhoto}
                 >
                   <MaterialIcons
@@ -2297,7 +2553,11 @@ export default function ProfileScreen({
                     color={COLORS.primary}
                   />
 
-                  <Text style={styles.photoActionText}>
+                  <Text
+                    style={
+                      styles.photoActionText
+                    }
+                  >
                     Take a Photo
                   </Text>
                 </Pressable>
@@ -2328,12 +2588,18 @@ export default function ProfileScreen({
                 ) : null}
 
                 <Pressable
-                  style={styles.photoCancelButton}
+                  style={
+                    styles.photoCancelButton
+                  }
                   onPress={() =>
-                    setPhotoModalVisible(false)
+                    setPhotoModalVisible(
+                      false
+                    )
                   }
                 >
-                  <Text style={styles.photoCancelText}>
+                  <Text
+                    style={styles.photoCancelText}
+                  >
                     Cancel
                   </Text>
                 </Pressable>
@@ -2353,23 +2619,34 @@ export default function ProfileScreen({
         }
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.contactModalContainer}>
+          <View
+            style={
+              styles.contactModalContainer
+            }
+          >
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>
+                <Text
+                  style={styles.modalTitle}
+                >
                   {editingContact
                     ? "Edit Contact"
                     : "Add Emergency Contact"}
                 </Text>
 
-                <Text style={styles.modalSubtitle}>
-                  Keep a trusted person close when help is needed.
+                <Text
+                  style={styles.modalSubtitle}
+                >
+                  Keep a trusted person close
+                  when help is needed.
                 </Text>
               </View>
 
               <Pressable
                 onPress={() =>
-                  setContactModalVisible(false)
+                  setContactModalVisible(
+                    false
+                  )
                 }
                 style={styles.closeButton}
               >
@@ -2382,8 +2659,12 @@ export default function ProfileScreen({
             </View>
 
             <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.modalScroll}
+              showsVerticalScrollIndicator={
+                false
+              }
+              contentContainerStyle={
+                styles.modalScroll
+              }
             >
               <Text style={styles.inputLabel}>
                 Name *
@@ -2391,9 +2672,13 @@ export default function ProfileScreen({
 
               <TextInput
                 value={contactName}
-                onChangeText={setContactName}
+                onChangeText={
+                  setContactName
+                }
                 placeholder="Contact name"
-                placeholderTextColor={COLORS.outline}
+                placeholderTextColor={
+                  COLORS.outline
+                }
                 style={styles.input}
               />
 
@@ -2402,10 +2687,16 @@ export default function ProfileScreen({
               </Text>
 
               <TextInput
-                value={contactRelationship}
-                onChangeText={setContactRelationship}
+                value={
+                  contactRelationship
+                }
+                onChangeText={
+                  setContactRelationship
+                }
                 placeholder="e.g. Daughter, Son, Spouse"
-                placeholderTextColor={COLORS.outline}
+                placeholderTextColor={
+                  COLORS.outline
+                }
                 style={styles.input}
               />
 
@@ -2415,21 +2706,35 @@ export default function ProfileScreen({
 
               <TextInput
                 value={contactPhone}
-                onChangeText={setContactPhone}
+                onChangeText={
+                  setContactPhone
+                }
                 placeholder="Phone number"
-                placeholderTextColor={COLORS.outline}
+                placeholderTextColor={
+                  COLORS.outline
+                }
                 keyboardType="phone-pad"
                 style={styles.input}
               />
 
-              <View style={styles.modalButtons}>
+              <View
+                style={styles.modalButtons}
+              >
                 <Pressable
-                  style={styles.cancelButton}
+                  style={
+                    styles.cancelButton
+                  }
                   onPress={() =>
-                    setContactModalVisible(false)
+                    setContactModalVisible(
+                      false
+                    )
                   }
                 >
-                  <Text style={styles.cancelButtonText}>
+                  <Text
+                    style={
+                      styles.cancelButtonText
+                    }
+                  >
                     Cancel
                   </Text>
                 </Pressable>
@@ -2444,7 +2749,11 @@ export default function ProfileScreen({
                     color={COLORS.white}
                   />
 
-                  <Text style={styles.saveButtonText}>
+                  <Text
+                    style={
+                      styles.saveButtonText
+                    }
+                  >
                     {editingContact
                       ? "Update Contact"
                       : "Add Contact"}
@@ -2721,8 +3030,208 @@ const styles = StyleSheet.create({
     color: COLORS.onSurfaceVariant,
   },
 
+  patientCodeInfoBox: {
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: COLORS.surfaceLow,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+
+  patientCodeInfoText: {
+    flex: 1,
+    marginLeft: 10,
+    fontFamily: BODY_FONT,
+    fontSize: 14,
+    lineHeight: 20,
+    color: COLORS.onSurfaceVariant,
+  },
+
+  patientCodeBox: {
+    marginTop: 14,
+    padding: 17,
+    borderRadius: 18,
+    backgroundColor: COLORS.secondaryFixed,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+  },
+
+  patientCodeLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  patientCodeLabel: {
+    fontFamily: BODY_FONT,
+    fontSize: 13,
+    fontWeight: "800",
+    color: COLORS.secondary,
+  },
+
+  patientCodeValue: {
+    marginTop: 9,
+    fontFamily: HEADING_FONT,
+    fontSize: 25,
+    fontWeight: "900",
+    letterSpacing: 2,
+    color: COLORS.primary,
+  },
+
+  patientCodeLoading: {
+    marginTop: 12,
+    minHeight: 31,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  patientCodeLoadingText: {
+    marginLeft: 9,
+    fontFamily: BODY_FONT,
+    fontSize: 14,
+    color: COLORS.onSurfaceVariant,
+  },
+
+  copyPatientCodeButton: {
+    minHeight: 54,
+    marginTop: 14,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 9,
+  },
+
+  copyPatientCodeButtonText: {
+    fontFamily: BODY_FONT,
+    fontSize: 15,
+    fontWeight: "800",
+    color: COLORS.white,
+  },
+
+  caregiverProfileCard: {
+    padding: 15,
+    borderRadius: 18,
+    backgroundColor: COLORS.secondaryFixed,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  caregiverAvatarImage: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+  },
+
+  caregiverAvatarPlaceholder: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: COLORS.primaryContainer,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  caregiverAvatarInitials: {
+    fontFamily: HEADING_FONT,
+    fontSize: 21,
+    fontWeight: "800",
+    color: COLORS.onPrimaryContainer,
+  },
+
+  caregiverProfileText: {
+    flex: 1,
+    marginLeft: 13,
+  },
+
+  caregiverProfileName: {
+    fontFamily: HEADING_FONT,
+    fontSize: 18,
+    fontWeight: "800",
+    color: COLORS.onSurface,
+  },
+
+  caregiverConnectedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 5,
+  },
+
+  caregiverStatusDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: COLORS.primary,
+    marginRight: 7,
+  },
+
+  caregiverConnectedText: {
+    fontFamily: BODY_FONT,
+    fontSize: 13,
+    fontWeight: "700",
+    color: COLORS.primary,
+  },
+
+  caregiverInfoBox: {
+    marginTop: 12,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: COLORS.surfaceLow,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+
+  caregiverInfoText: {
+    flex: 1,
+    marginLeft: 9,
+    fontFamily: BODY_FONT,
+    fontSize: 13,
+    lineHeight: 19,
+    color: COLORS.onSurfaceVariant,
+  },
+
+  noCaregiverBox: {
+    paddingVertical: 20,
+    alignItems: "center",
+  },
+
+  noCaregiverIcon: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: COLORS.surfaceLow,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  noCaregiverTitle: {
+    marginTop: 11,
+    fontFamily: HEADING_FONT,
+    fontSize: 18,
+    fontWeight: "800",
+    color: COLORS.onSurface,
+  },
+
+  noCaregiverText: {
+    marginTop: 6,
+    maxWidth: 430,
+    fontFamily: BODY_FONT,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+    color: COLORS.onSurfaceVariant,
+  },
+
   switchRow: {
     minHeight: 76,
+    marginTop: 12,
     flexDirection: "row",
     alignItems: "center",
   },
@@ -2970,222 +3479,6 @@ const styles = StyleSheet.create({
   },
 
   primaryButtonText: {
-    fontFamily: BODY_FONT,
-    fontSize: 16,
-    fontWeight: "800",
-    color: COLORS.white,
-  },
-
-  patientCodeInfoBox: {
-    padding: 14,
-    borderRadius: 16,
-    backgroundColor: COLORS.surfaceLow,
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-    flexDirection: "row",
-    alignItems: "flex-start",
-  },
-
-  patientCodeInfoText: {
-    flex: 1,
-    marginLeft: 10,
-    fontFamily: BODY_FONT,
-    fontSize: 14,
-    lineHeight: 20,
-    color: COLORS.onSurfaceVariant,
-  },
-
-  patientCodeBox: {
-    marginTop: 14,
-    padding: 17,
-    borderRadius: 18,
-    backgroundColor: COLORS.secondaryFixed,
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-  },
-
-  patientCodeLabelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  patientCodeLabel: {
-    fontFamily: BODY_FONT,
-    fontSize: 13,
-    fontWeight: "800",
-    color: COLORS.secondary,
-  },
-
-  patientCodeValue: {
-    marginTop: 9,
-    fontFamily: HEADING_FONT,
-    fontSize: 25,
-    fontWeight: "900",
-    letterSpacing: 2,
-    color: COLORS.primary,
-  },
-
-  patientCodeLoading: {
-    marginTop: 12,
-    minHeight: 31,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  patientCodeLoadingText: {
-    marginLeft: 9,
-    fontFamily: BODY_FONT,
-    fontSize: 14,
-    color: COLORS.onSurfaceVariant,
-  },
-
-  copyPatientCodeButton: {
-    minHeight: 54,
-    marginTop: 14,
-    borderRadius: 16,
-    backgroundColor: COLORS.primary,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 9,
-  },
-
-  copyPatientCodeButtonText: {
-    fontFamily: BODY_FONT,
-    fontSize: 15,
-    fontWeight: "800",
-    color: COLORS.white,
-  },
-
-  connectedCaregiverBox: {
-    marginTop: 8,
-    padding: 14,
-    borderRadius: 16,
-    backgroundColor: COLORS.secondaryFixed,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  connectedCaregiverIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
-    backgroundColor: COLORS.white,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  connectedCaregiverText: {
-    flex: 1,
-    marginLeft: 11,
-  },
-
-  connectedCaregiverTitle: {
-    fontFamily: BODY_FONT,
-    fontSize: 15,
-    fontWeight: "800",
-    color: COLORS.primary,
-  },
-
-  connectedCaregiverSubtitle: {
-    marginTop: 3,
-    fontFamily: BODY_FONT,
-    fontSize: 13,
-    lineHeight: 18,
-    color: COLORS.onSurfaceVariant,
-  },
-
-  connectCaregiverButton: {
-    minHeight: 54,
-    marginTop: 14,
-    borderRadius: 16,
-    backgroundColor: COLORS.primary,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 9,
-  },
-
-  connectCaregiverButtonText: {
-    fontFamily: BODY_FONT,
-    fontSize: 15,
-    fontWeight: "800",
-    color: COLORS.white,
-  },
-
-  connectCaregiverModalContainer: {
-    width: "100%",
-    maxHeight: "75%",
-    backgroundColor: COLORS.white,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    paddingTop: 20,
-  },
-
-  connectCaregiverHeaderText: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  connectCaregiverHeaderIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 15,
-    backgroundColor: COLORS.secondaryFixed,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  connectCaregiverHeaderCopy: {
-    flex: 1,
-    marginLeft: 11,
-  },
-
-  connectCaregiverContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 35,
-  },
-
-  inviteInfoBox: {
-    padding: 14,
-    borderRadius: 16,
-    backgroundColor: COLORS.surfaceLow,
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-    flexDirection: "row",
-    alignItems: "flex-start",
-  },
-
-  inviteInfoText: {
-    flex: 1,
-    marginLeft: 10,
-    fontFamily: BODY_FONT,
-    fontSize: 14,
-    lineHeight: 20,
-    color: COLORS.onSurfaceVariant,
-  },
-
-  inviteCodeInput: {
-    fontSize: 20,
-    fontWeight: "800",
-    letterSpacing: 2,
-    textAlign: "center",
-  },
-
-  connectSubmitButton: {
-    minHeight: 56,
-    marginTop: 22,
-    borderRadius: 17,
-    backgroundColor: COLORS.primary,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 9,
-  },
-
-  connectSubmitButtonText: {
     fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: "800",
