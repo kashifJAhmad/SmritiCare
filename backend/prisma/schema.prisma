@@ -71,6 +71,10 @@ model User {
 
   // Caregiver invitations
   caregiverInvites CaregiverInvite[] @relation("CaregiverInvites")
+
+  // Alert relationships
+  patientAlerts   Alert[] @relation("PatientAlerts")
+  caregiverAlerts Alert[] @relation("CaregiverAlerts")
 }
 
 // ============================================================
@@ -252,4 +256,60 @@ model PatientLocation {
   patient User @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@index([patientId])
+}
+
+// ============================================================
+// ALERT STATUS
+// ============================================================
+
+enum AlertStatus {
+  ACTIVE
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+// ============================================================
+// ALERT SOURCE TYPE
+// ============================================================
+
+enum AlertSourceType {
+  TASK
+  HYDRATION
+  GAME
+  MANUAL
+}
+
+// ============================================================
+// CAREGIVER ALERT
+// ============================================================
+
+model Alert {
+  id          String          @id @default(cuid())
+  patientId   String
+  caregiverId String
+
+  category    String
+  typeLabel   String
+  title       String
+  description String          @db.Text
+  badge       String
+
+  status      AlertStatus     @default(ACTIVE)
+  sourceType  AlertSourceType @default(TASK)
+  sourceId    String?
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  acknowledgedAt DateTime?
+  resolvedAt     DateTime?
+
+  patient   User @relation("PatientAlerts", fields: [patientId], references: [id], onDelete: Cascade)
+  caregiver User @relation("CaregiverAlerts", fields: [caregiverId], references: [id], onDelete: Cascade)
+
+  @@unique([caregiverId, sourceType, sourceId])
+  @@index([patientId])
+  @@index([caregiverId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([sourceType, sourceId])
 }

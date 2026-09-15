@@ -21,7 +21,6 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import CaregiverPatientTasks from "./CaregiverPatientTasks";
 import { API_BASE_URL } from "../../constants/api";
 import { getToken } from "../../services/authStorage";
 
@@ -59,9 +58,8 @@ type MaterialIconName = keyof typeof MaterialIcons.glyphMap;
 type CaregiverDashboardScreenProps = {
   onBack?: () => void;
   onHome?: () => void;
-  onGames?: () => void;
   onSchedule?: () => void;
-  onMemory?: () => void;
+  onAlerts?: () => void;
   onProfile?: () => void;
   onCognitiveProgress?: () => void;
   onAIAdaptation?: () => void;
@@ -148,8 +146,7 @@ function getInitials(name: string): string {
     return words[0].slice(0, 2).toUpperCase();
   }
 
-  return `${words[0][0]}${words[words.length - 1][0]
-    }`.toUpperCase();
+  return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
 }
 
 function getString(
@@ -193,7 +190,7 @@ function getPatientFromConnection(
 
   const age =
     patient.age !== null &&
-      patient.age !== undefined
+    patient.age !== undefined
       ? String(patient.age)
       : "";
 
@@ -242,9 +239,8 @@ function extractPatients(result: any): ConnectedPatient[] {
 export default function CaregiverDashboardScreen({
   onBack,
   onHome,
-  onGames,
   onSchedule,
-  onMemory,
+  onAlerts,
   onProfile,
   onCognitiveProgress,
   onAIAdaptation,
@@ -306,7 +302,7 @@ export default function CaregiverDashboardScreen({
         if (!response.ok || !result.success) {
           throw new Error(
             result.message ||
-            "Unable to load connected patients."
+              "Unable to load connected patients."
           );
         }
 
@@ -394,7 +390,7 @@ export default function CaregiverDashboardScreen({
       if (!response.ok || !result.success) {
         throw new Error(
           result.message ||
-          "Unable to connect this patient."
+            "Unable to connect this patient."
         );
       }
 
@@ -450,7 +446,7 @@ export default function CaregiverDashboardScreen({
         if (!response.ok || !result.success) {
           throw new Error(
             result.message ||
-            "Unable to disconnect this patient."
+              "Unable to disconnect this patient."
           );
         }
 
@@ -491,7 +487,7 @@ export default function CaregiverDashboardScreen({
     if (!onLogout) {
       showMessage(
         "Sign Out",
-        "The sign-out action is not connected yet. Pass onLogout from App.tsx to finish the sign-out flow."
+        "The sign-out action is not connected yet."
       );
       return;
     }
@@ -504,6 +500,7 @@ export default function CaregiverDashboardScreen({
       if (confirmed) {
         onLogout();
       }
+
       return;
     }
 
@@ -526,7 +523,10 @@ export default function CaregiverDashboardScreen({
 
   return (
     <View style={styles.screen}>
-      {/* Header */}
+      {/* ========================================================
+          HEADER
+      ======================================================== */}
+
       <View
         style={[
           styles.header,
@@ -598,7 +598,10 @@ export default function CaregiverDashboardScreen({
         </View>
       </View>
 
-      {/* Main */}
+      {/* ========================================================
+          MAIN CONTENT
+      ======================================================== */}
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
@@ -611,6 +614,7 @@ export default function CaregiverDashboardScreen({
         showsVerticalScrollIndicator={false}
       >
         {/* Heading */}
+
         <View style={styles.headingSection}>
           <View style={styles.headingLabelRow}>
             <View style={styles.statusDot} />
@@ -629,7 +633,10 @@ export default function CaregiverDashboardScreen({
           </Text>
         </View>
 
-        {/* Patients Section */}
+        {/* ======================================================
+            CONNECTED PATIENTS
+        ====================================================== */}
+
         <View style={styles.section}>
           <View style={styles.sectionHeadingRow}>
             <View style={styles.sectionHeadingText}>
@@ -745,17 +752,17 @@ export default function CaregiverDashboardScreen({
           )}
 
           {!loadingPatients &&
-            patients.length > 0 ? (
+          patients.length > 0 ? (
             <Pressable
               onPress={() => loadPatients(true)}
               disabled={refreshing}
               style={({ pressed }) => [
                 styles.refreshButton,
                 refreshing &&
-                styles.disabledButton,
+                  styles.disabledButton,
                 pressed &&
-                !refreshing &&
-                styles.pressed,
+                  !refreshing &&
+                  styles.pressed,
               ]}
               accessibilityRole="button"
               accessibilityLabel="Refresh patient list"
@@ -782,7 +789,10 @@ export default function CaregiverDashboardScreen({
           ) : null}
         </View>
 
-        {/* Care Tools */}
+        {/* ======================================================
+            CARE TOOLS
+        ====================================================== */}
+
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>
             CARE TOOLS
@@ -819,7 +829,10 @@ export default function CaregiverDashboardScreen({
           />
         </View>
 
-        {/* Account / Navigation Info */}
+        {/* ======================================================
+            INFO
+        ====================================================== */}
+
         <View style={styles.infoCard}>
           <View style={styles.infoIcon}>
             <MaterialIcons
@@ -837,13 +850,17 @@ export default function CaregiverDashboardScreen({
             <Text style={styles.infoText}>
               Only patients connected through the
               caregiver connection system appear in your
-              care list.
+              care list. Patient reminders are managed
+              separately from the Remind section.
             </Text>
           </View>
         </View>
       </ScrollView>
 
-      {/* Bottom Navigation */}
+      {/* ========================================================
+          CAREGIVER BOTTOM NAVIGATION
+      ======================================================== */}
+
       <View
         style={[
           styles.bottomNav,
@@ -863,21 +880,15 @@ export default function CaregiverDashboardScreen({
         />
 
         <BottomNavItem
-          icon="sports-esports"
-          label="Games"
-          onPress={onGames}
-        />
-
-        <BottomNavItem
           icon="notifications-active"
           label="Remind"
           onPress={onSchedule}
         />
 
         <BottomNavItem
-          icon="psychology"
-          label="Memory"
-          onPress={onMemory}
+          icon="warning"
+          label="Alerts"
+          onPress={onAlerts}
         />
 
         <BottomNavItem
@@ -887,7 +898,10 @@ export default function CaregiverDashboardScreen({
         />
       </View>
 
-      {/* Add Patient Modal */}
+      {/* ========================================================
+          ADD PATIENT MODAL
+      ======================================================== */}
+
       <Modal
         visible={addPatientVisible}
         animationType="slide"
@@ -975,7 +989,7 @@ export default function CaregiverDashboardScreen({
                 style={[
                   styles.patientCodeInput,
                   connecting &&
-                  styles.disabledInput,
+                    styles.disabledInput,
                 ]}
               />
 
@@ -1013,7 +1027,7 @@ export default function CaregiverDashboardScreen({
                   style={[
                     styles.cancelButton,
                     connecting &&
-                    styles.disabledButton,
+                      styles.disabledButton,
                   ]}
                 >
                   <Text
@@ -1029,7 +1043,7 @@ export default function CaregiverDashboardScreen({
                   style={[
                     styles.connectButton,
                     connecting &&
-                    styles.disabledButton,
+                      styles.disabledButton,
                   ]}
                 >
                   {connecting ? (
@@ -1086,55 +1100,65 @@ function PatientCard({
 
   const [patientLocation, setPatientLocation] =
     useState<PatientLocation | null>(null);
+
   const [locationLoading, setLocationLoading] =
     useState(true);
 
-  const loadPatientLocation = useCallback(async () => {
-    try {
-      const token = await getToken();
+  const loadPatientLocation = useCallback(
+    async () => {
+      try {
+        const token = await getToken();
 
-      if (!token) {
-        setPatientLocation(null);
-        return;
-      }
-
-      const response = await fetch(
-        `${API_BASE_URL}/api/location/patient/${patient.id}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/json",
-          },
+        if (!token) {
+          setPatientLocation(null);
+          return;
         }
-      );
 
-      const result = await response.json();
+        const response = await fetch(
+          `${API_BASE_URL}/api/location/patient/${patient.id}`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: "application/json",
+            },
+          }
+        );
 
-      if (!response.ok || !result.success) {
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          setPatientLocation({
+            available: false,
+            message:
+              result.message ||
+              "Unable to load location.",
+            location: null,
+          });
+
+          return;
+        }
+
+        setPatientLocation({
+          available: Boolean(result.available),
+          message:
+            result.message ||
+            "No location available.",
+          location: result.location || null,
+        });
+      } catch {
         setPatientLocation({
           available: false,
-          message: result.message || "Unable to load location.",
+          message:
+            "Unable to load the patient's location.",
           location: null,
         });
-        return;
+      } finally {
+        setLocationLoading(false);
       }
-
-      setPatientLocation({
-        available: Boolean(result.available),
-        message: result.message || "No location available.",
-        location: result.location || null,
-      });
-    } catch {
-      setPatientLocation({
-        available: false,
-        message: "Unable to load the patient's location.",
-        location: null,
-      });
-    } finally {
-      setLocationLoading(false);
-    }
-  }, [patient.id]);
+    },
+    [patient.id]
+  );
 
   useEffect(() => {
     loadPatientLocation();
@@ -1146,7 +1170,9 @@ function PatientCard({
     return () => clearInterval(interval);
   }, [loadPatientLocation]);
 
-  const formatLocationTime = (value: string) => {
+  const formatLocationTime = (
+    value: string
+  ) => {
     const date = new Date(value);
 
     if (Number.isNaN(date.getTime())) {
@@ -1166,8 +1192,13 @@ function PatientCard({
       return;
     }
 
-    const { latitude, longitude } = patientLocation.location;
-    const url = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+    const {
+      latitude,
+      longitude,
+    } = patientLocation.location;
+
+    const url =
+      `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
 
     try {
       await Linking.openURL(url);
@@ -1181,6 +1212,8 @@ function PatientCard({
 
   return (
     <View style={styles.patientCard}>
+      {/* Patient Header */}
+
       <View style={styles.patientHeader}>
         {patient.profileImageUrl ? (
           <Image
@@ -1255,19 +1288,20 @@ function PatientCard({
 
       <View style={styles.patientDivider} />
 
-      {/* GPS Location */}
+      {/* GPS */}
+
       <View
         style={[
           styles.locationCard,
           patientLocation?.available &&
-          styles.locationCardActive,
+            styles.locationCardActive,
         ]}
       >
         <View
           style={[
             styles.locationIcon,
             patientLocation?.available &&
-            styles.locationIconActive,
+              styles.locationIconActive,
           ]}
         >
           {locationLoading ? (
@@ -1304,18 +1338,26 @@ function PatientCard({
           ) : patientLocation?.available &&
             patientLocation.location ? (
             <>
-              <Text style={styles.locationActiveText}>
+              <Text
+                style={styles.locationActiveText}
+              >
                 Live location available
               </Text>
 
-              <Text style={styles.locationMetaText}>
-                Updated {formatLocationTime(
-                  patientLocation.location.updatedAt
+              <Text
+                style={styles.locationMetaText}
+              >
+                Updated{" "}
+                {formatLocationTime(
+                  patientLocation.location
+                    .updatedAt
                 )}
-                {patientLocation.location.accuracy !== null
+                {patientLocation.location
+                  .accuracy !== null
                   ? ` • ±${Math.round(
-                    patientLocation.location.accuracy
-                  )} m`
+                      patientLocation.location
+                        .accuracy
+                    )} m`
                   : ""}
               </Text>
             </>
@@ -1328,7 +1370,7 @@ function PatientCard({
         </View>
 
         {patientLocation?.available &&
-          patientLocation.location ? (
+        patientLocation.location ? (
           <Pressable
             onPress={openPatientLocation}
             style={({ pressed }) => [
@@ -1351,6 +1393,8 @@ function PatientCard({
         ) : null}
       </View>
 
+      {/* Connection Status */}
+
       <View style={styles.patientConnectionInfo}>
         <MaterialIcons
           name="verified-user"
@@ -1365,10 +1409,7 @@ function PatientCard({
         </Text>
       </View>
 
-      <CaregiverPatientTasks
-        patientId={patient.id}
-        patientName={patient.name}
-      />
+      {/* Patient Actions */}
 
       <View style={styles.patientActions}>
         <Pressable
@@ -1399,10 +1440,10 @@ function PatientCard({
           style={({ pressed }) => [
             styles.disconnectButton,
             disconnecting &&
-            styles.disabledButton,
+              styles.disabledButton,
             pressed &&
-            !disconnecting &&
-            styles.pressed,
+              !disconnecting &&
+              styles.pressed,
           ]}
           accessibilityRole="button"
           accessibilityLabel={`Disconnect ${patient.name}`}
@@ -1518,7 +1559,7 @@ function BottomNavItem({
         style={[
           styles.navIconContainer,
           active &&
-          styles.navIconContainerActive,
+            styles.navIconContainerActive,
         ]}
       >
         <MaterialIcons

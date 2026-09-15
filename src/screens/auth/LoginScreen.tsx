@@ -20,6 +20,7 @@ type LoginScreenProps = {
   onLogin: () => void;
   onSignup: () => void;
   onBack?: () => void;
+  onCaregiver?: () => void;
 };
 
 const COLORS = {
@@ -38,6 +39,7 @@ export default function LoginScreen({
   onLogin,
   onSignup,
   onBack,
+  onCaregiver,
 }: LoginScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

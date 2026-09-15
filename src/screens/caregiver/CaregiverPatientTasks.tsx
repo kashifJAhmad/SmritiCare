@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -12,34 +13,15 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 import { API_BASE_URL } from "../../constants/api";
 import { getToken } from "../../services/authStorage";
 
-const COLORS = {
-  background: "#FBF9F1",
-  primary: "#3F6F45",
-  primaryContainer: "#315A36",
-  onPrimary: "#FFFFFF",
-  secondary: "#8A6040",
-  secondaryContainer: "#E9D7C5",
-  surface: "#FFFFFF",
-  surfaceLow: "#F1F0E7",
-  surfaceHigh: "#E3E2D9",
-  greenSoft: "#E7EFE3",
-  greenBorder: "#C5D8C1",
-  error: "#9B3F32",
-  errorContainer: "#E7C9B9",
-  onSurface: "#1B1C17",
-  onSurfaceVariant: "#565A52",
-  outline: "#72766D",
-  outlineVariant: "#CDD2C8",
-};
+type RepeatType = "NONE" | "DAILY" | "WEEKLY" | "MONTHLY";
 
-type Task = {
+type PatientTask = {
   id: string;
-  userId?: string;
   title: string;
   description?: string | null;
   category?: string | null;
@@ -53,87 +35,53 @@ type Task = {
 
 type Props = {
   patientId: string;
-  patientName: string;
+  patientName?: string;
 };
 
-type RepeatType =
-  | "NONE"
-  | "DAILY"
-  | "WEEKLY"
-  | "MONTHLY";
+const COLORS = {
+  background: "#FBF9F1",
+  surface: "#F1F0E7",
+  surfaceVariant: "#DDDCD3",
+  primary: "#3F6F45",
+  primaryContainer: "#315A36",
+  onPrimaryContainer: "#D7E7D2",
+  secondary: "#8A6040",
+  secondaryContainer: "#E9D7C5",
+  onSecondaryContainer: "#68472F",
+  tertiary: "#A65D43",
+  tertiaryContainer: "#E7C9B9",
+  text: "#1B1C17",
+  textSecondary: "#565A52",
+  outline: "#72766D",
+  outlineVariant: "#CDD2C8",
+  white: "#FFFFFF",
+  error: "#9B3F32",
+};
 
-function showMessage(title: string, message: string) {
-  if (Platform.OS === "web") {
-    window.alert(`${title}\n\n${message}`);
-    return;
-  }
+const REPEAT_OPTIONS: {
+  value: RepeatType;
+  label: string;
+}[] = [
+  {
+    value: "NONE",
+    label: "None",
+  },
+  {
+    value: "DAILY",
+    label: "Daily",
+  },
+  {
+    value: "WEEKLY",
+    label: "Weekly",
+  },
+  {
+    value: "MONTHLY",
+    label: "Monthly",
+  },
+];
 
-  Alert.alert(title, message);
-}
-
-function confirmDelete(
-  title: string,
-  message: string,
-  onConfirm: () => void
-) {
-  if (Platform.OS === "web") {
-    if (window.confirm(`${title}\n\n${message}`)) {
-      onConfirm();
-    }
-    return;
-  }
-
-  Alert.alert(title, message, [
-    {
-      text: "Cancel",
-      style: "cancel",
-    },
-    {
-      text: "Delete",
-      style: "destructive",
-      onPress: onConfirm,
-    },
-  ]);
-}
-
-function extractTasks(result: any): Task[] {
-  const candidates = [
-    result?.data,
-    result?.data?.tasks,
-    result?.tasks,
-  ];
-
-  for (const candidate of candidates) {
-    if (Array.isArray(candidate)) {
-      return candidate;
-    }
-  }
-
-  return [];
-}
-
-function formatTaskDate(value: string): string {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString([], {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function getInputDate(value: string): string {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
+function getTodayDate() {
+  const date = new Date();
 
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -142,12 +90,8 @@ function getInputDate(value: string): string {
   return `${year}-${month}-${day}`;
 }
 
-function getInputTime(value: string): string {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
+function getCurrentTime() {
+  const date = new Date();
 
   const hours = String(date.getHours()).padStart(2, "0");
   const minutes = String(date.getMinutes()).padStart(2, "0");
@@ -155,57 +99,70 @@ function getInputTime(value: string): string {
   return `${hours}:${minutes}`;
 }
 
-function createScheduledAt(
-  dateValue: string,
-  timeValue: string
-): string | null {
-  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(
-    dateValue.trim()
-  );
+function formatDateTime(value: string) {
+  const date = new Date(value);
 
-  const timeMatch = /^(\d{2}):(\d{2})$/.exec(
-    timeValue.trim()
-  );
-
-  if (!dateMatch || !timeMatch) {
-    return null;
+  if (Number.isNaN(date.getTime())) {
+    return value;
   }
 
-  const year = Number(dateMatch[1]);
-  const month = Number(dateMatch[2]);
-  const day = Number(dateMatch[3]);
-  const hour = Number(timeMatch[1]);
-  const minute = Number(timeMatch[2]);
+  return date.toLocaleString([], {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
 
-  const date = new Date(
-    year,
-    month - 1,
-    day,
-    hour,
-    minute,
-    0,
-    0
-  );
+function formatRepeat(value?: string) {
+  switch (value) {
+    case "DAILY":
+      return "Daily";
+    case "WEEKLY":
+      return "Weekly";
+    case "MONTHLY":
+      return "Monthly";
+    default:
+      return "None";
+  }
+}
 
-  if (
-    Number.isNaN(date.getTime()) ||
-    date.getFullYear() !== year ||
-    date.getMonth() !== month - 1 ||
-    date.getDate() !== day ||
-    date.getHours() !== hour ||
-    date.getMinutes() !== minute
-  ) {
-    return null;
+function normalizeRepeat(value?: string): RepeatType {
+  switch (value) {
+    case "DAILY":
+      return "DAILY";
+    case "WEEKLY":
+      return "WEEKLY";
+    case "MONTHLY":
+      return "MONTHLY";
+    default:
+      return "NONE";
+  }
+}
+
+function extractTasks(result: any): PatientTask[] {
+  if (Array.isArray(result)) {
+    return result;
   }
 
-  return date.toISOString();
+  if (Array.isArray(result?.tasks)) {
+    return result.tasks;
+  }
+
+  if (Array.isArray(result?.data)) {
+    return result.data;
+  }
+
+  if (Array.isArray(result?.data?.tasks)) {
+    return result.data.tasks;
+  }
+
+  return [];
 }
 
 export default function CaregiverPatientTasks({
   patientId,
   patientName,
 }: Props) {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<PatientTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -213,20 +170,45 @@ export default function CaregiverPatientTasks({
   const [saving, setSaving] = useState(false);
 
   const [editingTask, setEditingTask] =
-    useState<Task | null>(null);
+    useState<PatientTask | null>(null);
 
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
+  const [description, setDescription] =
+    useState("");
+  const [category, setCategory] =
+    useState("");
+
+  const [date, setDate] =
+    useState(getTodayDate());
+
+  const [time, setTime] =
+    useState(getCurrentTime());
+
   const [reminderEnabled, setReminderEnabled] =
     useState(true);
+
   const [repeatType, setRepeatType] =
     useState<RepeatType>("NONE");
 
+  const [errorMessage, setErrorMessage] =
+    useState("");
+
+  const sortedTasks = useMemo(() => {
+    return [...tasks].sort(
+      (a, b) =>
+        new Date(a.scheduledAt).getTime() -
+        new Date(b.scheduledAt).getTime()
+    );
+  }, [tasks]);
+
   const loadTasks = useCallback(
     async (showRefreshing = false) => {
+      if (!patientId) {
+        setTasks([]);
+        setLoading(false);
+        return;
+      }
+
       try {
         if (showRefreshing) {
           setRefreshing(true);
@@ -234,10 +216,14 @@ export default function CaregiverPatientTasks({
           setLoading(true);
         }
 
+        setErrorMessage("");
+
         const token = await getToken();
 
         if (!token) {
-          throw new Error("Please log in again.");
+          throw new Error(
+            "Your session has expired. Please sign in again."
+          );
         }
 
         const response = await fetch(
@@ -251,31 +237,31 @@ export default function CaregiverPatientTasks({
           }
         );
 
-        const result = await response.json();
+        const text = await response.text();
 
-        if (!response.ok || !result.success) {
+        let result: any = {};
+
+        try {
+          result = text ? JSON.parse(text) : {};
+        } catch {
+          result = {};
+        }
+
+        if (!response.ok) {
           throw new Error(
-            result.message ||
-              "Unable to load this patient's reminders."
+            result?.message ||
+              "Unable to load patient reminders."
           );
         }
 
-        const loadedTasks = extractTasks(result);
-
-        loadedTasks.sort(
-          (a, b) =>
-            new Date(a.scheduledAt).getTime() -
-            new Date(b.scheduledAt).getTime()
-        );
-
-        setTasks(loadedTasks);
+        setTasks(extractTasks(result));
       } catch (error) {
-        showMessage(
-          "Reminders",
+        const message =
           error instanceof Error
             ? error.message
-            : "Unable to load reminders."
-        );
+            : "Unable to load patient reminders.";
+
+        setErrorMessage(message);
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -293,58 +279,55 @@ export default function CaregiverPatientTasks({
     setTitle("");
     setDescription("");
     setCategory("");
-    setDate("");
-    setTime("");
+    setDate(getTodayDate());
+    setTime(getCurrentTime());
     setReminderEnabled(true);
     setRepeatType("NONE");
+    setErrorMessage("");
   };
 
-  const openAddReminder = () => {
+  const openCreateModal = () => {
     resetForm();
-
-    const now = new Date();
-    now.setMinutes(now.getMinutes() + 10);
-
-    setDate(
-      `${now.getFullYear()}-${String(
-        now.getMonth() + 1
-      ).padStart(2, "0")}-${String(
-        now.getDate()
-      ).padStart(2, "0")}`
-    );
-
-    setTime(
-      `${String(now.getHours()).padStart(
-        2,
-        "0"
-      )}:${String(now.getMinutes()).padStart(2, "0")}`
-    );
-
     setModalVisible(true);
   };
 
-  const openEditReminder = (task: Task) => {
+  const openEditModal = (task: PatientTask) => {
+    const scheduled = new Date(task.scheduledAt);
+
+    if (Number.isNaN(scheduled.getTime())) {
+      setDate(getTodayDate());
+      setTime(getCurrentTime());
+    } else {
+      const year = scheduled.getFullYear();
+      const month = String(
+        scheduled.getMonth() + 1
+      ).padStart(2, "0");
+      const day = String(
+        scheduled.getDate()
+      ).padStart(2, "0");
+
+      const hours = String(
+        scheduled.getHours()
+      ).padStart(2, "0");
+      const minutes = String(
+        scheduled.getMinutes()
+      ).padStart(2, "0");
+
+      setDate(`${year}-${month}-${day}`);
+      setTime(`${hours}:${minutes}`);
+    }
+
     setEditingTask(task);
     setTitle(task.title || "");
     setDescription(task.description || "");
     setCategory(task.category || "");
-    setDate(getInputDate(task.scheduledAt));
-    setTime(getInputTime(task.scheduledAt));
-    setReminderEnabled(Boolean(task.reminderEnabled));
-
-    const normalizedRepeat =
-      String(task.repeatType || "NONE").toUpperCase();
-
-    if (
-      normalizedRepeat === "DAILY" ||
-      normalizedRepeat === "WEEKLY" ||
-      normalizedRepeat === "MONTHLY"
-    ) {
-      setRepeatType(normalizedRepeat);
-    } else {
-      setRepeatType("NONE");
-    }
-
+    setReminderEnabled(
+      task.reminderEnabled !== false
+    );
+    setRepeatType(
+      normalizeRepeat(task.repeatType)
+    );
+    setErrorMessage("");
     setModalVisible(true);
   };
 
@@ -357,41 +340,67 @@ export default function CaregiverPatientTasks({
     resetForm();
   };
 
-  const saveReminder = async () => {
+  const validateForm = () => {
     if (!title.trim()) {
-      showMessage(
-        "Title required",
-        "Please enter a reminder title."
-      );
-      return;
+      return "Please enter a reminder title.";
     }
 
-    const scheduledAt = createScheduledAt(date, time);
+    if (!date.trim()) {
+      return "Please enter a date.";
+    }
 
-    if (!scheduledAt) {
-      showMessage(
-        "Invalid date or time",
-        "Please use date YYYY-MM-DD and time HH:MM."
-      );
+    if (!time.trim()) {
+      return "Please enter a time.";
+    }
+
+    const scheduledDate = new Date(
+      `${date.trim()}T${time.trim()}:00`
+    );
+
+    if (Number.isNaN(scheduledDate.getTime())) {
+      return "Please enter a valid date and time.";
+    }
+
+    return null;
+  };
+
+  const saveTask = async () => {
+    const validationError = validateForm();
+
+    if (validationError) {
+      setErrorMessage(validationError);
       return;
     }
 
     try {
       setSaving(true);
+      setErrorMessage("");
 
       const token = await getToken();
 
       if (!token) {
-        throw new Error("Please log in again.");
+        throw new Error(
+          "Your session has expired. Please sign in again."
+        );
       }
+
+      const scheduledDate = new Date(
+        `${date.trim()}T${time.trim()}:00`
+      );
 
       const payload = {
         title: title.trim(),
-        description: description.trim() || null,
-        category: category.trim() || null,
-        scheduledAt,
+        description:
+          description.trim() || undefined,
+        category:
+          category.trim() || undefined,
+        scheduledAt:
+          scheduledDate.toISOString(),
         reminderEnabled,
         repeatType,
+        completed: editingTask
+          ? editingTask.completed
+          : false,
       };
 
       const url = editingTask
@@ -408,48 +417,59 @@ export default function CaregiverPatientTasks({
         body: JSON.stringify(payload),
       });
 
-      const result = await response.json();
+      const text = await response.text();
 
-      if (!response.ok || !result.success) {
+      let result: any = {};
+
+      try {
+        result = text ? JSON.parse(text) : {};
+      } catch {
+        result = {};
+      }
+
+      if (!response.ok) {
         throw new Error(
-          result.message ||
-            "Unable to save the reminder."
+          result?.message ||
+            `Unable to ${
+              editingTask ? "update" : "create"
+            } reminder.`
         );
       }
 
       setModalVisible(false);
       resetForm();
 
-      await loadTasks();
-
-      showMessage(
-        editingTask
-          ? "Reminder updated"
-          : "Reminder created",
-        editingTask
-          ? `The reminder for ${patientName} has been updated.`
-          : `The reminder has been added to ${patientName}'s schedule.`
-      );
+      await loadTasks(true);
     } catch (error) {
-      showMessage(
-        "Unable to save reminder",
+      const message =
         error instanceof Error
           ? error.message
-          : "Something went wrong while saving the reminder."
-      );
+          : "Unable to save reminder.";
+
+      setErrorMessage(message);
     } finally {
       setSaving(false);
     }
   };
 
-  const toggleCompleted = async (task: Task) => {
+  const completeTask = async (
+    task: PatientTask
+  ) => {
     try {
       const token = await getToken();
 
       if (!token) {
-        throw new Error("Please log in again.");
+        throw new Error(
+          "Your session has expired. Please sign in again."
+        );
       }
 
+      /*
+       * If the task is already completed, use PUT to
+       * allow the caregiver to mark it incomplete again.
+       *
+       * Otherwise use the dedicated complete endpoint.
+       */
       if (task.completed) {
         const response = await fetch(
           `${API_BASE_URL}/api/tasks/patient/${patientId}/${task.id}`,
@@ -461,17 +481,35 @@ export default function CaregiverPatientTasks({
               Accept: "application/json",
             },
             body: JSON.stringify({
+              title: task.title,
+              description:
+                task.description || undefined,
+              category:
+                task.category || undefined,
+              scheduledAt: task.scheduledAt,
+              reminderEnabled:
+                task.reminderEnabled,
+              repeatType:
+                normalizeRepeat(task.repeatType),
               completed: false,
             }),
           }
         );
 
-        const result = await response.json();
+        const text = await response.text();
 
-        if (!response.ok || !result.success) {
+        let result: any = {};
+
+        try {
+          result = text ? JSON.parse(text) : {};
+        } catch {
+          result = {};
+        }
+
+        if (!response.ok) {
           throw new Error(
-            result.message ||
-              "Unable to mark reminder as pending."
+            result?.message ||
+              "Unable to reopen this reminder."
           );
         }
       } else {
@@ -486,106 +524,136 @@ export default function CaregiverPatientTasks({
           }
         );
 
-        const result = await response.json();
+        const text = await response.text();
 
-        if (!response.ok || !result.success) {
+        let result: any = {};
+
+        try {
+          result = text ? JSON.parse(text) : {};
+        } catch {
+          result = {};
+        }
+
+        if (!response.ok) {
           throw new Error(
-            result.message ||
-              "Unable to update reminder status."
+            result?.message ||
+              "Unable to complete this reminder."
           );
         }
       }
 
-      await loadTasks();
+      await loadTasks(true);
     } catch (error) {
-      showMessage(
-        "Unable to update reminder",
+      const message =
         error instanceof Error
           ? error.message
-          : "Something went wrong."
-      );
+          : "Unable to update reminder.";
+
+      Alert.alert("Unable to update", message);
     }
   };
 
-  const deleteReminder = (task: Task) => {
-    confirmDelete(
-      "Delete Reminder",
-      `Delete "${task.title}" from ${patientName}'s schedule?`,
-      async () => {
-        try {
-          const token = await getToken();
+  const deleteTask = (task: PatientTask) => {
+    const performDelete = async () => {
+      try {
+        const token = await getToken();
 
-          if (!token) {
-            throw new Error("Please log in again.");
-          }
-
-          const response = await fetch(
-            `${API_BASE_URL}/api/tasks/patient/${patientId}/${task.id}`,
-            {
-              method: "DELETE",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: "application/json",
-              },
-            }
-          );
-
-          const result = await response.json();
-
-          if (!response.ok || !result.success) {
-            throw new Error(
-              result.message ||
-                "Unable to delete the reminder."
-            );
-          }
-
-          setTasks((current) =>
-            current.filter((item) => item.id !== task.id)
-          );
-
-          showMessage(
-            "Reminder deleted",
-            `"${task.title}" has been removed from the schedule.`
-          );
-        } catch (error) {
-          showMessage(
-            "Unable to delete reminder",
-            error instanceof Error
-              ? error.message
-              : "Something went wrong."
+        if (!token) {
+          throw new Error(
+            "Your session has expired. Please sign in again."
           );
         }
+
+        const response = await fetch(
+          `${API_BASE_URL}/api/tasks/patient/${patientId}/${task.id}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: "application/json",
+            },
+          }
+        );
+
+        const text = await response.text();
+
+        let result: any = {};
+
+        try {
+          result = text ? JSON.parse(text) : {};
+        } catch {
+          result = {};
+        }
+
+        if (!response.ok) {
+          throw new Error(
+            result?.message ||
+              "Unable to delete this reminder."
+          );
+        }
+
+        await loadTasks(true);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Unable to delete reminder.";
+
+        Alert.alert(
+          "Unable to delete",
+          message
+        );
       }
+    };
+
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm(
+        `Delete "${task.title}"?`
+      );
+
+      if (confirmed) {
+        void performDelete();
+      }
+
+      return;
+    }
+
+    Alert.alert(
+      "Delete Reminder",
+      `Are you sure you want to delete "${task.title}"?`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            void performDelete();
+          },
+        },
+      ]
     );
   };
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerIcon}>
-          <MaterialIcons
-            name="notifications-active"
-            size={23}
-            color={COLORS.primary}
-          />
-        </View>
-
-        <View style={styles.headerText}>
-          <Text style={styles.sectionLabel}>
-            PATIENT SCHEDULE
+      <View style={styles.sectionHeader}>
+        <View style={styles.sectionHeaderText}>
+          <Text style={styles.sectionTitle}>
+            Patient Reminders
           </Text>
 
-          <Text style={styles.title}>
-            Reminders for {patientName}
-          </Text>
-
-          <Text style={styles.subtitle}>
-            Manage this patient's daily care reminders.
+          <Text style={styles.sectionSubtitle}>
+            {patientName
+              ? `Manage ${patientName}'s schedule`
+              : "Manage the connected patient's schedule"}
           </Text>
         </View>
 
         <Pressable
-          onPress={openAddReminder}
+          onPress={openCreateModal}
           style={({ pressed }) => [
             styles.addButton,
             pressed && styles.pressed,
@@ -593,8 +661,8 @@ export default function CaregiverPatientTasks({
         >
           <MaterialIcons
             name="add"
-            size={21}
-            color={COLORS.onPrimary}
+            size={22}
+            color={COLORS.white}
           />
 
           <Text style={styles.addButtonText}>
@@ -604,22 +672,49 @@ export default function CaregiverPatientTasks({
       </View>
 
       {loading ? (
-        <View style={styles.loadingCard}>
+        <View style={styles.centerState}>
           <ActivityIndicator
-            size="large"
+            size="small"
             color={COLORS.primary}
           />
 
-          <Text style={styles.loadingTitle}>
+          <Text style={styles.stateText}>
             Loading reminders...
           </Text>
         </View>
-      ) : tasks.length === 0 ? (
+      ) : errorMessage ? (
+        <View style={styles.errorBox}>
+          <MaterialIcons
+            name="error-outline"
+            size={23}
+            color={COLORS.error}
+          />
+
+          <View style={styles.errorContent}>
+            <Text style={styles.errorTitle}>
+              Unable to load reminders
+            </Text>
+
+            <Text style={styles.errorText}>
+              {errorMessage}
+            </Text>
+
+            <Pressable
+              onPress={() => loadTasks()}
+              style={styles.retryButton}
+            >
+              <Text style={styles.retryText}>
+                Try Again
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : sortedTasks.length === 0 ? (
         <View style={styles.emptyCard}>
           <View style={styles.emptyIcon}>
             <MaterialIcons
               name="event-note"
-              size={34}
+              size={30}
               color={COLORS.primary}
             />
           </View>
@@ -629,418 +724,448 @@ export default function CaregiverPatientTasks({
           </Text>
 
           <Text style={styles.emptyText}>
-            Create a reminder for {patientName}'s
-            medication, meals, appointments, hydration,
-            or daily routine.
+            Create a reminder for the connected patient.
           </Text>
 
           <Pressable
-            onPress={openAddReminder}
-            style={({ pressed }) => [
-              styles.emptyButton,
-              pressed && styles.pressed,
-            ]}
+            onPress={openCreateModal}
+            style={styles.emptyButton}
           >
             <MaterialIcons
-              name="add-alert"
-              size={21}
-              color={COLORS.onPrimary}
+              name="add"
+              size={20}
+              color={COLORS.white}
             />
 
             <Text style={styles.emptyButtonText}>
-              Create First Reminder
+              Create Reminder
             </Text>
           </Pressable>
         </View>
       ) : (
-        <>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryText}>
-              {tasks.length}{" "}
-              {tasks.length === 1
-                ? "reminder"
-                : "reminders"}
-            </Text>
+        <ScrollView
+          style={styles.taskList}
+          contentContainerStyle={
+            styles.taskListContent
+          }
+          showsVerticalScrollIndicator={false}
+          refreshControl={undefined}
+        >
+          {refreshing && (
+            <View style={styles.refreshingRow}>
+              <ActivityIndicator
+                size="small"
+                color={COLORS.primary}
+              />
 
-            <Pressable
-              onPress={() => loadTasks(true)}
-              disabled={refreshing}
-              style={styles.refreshButton}
-            >
-              {refreshing ? (
-                <ActivityIndicator
-                  size="small"
-                  color={COLORS.primary}
-                />
-              ) : (
-                <MaterialIcons
-                  name="refresh"
-                  size={19}
-                  color={COLORS.primary}
-                />
-              )}
-
-              <Text style={styles.refreshText}>
-                {refreshing ? "Refreshing..." : "Refresh"}
+              <Text style={styles.refreshingText}>
+                Refreshing...
               </Text>
-            </Pressable>
-          </View>
+            </View>
+          )}
 
-          <View style={styles.taskList}>
-            {tasks.map((task) => (
-              <View
-                key={task.id}
-                style={[
-                  styles.taskCard,
-                  task.completed &&
-                    styles.taskCardCompleted,
-                ]}
-              >
-                <View
-                  style={[
-                    styles.taskIcon,
-                    task.completed &&
-                      styles.taskIconCompleted,
-                  ]}
+          {sortedTasks.map((task) => (
+            <View
+              key={task.id}
+              style={[
+                styles.taskCard,
+                task.completed &&
+                  styles.completedTaskCard,
+              ]}
+            >
+              <View style={styles.taskTopRow}>
+                <Pressable
+                  onPress={() =>
+                    completeTask(task)
+                  }
+                  hitSlop={8}
+                  style={styles.checkButton}
                 >
                   <MaterialIcons
                     name={
                       task.completed
-                        ? "check"
-                        : "notifications-active"
+                        ? "check-circle"
+                        : "radio-button-unchecked"
                     }
-                    size={22}
+                    size={29}
                     color={
                       task.completed
                         ? COLORS.primary
-                        : COLORS.secondary
+                        : COLORS.outline
                     }
                   />
-                </View>
+                </Pressable>
 
-                <View style={styles.taskContent}>
-                  <View style={styles.taskTitleRow}>
-                    <Text
-                      style={[
-                        styles.taskTitle,
-                        task.completed &&
-                          styles.taskTitleCompleted,
-                      ]}
-                      numberOfLines={2}
-                    >
-                      {task.title}
-                    </Text>
-
-                    {task.completed ? (
-                      <View style={styles.completedBadge}>
-                        <Text
-                          style={styles.completedBadgeText}
-                        >
-                          Done
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-
-                  <Text style={styles.taskDate}>
-                    {formatTaskDate(task.scheduledAt)}
+                <View style={styles.taskMain}>
+                  <Text
+                    style={[
+                      styles.taskTitle,
+                      task.completed &&
+                        styles.completedTaskTitle,
+                    ]}
+                  >
+                    {task.title}
                   </Text>
 
-                  {task.category ? (
-                    <View style={styles.categoryBadge}>
-                      <Text style={styles.categoryText}>
-                        {task.category}
-                      </Text>
-                    </View>
-                  ) : null}
-
-                  {task.description ? (
+                  {!!task.description && (
                     <Text
                       style={styles.taskDescription}
-                      numberOfLines={2}
+                      numberOfLines={3}
                     >
                       {task.description}
                     </Text>
-                  ) : null}
+                  )}
 
-                  <View style={styles.taskMetaRow}>
-                    <View style={styles.taskMeta}>
-                      <MaterialIcons
-                        name={
-                          task.reminderEnabled
-                            ? "notifications-active"
-                            : "notifications-off"
-                        }
-                        size={15}
-                        color={
-                          task.reminderEnabled
-                            ? COLORS.primary
-                            : COLORS.outline
-                        }
-                      />
+                  <View style={styles.metaRow}>
+                    <MaterialIcons
+                      name="event"
+                      size={17}
+                      color={COLORS.secondary}
+                    />
 
-                      <Text style={styles.taskMetaText}>
-                        {task.reminderEnabled
-                          ? "Reminder on"
-                          : "Reminder off"}
-                      </Text>
-                    </View>
+                    <Text style={styles.metaText}>
+                      {formatDateTime(
+                        task.scheduledAt
+                      )}
+                    </Text>
+                  </View>
 
-                    {task.repeatType &&
-                    task.repeatType !== "NONE" ? (
-                      <View style={styles.taskMeta}>
+                  <View style={styles.badgesRow}>
+                    {!!task.category && (
+                      <View
+                        style={styles.categoryBadge}
+                      >
                         <MaterialIcons
-                          name="repeat"
+                          name="label-outline"
                           size={15}
-                          color={COLORS.secondary}
+                          color={
+                            COLORS.onSecondaryContainer
+                          }
                         />
 
                         <Text
-                          style={styles.taskMetaText}
+                          style={
+                            styles.categoryBadgeText
+                          }
                         >
-                          {task.repeatType === "DAILY"
-                            ? "Daily"
-                            : task.repeatType === "WEEKLY"
-                            ? "Weekly"
-                            : task.repeatType === "MONTHLY"
-                            ? "Monthly"
-                            : task.repeatType}
+                          {task.category}
                         </Text>
                       </View>
-                    ) : null}
-                  </View>
+                    )}
 
-                  <View style={styles.actionRow}>
-                    <Pressable
-                      onPress={() =>
-                        toggleCompleted(task)
-                      }
-                      style={({ pressed }) => [
-                        styles.completeButton,
-                        task.completed &&
-                          styles.uncompleteButton,
-                        pressed && styles.pressed,
-                      ]}
-                    >
-                      <MaterialIcons
-                        name={
-                          task.completed
-                            ? "undo"
-                            : "check-circle-outline"
-                        }
-                        size={18}
-                        color={COLORS.primary}
-                      />
-
-                      <Text
-                        style={
-                          styles.completeButtonText
-                        }
+                    {task.reminderEnabled && (
+                      <View
+                        style={styles.reminderBadge}
                       >
-                        {task.completed
-                          ? "Mark Pending"
-                          : "Mark Complete"}
-                      </Text>
-                    </Pressable>
+                        <MaterialIcons
+                          name="notifications-active"
+                          size={15}
+                          color={COLORS.primary}
+                        />
 
-                    <Pressable
-                      onPress={() =>
-                        openEditReminder(task)
-                      }
-                      style={({ pressed }) => [
-                        styles.iconActionButton,
-                        pressed && styles.pressed,
-                      ]}
-                    >
-                      <MaterialIcons
-                        name="edit"
-                        size={19}
-                        color={COLORS.secondary}
-                      />
-                    </Pressable>
+                        <Text
+                          style={
+                            styles.reminderBadgeText
+                          }
+                        >
+                          Reminder On
+                        </Text>
+                      </View>
+                    )}
 
-                    <Pressable
-                      onPress={() =>
-                        deleteReminder(task)
-                      }
-                      style={({ pressed }) => [
-                        styles.iconActionButton,
-                        pressed && styles.pressed,
-                      ]}
-                    >
-                      <MaterialIcons
-                        name="delete-outline"
-                        size={20}
-                        color={COLORS.error}
-                      />
-                    </Pressable>
+                    {task.repeatType &&
+                      task.repeatType !==
+                        "NONE" && (
+                        <View
+                          style={styles.repeatBadge}
+                        >
+                          <MaterialIcons
+                            name="repeat"
+                            size={15}
+                            color={
+                              COLORS.onPrimaryContainer
+                            }
+                          />
+
+                          <Text
+                            style={
+                              styles.repeatBadgeText
+                            }
+                          >
+                            {formatRepeat(
+                              task.repeatType
+                            )}
+                          </Text>
+                        </View>
+                      )}
                   </View>
                 </View>
+
+                <View style={styles.actions}>
+                  <Pressable
+                    onPress={() =>
+                      openEditModal(task)
+                    }
+                    hitSlop={8}
+                    style={styles.iconButton}
+                  >
+                    <MaterialIcons
+                      name="edit"
+                      size={21}
+                      color={COLORS.primary}
+                    />
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() =>
+                      deleteTask(task)
+                    }
+                    hitSlop={8}
+                    style={styles.iconButton}
+                  >
+                    <MaterialIcons
+                      name="delete-outline"
+                      size={22}
+                      color={COLORS.error}
+                    />
+                  </Pressable>
+                </View>
               </View>
-            ))}
-          </View>
-        </>
+            </View>
+          ))}
+        </ScrollView>
       )}
 
       <Modal
         visible={modalVisible}
-        animationType="slide"
         transparent
+        animationType="slide"
         onRequestClose={closeModal}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={
+            Platform.OS === "ios"
+              ? "padding"
+              : undefined
+          }
+        >
+          <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <View>
                 <Text style={styles.modalTitle}>
                   {editingTask
                     ? "Edit Reminder"
-                    : "Add Reminder"}
+                    : "New Reminder"}
                 </Text>
 
-                <Text style={styles.modalSubtitle}>
-                  For {patientName}
+                <Text
+                  style={styles.modalSubtitle}
+                >
+                  {patientName
+                    ? `For ${patientName}`
+                    : "For connected patient"}
                 </Text>
               </View>
 
               <Pressable
                 onPress={closeModal}
                 disabled={saving}
+                hitSlop={10}
                 style={styles.closeButton}
               >
                 <MaterialIcons
                   name="close"
-                  size={24}
-                  color={COLORS.onSurface}
+                  size={25}
+                  color={COLORS.text}
                 />
               </Pressable>
             </View>
 
             <ScrollView
+              keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
               contentContainerStyle={
-                styles.modalScroll
+                styles.formContent
               }
-              keyboardShouldPersistTaps="handled"
             >
+              {errorMessage ? (
+                <View style={styles.formErrorBox}>
+                  <MaterialIcons
+                    name="error-outline"
+                    size={20}
+                    color={COLORS.error}
+                  />
+
+                  <Text
+                    style={styles.formErrorText}
+                  >
+                    {errorMessage}
+                  </Text>
+                </View>
+              ) : null}
+
               <Text style={styles.inputLabel}>
-                Title *
+                Title
               </Text>
 
-              <TextInput
-                value={title}
-                onChangeText={setTitle}
-                placeholder="e.g. Take morning medicine"
-                placeholderTextColor={COLORS.outline}
-                style={styles.input}
-                editable={!saving}
-              />
+              <View style={styles.inputWrapper}>
+                <MaterialIcons
+                  name="title"
+                  size={20}
+                  color={COLORS.primary}
+                />
+
+                <TextInput
+                  value={title}
+                  onChangeText={setTitle}
+                  placeholder="e.g. Take morning medicine"
+                  placeholderTextColor={
+                    COLORS.textSecondary
+                  }
+                  editable={!saving}
+                  style={styles.input}
+                />
+              </View>
 
               <Text style={styles.inputLabel}>
                 Description
               </Text>
 
-              <TextInput
-                value={description}
-                onChangeText={setDescription}
-                placeholder="Add instructions or details"
-                placeholderTextColor={COLORS.outline}
+              <View
                 style={[
-                  styles.input,
-                  styles.multilineInput,
+                  styles.inputWrapper,
+                  styles.textAreaWrapper,
                 ]}
-                multiline
-                numberOfLines={3}
-                editable={!saving}
-              />
+              >
+                <MaterialIcons
+                  name="description"
+                  size={20}
+                  color={COLORS.primary}
+                />
+
+                <TextInput
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder="Add instructions or details"
+                  placeholderTextColor={
+                    COLORS.textSecondary
+                  }
+                  editable={!saving}
+                  multiline
+                  textAlignVertical="top"
+                  style={[
+                    styles.input,
+                    styles.textArea,
+                  ]}
+                />
+              </View>
 
               <Text style={styles.inputLabel}>
                 Category
               </Text>
 
-              <TextInput
-                value={category}
-                onChangeText={setCategory}
-                placeholder="Medication, Meal, Hydration..."
-                placeholderTextColor={COLORS.outline}
-                style={styles.input}
-                editable={!saving}
-              />
+              <View style={styles.inputWrapper}>
+                <MaterialIcons
+                  name="category"
+                  size={20}
+                  color={COLORS.primary}
+                />
 
-              <Text style={styles.inputLabel}>
-                Date *
-              </Text>
+                <TextInput
+                  value={category}
+                  onChangeText={setCategory}
+                  placeholder="e.g. Medicine, Meal, Appointment"
+                  placeholderTextColor={
+                    COLORS.textSecondary
+                  }
+                  editable={!saving}
+                  style={styles.input}
+                />
+              </View>
 
-              <TextInput
-                value={date}
-                onChangeText={setDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={COLORS.outline}
-                style={styles.input}
-                keyboardType="numbers-and-punctuation"
-                editable={!saving}
-                maxLength={10}
-              />
+              <View style={styles.twoColumn}>
+                <View style={styles.column}>
+                  <Text style={styles.inputLabel}>
+                    Date
+                  </Text>
 
-              <Text style={styles.inputHint}>
-                Example: 2026-09-15
-              </Text>
+                  <View
+                    style={styles.inputWrapper}
+                  >
+                    <MaterialIcons
+                      name="event"
+                      size={19}
+                      color={COLORS.primary}
+                    />
 
-              <Text style={styles.inputLabel}>
-                Time *
-              </Text>
-
-              <TextInput
-                value={time}
-                onChangeText={setTime}
-                placeholder="HH:MM"
-                placeholderTextColor={COLORS.outline}
-                style={styles.input}
-                keyboardType="numbers-and-punctuation"
-                editable={!saving}
-                maxLength={5}
-              />
-
-              <Text style={styles.inputHint}>
-                Use 24-hour time. Example: 08:30
-              </Text>
-
-              <View style={styles.switchRow}>
-                <View style={styles.switchIcon}>
-                  <MaterialIcons
-                    name={
-                      reminderEnabled
-                        ? "notifications-active"
-                        : "notifications-off"
-                    }
-                    size={22}
-                    color={COLORS.primary}
-                  />
+                    <TextInput
+                      value={date}
+                      onChangeText={setDate}
+                      placeholder="YYYY-MM-DD"
+                      placeholderTextColor={
+                        COLORS.textSecondary
+                      }
+                      editable={!saving}
+                      autoCapitalize="none"
+                      style={styles.input}
+                    />
+                  </View>
                 </View>
 
-                <View style={styles.switchContent}>
+                <View style={styles.column}>
+                  <Text style={styles.inputLabel}>
+                    Time
+                  </Text>
+
+                  <View
+                    style={styles.inputWrapper}
+                  >
+                    <MaterialIcons
+                      name="schedule"
+                      size={19}
+                      color={COLORS.primary}
+                    />
+
+                    <TextInput
+                      value={time}
+                      onChangeText={setTime}
+                      placeholder="HH:mm"
+                      placeholderTextColor={
+                        COLORS.textSecondary
+                      }
+                      editable={!saving}
+                      autoCapitalize="none"
+                      style={styles.input}
+                    />
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.switchRow}>
+                <View style={styles.switchText}>
                   <Text style={styles.switchTitle}>
                     Reminder notification
                   </Text>
 
-                  <Text style={styles.switchDescription}>
-                    Enable a notification for this reminder.
+                  <Text
+                    style={styles.switchSubtitle}
+                  >
+                    Patient receives a reminder for this task.
                   </Text>
                 </View>
 
                 <Switch
                   value={reminderEnabled}
-                  onValueChange={setReminderEnabled}
+                  onValueChange={
+                    setReminderEnabled
+                  }
                   disabled={saving}
                   trackColor={{
-                    false: COLORS.outlineVariant,
-                    true: COLORS.greenBorder,
+                    false: COLORS.surfaceVariant,
+                    true: COLORS.primary,
                   }}
-                  thumbColor={
-                    reminderEnabled
-                      ? COLORS.primary
-                      : COLORS.outline
-                  }
+                  thumbColor={COLORS.white}
                 />
               </View>
 
@@ -1048,93 +1173,76 @@ export default function CaregiverPatientTasks({
                 Repeat
               </Text>
 
-              <View style={styles.optionRow}>
-                {(
-                  [
-                    "NONE",
-                    "DAILY",
-                    "WEEKLY",
-                    "MONTHLY",
-                  ] as RepeatType[]
-                ).map((option) => (
-                  <Pressable
-                    key={option}
-                    onPress={() =>
-                      setRepeatType(option)
-                    }
-                    disabled={saving}
-                    style={[
-                      styles.optionButton,
-                      repeatType === option &&
-                        styles.optionButtonActive,
-                    ]}
-                  >
-                    <Text
+              <View style={styles.repeatOptions}>
+                {REPEAT_OPTIONS.map((option) => {
+                  const selected =
+                    repeatType === option.value;
+
+                  return (
+                    <Pressable
+                      key={option.value}
+                      onPress={() =>
+                        setRepeatType(
+                          option.value
+                        )
+                      }
+                      disabled={saving}
                       style={[
-                        styles.optionText,
-                        repeatType === option &&
-                          styles.optionTextActive,
+                        styles.repeatOption,
+                        selected &&
+                          styles.repeatOptionSelected,
                       ]}
                     >
-                      {option === "NONE"
-                        ? "None"
-                        : option === "DAILY"
-                        ? "Daily"
-                        : option === "WEEKLY"
-                        ? "Weekly"
-                        : "Monthly"}
-                    </Text>
-                  </Pressable>
-                ))}
+                      <Text
+                        style={[
+                          styles.repeatOptionText,
+                          selected &&
+                            styles.repeatOptionTextSelected,
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
 
-              <View style={styles.modalButtons}>
-                <Pressable
-                  onPress={closeModal}
-                  disabled={saving}
-                  style={[
-                    styles.cancelButton,
-                    saving && styles.disabledButton,
-                  ]}
-                >
-                  <Text style={styles.cancelText}>
-                    Cancel
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  onPress={saveReminder}
-                  disabled={saving}
-                  style={[
-                    styles.saveButton,
-                    saving && styles.disabledButton,
-                  ]}
-                >
-                  {saving ? (
-                    <ActivityIndicator
-                      size="small"
-                      color={COLORS.onPrimary}
-                    />
-                  ) : (
+              <Pressable
+                onPress={saveTask}
+                disabled={saving}
+                style={({ pressed }) => [
+                  styles.saveButton,
+                  pressed && styles.pressed,
+                  saving &&
+                    styles.saveButtonDisabled,
+                ]}
+              >
+                {saving ? (
+                  <ActivityIndicator
+                    size="small"
+                    color={COLORS.white}
+                  />
+                ) : (
+                  <>
                     <MaterialIcons
                       name="save"
-                      size={20}
-                      color={COLORS.onPrimary}
+                      size={21}
+                      color={COLORS.white}
                     />
-                  )}
 
-                  <Text style={styles.saveText}>
-                    {saving
-                      ? "Saving..."
-                      : editingTask
-                      ? "Update"
-                      : "Create"}
-                  </Text>
-                </Pressable>
-              </View>
+                    <Text
+                      style={styles.saveButtonText}
+                    >
+                      {editingTask
+                        ? "Save Changes"
+                        : "Create Reminder"}
+                    </Text>
+                  </>
+                )}
+              </Pressable>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -1143,516 +1251,514 @@ export default function CaregiverPatientTasks({
 const styles = StyleSheet.create({
   container: {
     width: "100%",
-    gap: 12,
   },
 
-  header: {
+  sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 11,
+    justifyContent: "space-between",
+    marginBottom: 14,
   },
 
-  headerIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 15,
-    backgroundColor: COLORS.greenSoft,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  headerText: {
+  sectionHeaderText: {
     flex: 1,
+    paddingRight: 12,
   },
 
-  sectionLabel: {
-    color: COLORS.secondary,
-    fontSize: 10,
-    lineHeight: 14,
-    fontWeight: "800",
-    letterSpacing: 0.8,
-  },
-
-  title: {
-    color: COLORS.onSurface,
+  sectionTitle: {
     fontSize: 20,
-    lineHeight: 26,
     fontWeight: "800",
+    color: COLORS.text,
   },
 
-  subtitle: {
-    color: COLORS.onSurfaceVariant,
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 1,
+  sectionSubtitle: {
+    marginTop: 4,
+    fontSize: 13.5,
+    lineHeight: 19,
+    color: COLORS.textSecondary,
   },
 
   addButton: {
-    minHeight: 44,
-    paddingHorizontal: 12,
+    minHeight: 42,
+    paddingHorizontal: 14,
     borderRadius: 13,
     backgroundColor: COLORS.primary,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
   },
 
   addButtonText: {
-    color: COLORS.onPrimary,
-    fontSize: 13,
+    marginLeft: 5,
+    color: COLORS.white,
+    fontSize: 14,
     fontWeight: "800",
   },
 
-  loadingCard: {
-    minHeight: 140,
-    borderRadius: 17,
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
+  pressed: {
+    opacity: 0.78,
+    transform: [{ scale: 0.99 }],
+  },
+
+  centerState: {
+    minHeight: 130,
     alignItems: "center",
     justifyContent: "center",
-  },
-
-  loadingTitle: {
-    marginTop: 10,
-    color: COLORS.onSurfaceVariant,
-    fontSize: 14,
-    fontWeight: "700",
-  },
-
-  emptyCard: {
     backgroundColor: COLORS.surface,
     borderRadius: 18,
     borderWidth: 1,
     borderColor: COLORS.outlineVariant,
-    padding: 22,
+  },
+
+  stateText: {
+    marginTop: 9,
+    fontSize: 14,
+    color: COLORS.textSecondary,
+  },
+
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: COLORS.tertiaryContainer,
+    borderRadius: 16,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+  },
+
+  errorContent: {
+    flex: 1,
+    marginLeft: 10,
+  },
+
+  errorTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: COLORS.error,
+  },
+
+  errorText: {
+    marginTop: 4,
+    fontSize: 13.5,
+    lineHeight: 19,
+    color: COLORS.textSecondary,
+  },
+
+  retryButton: {
+    alignSelf: "flex-start",
+    marginTop: 10,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: COLORS.white,
+  },
+
+  retryText: {
+    color: COLORS.primary,
+    fontWeight: "800",
+    fontSize: 13,
+  },
+
+  emptyCard: {
     alignItems: "center",
+    backgroundColor: COLORS.surface,
+    borderRadius: 18,
+    paddingHorizontal: 22,
+    paddingVertical: 28,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
   },
 
   emptyIcon: {
-    width: 66,
-    height: 66,
-    borderRadius: 33,
-    backgroundColor: COLORS.greenSoft,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: COLORS.onPrimaryContainer,
     alignItems: "center",
     justifyContent: "center",
   },
 
   emptyTitle: {
     marginTop: 13,
-    color: COLORS.onSurface,
     fontSize: 18,
     fontWeight: "800",
+    color: COLORS.text,
   },
 
   emptyText: {
-    marginTop: 7,
-    color: COLORS.onSurfaceVariant,
-    fontSize: 13,
-    lineHeight: 19,
+    marginTop: 5,
+    fontSize: 14,
+    lineHeight: 20,
     textAlign: "center",
+    color: COLORS.textSecondary,
   },
 
   emptyButton: {
     marginTop: 17,
-    minHeight: 48,
-    paddingHorizontal: 16,
+    minHeight: 45,
+    paddingHorizontal: 15,
     borderRadius: 13,
     backgroundColor: COLORS.primary,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 7,
   },
 
   emptyButtonText: {
-    color: COLORS.onPrimary,
-    fontSize: 13,
-    fontWeight: "800",
-  },
-
-  summaryRow: {
-    minHeight: 40,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  summaryText: {
-    color: COLORS.onSurfaceVariant,
-    fontSize: 13,
-    fontWeight: "700",
-  },
-
-  refreshButton: {
-    minHeight: 38,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    backgroundColor: COLORS.greenSoft,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-
-  refreshText: {
-    color: COLORS.primary,
-    fontSize: 12,
+    marginLeft: 7,
+    color: COLORS.white,
+    fontSize: 14,
     fontWeight: "800",
   },
 
   taskList: {
-    gap: 10,
+    width: "100%",
+  },
+
+  taskListContent: {
+    paddingBottom: 10,
+  },
+
+  refreshingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 7,
+  },
+
+  refreshingText: {
+    marginLeft: 7,
+    fontSize: 12.5,
+    color: COLORS.textSecondary,
   },
 
   taskCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 16,
+    backgroundColor: COLORS.white,
+    borderRadius: 17,
+    padding: 14,
+    marginBottom: 11,
     borderWidth: 1,
     borderColor: COLORS.outlineVariant,
-    padding: 13,
+  },
+
+  completedTaskCard: {
+    backgroundColor: COLORS.surface,
+    opacity: 0.82,
+  },
+
+  taskTopRow: {
     flexDirection: "row",
-    gap: 10,
+    alignItems: "flex-start",
   },
 
-  taskCardCompleted: {
-    backgroundColor: COLORS.greenSoft,
-    borderColor: COLORS.greenBorder,
-  },
-
-  taskIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
-    backgroundColor: COLORS.secondaryContainer,
+  checkButton: {
+    width: 34,
+    height: 34,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  taskIconCompleted: {
-    backgroundColor: COLORS.surface,
-  },
-
-  taskContent: {
+  taskMain: {
     flex: 1,
-    minWidth: 0,
-  },
-
-  taskTitleRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 7,
+    marginLeft: 8,
+    paddingRight: 6,
   },
 
   taskTitle: {
-    flex: 1,
-    color: COLORS.onSurface,
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: 16,
+    lineHeight: 21,
     fontWeight: "800",
+    color: COLORS.text,
   },
 
-  taskTitleCompleted: {
+  completedTaskTitle: {
     textDecorationLine: "line-through",
-    color: COLORS.onSurfaceVariant,
-  },
-
-  completedBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-    borderRadius: 8,
-    backgroundColor: COLORS.surface,
-  },
-
-  completedBadgeText: {
-    color: COLORS.primary,
-    fontSize: 9,
-    fontWeight: "900",
-  },
-
-  taskDate: {
-    marginTop: 4,
-    color: COLORS.secondary,
-    fontSize: 12,
-    fontWeight: "700",
-  },
-
-  categoryBadge: {
-    alignSelf: "flex-start",
-    marginTop: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    backgroundColor: COLORS.secondaryContainer,
-  },
-
-  categoryText: {
-    color: COLORS.secondary,
-    fontSize: 10,
-    fontWeight: "800",
+    color: COLORS.textSecondary,
   },
 
   taskDescription: {
-    marginTop: 6,
-    color: COLORS.onSurfaceVariant,
-    fontSize: 12,
-    lineHeight: 17,
+    marginTop: 5,
+    fontSize: 13.5,
+    lineHeight: 19,
+    color: COLORS.textSecondary,
   },
 
-  taskMetaRow: {
-    marginTop: 8,
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 9,
+  },
+
+  metaText: {
+    marginLeft: 6,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    flexShrink: 1,
+  },
+
+  badgesRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    marginTop: 9,
+    gap: 6,
   },
 
-  taskMeta: {
+  categoryBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    backgroundColor: COLORS.secondaryContainer,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
   },
 
-  taskMetaText: {
-    color: COLORS.onSurfaceVariant,
-    fontSize: 10,
-    fontWeight: "600",
+  categoryBadgeText: {
+    marginLeft: 4,
+    fontSize: 11.5,
+    fontWeight: "700",
+    color: COLORS.onSecondaryContainer,
   },
 
-  actionRow: {
-    marginTop: 10,
-    flexDirection: "row",
-    gap: 7,
-  },
-
-  completeButton: {
-    flex: 1,
-    minHeight: 38,
-    borderRadius: 10,
-    backgroundColor: COLORS.greenSoft,
+  reminderBadge: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
+    backgroundColor: COLORS.onPrimaryContainer,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
   },
 
-  uncompleteButton: {
-    backgroundColor: COLORS.surface,
-  },
-
-  completeButtonText: {
+  reminderBadgeText: {
+    marginLeft: 4,
+    fontSize: 11.5,
+    fontWeight: "700",
     color: COLORS.primary,
-    fontSize: 11,
-    fontWeight: "800",
   },
 
-  iconActionButton: {
-    width: 40,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: COLORS.surfaceLow,
+  repeatBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.primaryContainer,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+
+  repeatBadgeText: {
+    marginLeft: 4,
+    fontSize: 11.5,
+    fontWeight: "700",
+    color: COLORS.onPrimaryContainer,
+  },
+
+  actions: {
+    marginLeft: 4,
+    alignItems: "center",
+  },
+
+  iconButton: {
+    width: 35,
+    height: 35,
     alignItems: "center",
     justifyContent: "center",
   },
-
-  // ==========================================================
-  // MODAL
-  // ==========================================================
 
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(55,50,40,0.48)",
+    backgroundColor: "rgba(27, 28, 23, 0.45)",
     justifyContent: "flex-end",
   },
 
-  modalContainer: {
+  modalCard: {
     width: "100%",
-    maxWidth: 560,
     maxHeight: "92%",
-    alignSelf: "center",
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.background,
     borderTopLeftRadius: 26,
     borderTopRightRadius: 26,
+    paddingTop: 18,
+    paddingHorizontal: 20,
+    paddingBottom: 18,
   },
 
   modalHeader: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.outlineVariant,
   },
 
   modalTitle: {
-    color: COLORS.onSurface,
-    fontSize: 21,
-    lineHeight: 27,
+    fontSize: 22,
     fontWeight: "800",
+    color: COLORS.text,
   },
 
   modalSubtitle: {
-    marginTop: 2,
-    color: COLORS.onSurfaceVariant,
-    fontSize: 12,
+    marginTop: 3,
+    fontSize: 13,
+    color: COLORS.textSecondary,
   },
 
   closeButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.surfaceHigh,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: COLORS.surface,
   },
 
-  modalScroll: {
-    paddingHorizontal: 20,
-    paddingBottom: 30,
+  formContent: {
+    paddingTop: 16,
+    paddingBottom: 20,
+  },
+
+  formErrorBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: COLORS.tertiaryContainer,
+    borderRadius: 13,
+    padding: 11,
+    marginBottom: 13,
+  },
+
+  formErrorText: {
+    flex: 1,
+    marginLeft: 7,
+    fontSize: 13,
+    lineHeight: 18,
+    color: COLORS.error,
   },
 
   inputLabel: {
-    marginTop: 13,
+    marginTop: 12,
     marginBottom: 7,
-    color: COLORS.onSurface,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "800",
+    color: COLORS.text,
+  },
+
+  inputWrapper: {
+    minHeight: 51,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
+    borderRadius: 13,
+    backgroundColor: COLORS.white,
+    paddingHorizontal: 13,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  textAreaWrapper: {
+    alignItems: "flex-start",
+    paddingTop: 13,
+    minHeight: 95,
   },
 
   input: {
-    minHeight: 52,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: COLORS.outlineVariant,
-    backgroundColor: COLORS.surfaceLow,
-    paddingHorizontal: 14,
-    color: COLORS.onSurface,
-    fontSize: 14,
+    flex: 1,
+    minHeight: 48,
+    marginLeft: 9,
+    fontSize: 15,
+    color: COLORS.text,
+
+    ...(Platform.OS === "web"
+      ? ({ outlineStyle: "none" } as any)
+      : {}),
   },
 
-  multilineInput: {
-    minHeight: 85,
-    paddingTop: 13,
-    textAlignVertical: "top",
+  textArea: {
+    minHeight: 78,
+    paddingTop: 0,
   },
 
-  inputHint: {
-    marginTop: 5,
-    color: COLORS.onSurfaceVariant,
-    fontSize: 10,
+  twoColumn: {
+    flexDirection: "row",
+    gap: 10,
+  },
+
+  column: {
+    flex: 1,
   },
 
   switchRow: {
-    marginTop: 17,
-    minHeight: 66,
+    marginTop: 18,
+    padding: 13,
     borderRadius: 14,
-    backgroundColor: COLORS.greenSoft,
-    paddingHorizontal: 11,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.outlineVariant,
     flexDirection: "row",
     alignItems: "center",
-    gap: 9,
   },
 
-  switchIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: COLORS.surface,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  switchContent: {
+  switchText: {
     flex: 1,
+    paddingRight: 10,
   },
 
   switchTitle: {
-    color: COLORS.onSurface,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "800",
+    color: COLORS.text,
   },
 
-  switchDescription: {
-    marginTop: 2,
-    color: COLORS.onSurfaceVariant,
-    fontSize: 10,
-    lineHeight: 15,
+  switchSubtitle: {
+    marginTop: 3,
+    fontSize: 12,
+    lineHeight: 17,
+    color: COLORS.textSecondary,
   },
 
-  optionRow: {
+  repeatOptions: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
 
-  optionButton: {
-    flex: 1,
-    minHeight: 43,
+  repeatOption: {
+    paddingHorizontal: 13,
+    paddingVertical: 10,
     borderRadius: 11,
-    backgroundColor: COLORS.surfaceLow,
     borderWidth: 1,
     borderColor: COLORS.outlineVariant,
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: COLORS.white,
   },
 
-  optionButtonActive: {
-    backgroundColor: COLORS.greenSoft,
+  repeatOptionSelected: {
+    backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
   },
 
-  optionText: {
-    color: COLORS.onSurfaceVariant,
-    fontSize: 12,
-    fontWeight: "700",
-  },
-
-  optionTextActive: {
-    color: COLORS.primary,
-    fontWeight: "900",
-  },
-
-  modalButtons: {
-    marginTop: 22,
-    flexDirection: "row",
-    gap: 9,
-  },
-
-  cancelButton: {
-    flex: 1,
-    minHeight: 52,
-    borderRadius: 14,
-    backgroundColor: COLORS.surfaceHigh,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  cancelText: {
-    color: COLORS.onSurfaceVariant,
+  repeatOptionText: {
     fontSize: 13,
-    fontWeight: "800",
+    fontWeight: "700",
+    color: COLORS.textSecondary,
+  },
+
+  repeatOptionTextSelected: {
+    color: COLORS.white,
   },
 
   saveButton: {
-    flex: 1,
-    minHeight: 52,
-    borderRadius: 14,
+    minHeight: 54,
+    marginTop: 22,
+    borderRadius: 15,
     backgroundColor: COLORS.primary,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
   },
 
-  saveText: {
-    color: COLORS.onPrimary,
-    fontSize: 13,
+  saveButtonDisabled: {
+    opacity: 0.65,
+  },
+
+  saveButtonText: {
+    marginLeft: 8,
+    fontSize: 16,
     fontWeight: "800",
-  },
-
-  disabledButton: {
-    opacity: 0.55,
-  },
-
-  pressed: {
-    opacity: 0.7,
+    color: COLORS.white,
   },
 });
