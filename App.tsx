@@ -24,7 +24,7 @@ import ScheduleScreen from "./src/screens/reminders/ScheduleScreen";
 import MemoryScreen from "./src/screens/memories/MemoryScreen";
 
 // ============================================================
-// CAREGIVER AUTH
+// CAREGIVER AUTHENTICATION
 // ============================================================
 
 import CaregiverAuthScreen from "./src/screens/auth/CaregiverAuthScreen";
@@ -32,7 +32,7 @@ import CaregiverLoginScreen from "./src/screens/caregiver/CaregiverLoginScreen";
 import CaregiverSignupScreen from "./src/screens/caregiver/CaregiverSignupScreen";
 
 // ============================================================
-// CAREGIVER APP
+// CAREGIVER APPLICATION
 // ============================================================
 
 import CaregiverDashboardScreen from "./src/screens/caregiver/CaregiverDashboardScreen";
@@ -41,8 +41,12 @@ import CaregiverAlertsScreen from "./src/screens/caregiver/CaregiverAlertsScreen
 import CaregiverRemindersScreen from "./src/screens/caregiver/CaregiverRemindersScreen";
 
 // ============================================================
-// AUTH STORAGE
+// PATIENT AUTH / DATABASE / SYNC
 // ============================================================
+
+import {
+  getCurrentPatient,
+} from "./src/services/api";
 
 import {
   clearAuthSession,
@@ -50,35 +54,88 @@ import {
   getToken,
   saveAuthSession,
 } from "./src/services/authStorage";
-import { initDatabase } from './src/database/sqlite';
-import { syncManager } from './src/services/syncManager';
-import { getLocalProfile, saveLocalProfile } from './src/database/repositories/profileRepository';
-import SyncStatusBadge from './src/components/SyncStatusBadge';
+
+import { initDatabase } from "./src/database/sqlite";
+
+import { syncManager } from "./src/services/syncManager";
+
+import {
+  getLocalProfile,
+  saveLocalProfile,
+} from "./src/database/repositories/profileRepository";
+
+// ============================================================
+// PATIENT USER TYPE
+// ============================================================
+
+type PatientUser = {
+  id: string;
+  fullName: string;
+  email: string;
+  role: string;
+
+  age?: number | null;
+  phone?: string | null;
+  dateOfBirth?: string | null;
+  gender?: string | null;
+  address?: string | null;
+  city?: string | null;
+  bloodGroup?: string | null;
+  medicalNotes?: string | null;
+  profileImageUrl?: string | null;
+
+  language?: string | null;
+
+  caregiverName?: string | null;
+  caregiverAccess?: boolean;
+
+  gpsSharing?: boolean;
+
+  textSize?: string | null;
+
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+};
 
 // ============================================================
 // SCREEN TYPE
 // ============================================================
 
 type Screen =
-  // Welcome
+  // ----------------------------------------------------------
+  // Common
+  // ----------------------------------------------------------
+
   | "welcome"
 
+  // ----------------------------------------------------------
   // Patient authentication
+  // ----------------------------------------------------------
+
   | "login"
   | "signup"
 
+  // ----------------------------------------------------------
   // Patient application
+  // ----------------------------------------------------------
+
   | "home"
   | "profile"
   | "schedule"
   | "memory"
 
+  // ----------------------------------------------------------
   // Caregiver authentication
+  // ----------------------------------------------------------
+
   | "caregiver-auth"
   | "caregiver-login"
   | "caregiver-signup"
 
+  // ----------------------------------------------------------
   // Caregiver application
+  // ----------------------------------------------------------
+
   | "caregiver-dashboard"
   | "caregiver-profile"
   | "caregiver-alerts"
@@ -92,189 +149,300 @@ function AppContent() {
   const [screen, setScreen] =
     useState<Screen>("welcome");
 
-  const [patient, setPatient] = useState<PatientUser | null>(null);
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [patient, setPatient] =
+    useState<PatientUser | null>(null);
 
-  // ---------------------------------------------------------
-  // OFFLINE DETECTION
-  // ---------------------------------------------------------
-
-  const [isOffline, setIsOffline] = useState(false);
-  const [connectionChecked, setConnectionChecked] = useState(false);
-
-  const [loading, setLoading] = useState(true);
-
-  // ---------------------------------------------------------
-  // RESTORE PATIENT SESSION & INITIALIZE SQLITE
-  // ---------------------------------------------------------
+  const [loading, setLoading] =
+    useState(true);
 
   // ============================================================
-  // RESTORE AUTHENTICATION
+  // INITIALIZE APP
   // ============================================================
 
   useEffect(() => {
     initializeApp();
   }, []);
 
-<<<<<<< Updated upstream
+  // ============================================================
+  // INITIALIZE DATABASE + RESTORE SESSION
+  // ============================================================
+
   async function initializeApp() {
     try {
       await initDatabase();
-    } catch (e) {
-      console.warn('SQLite init error:', e);
+    } catch (error) {
+      console.warn(
+        "SmritiCare: SQLite initialization error:",
+        error,
+      );
     }
 
-    await restorePatientSession();
-  }
-
-  async function restorePatientSession() {
-=======
-  const checkAuthentication = async () => {
->>>>>>> Stashed changes
     try {
-      const token = await getToken();
-      const role = await getAuthRole();
-
-<<<<<<< Updated upstream
-    try {
-      const token = await getToken();
-
-      if (!token) {
-        console.log('SmritiCare: no saved login found');
-
-        setPatient(null);
-        setScreen('welcome');
-        return;
-      }
-
-      console.log('SmritiCare: saved token found');
-
-      try {
-        const result = await getCurrentPatient(token);
-
-        if (result.success && result.user) {
-          console.log(
-            'SmritiCare: patient session restored:',
-            result.user.fullName,
-          );
-
-          setPatient(result.user);
-          syncManager.setUserId(result.user.id);
-          await saveLocalProfile({
-            userId: result.user.id,
-            fullName: result.user.fullName,
-            email: result.user.email,
-            age: result.user.age,
-            language: result.user.language,
-            caregiverName: result.user.caregiverName,
-            caregiverAccess: result.user.caregiverAccess,
-            gpsSharing: result.user.gpsSharing,
-            textSize: result.user.textSize,
-            syncStatus: 'SYNCED',
-          });
-          setScreen('home');
-          return;
-        }
-      } catch (netErr) {
-        console.log('Network error restoring session online, checking local cache...');
-
-      }
-
-      // If offline or network unavailable, check if we have cached profile
-      const cached = await getLocalProfile('patient_local');
-      if (cached) {
-        const localPatient: PatientUser = {
-          id: cached.userId,
-          fullName: cached.fullName,
-          email: cached.email,
-          role: 'PATIENT',
-          age: cached.age ?? null,
-          phone: cached.phone ?? null,
-          dateOfBirth: cached.dateOfBirth ?? null,
-          gender: cached.gender ?? null,
-          address: cached.address ?? null,
-          city: cached.city ?? null,
-          bloodGroup: cached.bloodGroup ?? null,
-          medicalNotes: cached.medicalNotes ?? null,
-          profileImageUrl: cached.profileImageUrl ?? null,
-          language: cached.language,
-          caregiverName: cached.caregiverName ?? null,
-          caregiverAccess: cached.caregiverAccess,
-          gpsSharing: cached.gpsSharing,
-          textSize: cached.textSize,
-          createdAt: cached.updatedAt,
-          updatedAt: cached.updatedAt,
-        };
-        setPatient(localPatient);
-        syncManager.setUserId(cached.userId);
-        setScreen('home');
-        return;
-      }
+      await restoreAuthenticationSession();
+    } catch (error) {
+      console.warn(
+        "SmritiCare: authentication restore error:",
+        error,
+      );
 
       setPatient(null);
-      setScreen('welcome');
-=======
-      // No saved session
-      if (!token) {
-        setScreen("welcome");
-        return;
-      }
+      setScreen("welcome");
+    } finally {
+      setLoading(false);
+    }
+  }
 
-      // --------------------------------------------------------
-      // CAREGIVER SESSION
-      // --------------------------------------------------------
+  // ============================================================
+  // RESTORE AUTHENTICATION SESSION
+  // ============================================================
 
-      if (role === "caregiver") {
-        setScreen("caregiver-dashboard");
-        return;
-      }
+  async function restoreAuthenticationSession() {
+    const token = await getToken();
+    const role = await getAuthRole();
 
-      // --------------------------------------------------------
-      // PATIENT SESSION
-      // --------------------------------------------------------
+    // ----------------------------------------------------------
+    // No token
+    // ----------------------------------------------------------
 
-      if (role === "patient") {
+    if (!token) {
+      console.log(
+        "SmritiCare: no saved login found",
+      );
+
+      setPatient(null);
+      setScreen("welcome");
+      return;
+    }
+
+    console.log(
+      "SmritiCare: saved authentication token found",
+    );
+
+    // ==========================================================
+    // CAREGIVER SESSION
+    // ==========================================================
+
+    if (role === "caregiver") {
+      console.log(
+        "SmritiCare: restoring caregiver session",
+      );
+
+      setScreen("caregiver-dashboard");
+      return;
+    }
+
+    // ==========================================================
+    // PATIENT SESSION
+    // ==========================================================
+
+    if (role === "patient") {
+      await restorePatientSession(token);
+      return;
+    }
+
+    // ==========================================================
+    // OLD SESSION WITHOUT ROLE
+    // ==========================================================
+
+    /*
+     * Older versions of SmritiCare stored only the JWT.
+     *
+     * We attempt to validate that token as a patient session.
+     * If it works, we upgrade the stored session to include
+     * the patient role.
+     */
+
+    await restorePatientSession(token);
+  }
+
+  // ============================================================
+  // RESTORE PATIENT SESSION
+  // ============================================================
+
+  async function restorePatientSession(
+    token: string,
+  ) {
+    try {
+      const result =
+        await getCurrentPatient(token);
+
+      if (
+        result.success &&
+        result.user
+      ) {
+        const user =
+          result.user as PatientUser;
+
+        console.log(
+          "SmritiCare: patient session restored:",
+          user.fullName,
+        );
+
+        setPatient(user);
+
+        // Save the correct role for future launches.
+        await saveAuthSession(
+          token,
+          "patient",
+        );
+
+        // ------------------------------------------------------
+        // Sync manager
+        // ------------------------------------------------------
+
+        syncManager.setUserId(user.id);
+
+        // ------------------------------------------------------
+        // Save patient locally
+        // ------------------------------------------------------
+
+        try {
+          await saveLocalProfile({
+            userId: user.id,
+            fullName: user.fullName,
+            email: user.email,
+            age: user.age,
+           language: user.language ?? undefined,
+            caregiverName:
+              user.caregiverName,
+            caregiverAccess:
+              user.caregiverAccess,
+            gpsSharing:
+              user.gpsSharing,
+             textSize: user.textSize ?? undefined,
+            syncStatus: "SYNCED",
+          });
+        } catch (localError) {
+          console.warn(
+            "SmritiCare: unable to cache patient profile:",
+            localError,
+          );
+        }
+
         setScreen("home");
         return;
       }
 
+      throw new Error(
+        "Unable to restore patient session.",
+      );
+    } catch (networkError) {
       /*
-       * Backward compatibility:
+       * Network may be unavailable.
        *
-       * Older versions of the app only stored the token
-       * without storing the role.
-       *
-       * We treat that old session as a patient session.
+       * We therefore attempt to restore the patient from
+       * the SQLite cache rather than immediately logging out.
        */
-      setScreen("home");
->>>>>>> Stashed changes
-    } catch (error) {
-      console.warn(
-        "Unable to restore authentication:",
-        error,
+
+      console.log(
+        "SmritiCare: online session restore failed; checking local cache.",
       );
 
-<<<<<<< Updated upstream
-      setPatient(null);
-      setScreen('welcome');
-=======
-      // If the stored session is corrupted,
-      // start cleanly from Welcome.
       try {
-        await clearAuthSession();
-      } catch (clearError) {
+        const cached =
+          await getLocalProfile(
+            "patient_local",
+          );
+
+        if (cached) {
+          console.log(
+            "SmritiCare: patient restored from local cache.",
+          );
+
+          const localPatient: PatientUser = {
+            id: cached.userId,
+            fullName: cached.fullName,
+            email: cached.email,
+            role: "PATIENT",
+
+            age:
+              cached.age ?? null,
+
+            phone:
+              cached.phone ?? null,
+
+            dateOfBirth:
+              cached.dateOfBirth ?? null,
+
+            gender:
+              cached.gender ?? null,
+
+            address:
+              cached.address ?? null,
+
+            city:
+              cached.city ?? null,
+
+            bloodGroup:
+              cached.bloodGroup ?? null,
+
+            medicalNotes:
+              cached.medicalNotes ?? null,
+
+            profileImageUrl:
+              cached.profileImageUrl ?? null,
+
+            language:
+              cached.language ?? null,
+
+            caregiverName:
+              cached.caregiverName ?? null,
+
+            caregiverAccess:
+              cached.caregiverAccess,
+
+            gpsSharing:
+              cached.gpsSharing,
+
+            textSize:
+              cached.textSize ?? null,
+
+            createdAt:
+              cached.updatedAt,
+
+            updatedAt:
+              cached.updatedAt,
+          };
+
+          setPatient(localPatient);
+
+          syncManager.setUserId(
+            cached.userId,
+          );
+
+          /*
+           * Keep the token. The user can continue using the
+           * locally available patient experience while offline.
+           */
+          await saveAuthSession(
+            token,
+            "patient",
+          );
+
+          setScreen("home");
+          return;
+        }
+      } catch (cacheError) {
         console.warn(
-          "Unable to clear invalid authentication:",
-          clearError,
+          "SmritiCare: local patient cache restore failed:",
+          cacheError,
         );
       }
 
+      /*
+       * No valid online session and no local patient profile.
+       */
+      console.warn(
+        "SmritiCare: no valid patient session available.",
+        networkError,
+      );
+
+      await clearAuthSession();
+
+      setPatient(null);
       setScreen("welcome");
->>>>>>> Stashed changes
-    } finally {
-      setLoading(false);
     }
-  };
+  }
 
   // ============================================================
   // PATIENT LOGIN
@@ -283,20 +451,23 @@ function AppContent() {
   const handlePatientLogin = async (
     token?: string,
   ) => {
-    /*
-     * LoginScreen normally saves its token itself.
-     *
-     * Saving here as well makes App resilient if the
-     * login screen only returns the token.
-     */
-    if (token) {
-      await saveAuthSession(
-        token,
-        "patient",
-      );
-    }
+    try {
+      if (token) {
+        await saveAuthSession(
+          token,
+          "patient",
+        );
+      }
 
-    setScreen("home");
+      setScreen("home");
+    } catch (error) {
+      console.warn(
+        "SmritiCare: unable to save patient login:",
+        error,
+      );
+
+      setScreen("welcome");
+    }
   };
 
   // ============================================================
@@ -306,14 +477,23 @@ function AppContent() {
   const handlePatientSignup = async (
     token?: string,
   ) => {
-    if (token) {
-      await saveAuthSession(
-        token,
-        "patient",
-      );
-    }
+    try {
+      if (token) {
+        await saveAuthSession(
+          token,
+          "patient",
+        );
+      }
 
-    setScreen("home");
+      setScreen("home");
+    } catch (error) {
+      console.warn(
+        "SmritiCare: unable to save patient signup session:",
+        error,
+      );
+
+      setScreen("welcome");
+    }
   };
 
   // ============================================================
@@ -323,20 +503,29 @@ function AppContent() {
   const handleCaregiverLogin = async (
     token?: string,
   ) => {
-    /*
-     * CaregiverLoginScreen saves the session itself.
-     *
-     * We also accept a returned token here so App remains
-     * safe if the login screen returns the token.
-     */
-    if (token) {
-      await saveAuthSession(
-        token,
-        "caregiver",
-      );
-    }
+    try {
+      /*
+       * CaregiverLoginScreen is expected to save the session.
+       *
+       * We also save here when a token is returned, making the
+       * navigation layer safe if the screen returns its token.
+       */
+      if (token) {
+        await saveAuthSession(
+          token,
+          "caregiver",
+        );
+      }
 
-    setScreen("caregiver-dashboard");
+      setScreen("caregiver-dashboard");
+    } catch (error) {
+      console.warn(
+        "SmritiCare: unable to save caregiver login:",
+        error,
+      );
+
+      setScreen("caregiver-login");
+    }
   };
 
   // ============================================================
@@ -346,20 +535,27 @@ function AppContent() {
   const handleCaregiverSignup = async (
     token?: string,
   ) => {
-    /*
-     * If caregiver signup returns a JWT, save it as a
-     * caregiver session.
-     *
-     * If the signup screen already saves it, this is harmless.
-     */
-    if (token) {
-      await saveAuthSession(
-        token,
-        "caregiver",
-      );
-    }
+    try {
+      /*
+       * If signup returned a token, save it immediately as a
+       * caregiver session.
+       */
+      if (token) {
+        await saveAuthSession(
+          token,
+          "caregiver",
+        );
+      }
 
-    setScreen("caregiver-dashboard");
+      setScreen("caregiver-dashboard");
+    } catch (error) {
+      console.warn(
+        "SmritiCare: unable to save caregiver signup session:",
+        error,
+      );
+
+      setScreen("caregiver-signup");
+    }
   };
 
   // ============================================================
@@ -371,7 +567,18 @@ function AppContent() {
       await clearAuthSession();
     } catch (error) {
       console.warn(
-        "Unable to clear authentication session:",
+        "SmritiCare: unable to clear authentication:",
+        error,
+      );
+    }
+
+    setPatient(null);
+
+    try {
+      syncManager.setUserId("");
+    } catch (error) {
+      console.warn(
+        "SmritiCare: unable to reset sync manager:",
         error,
       );
     }
@@ -380,7 +587,7 @@ function AppContent() {
   };
 
   // ============================================================
-  // INITIAL LOADING
+  // LOADING
   // ============================================================
 
   if (loading) {
@@ -415,56 +622,7 @@ function AppContent() {
   // PATIENT LOGIN
   // ============================================================
 
-  if (!connectionChecked) {
-    return null;
-  }
-
-  // ---------------------------------------------------------
-  // WELCOME
-  // ---------------------------------------------------------
-
-  if (screen === 'welcome') {
-    return (
-      <WelcomeScreen
-        onPatient={() => setScreen('patient-auth')}
-        onFamilyMember={() => setScreen('caregiver-auth')}
-      />
-    );
-  }
-
-  // ---------------------------------------------------------
-  // PATIENT AUTH
-  // ---------------------------------------------------------
-
-  if (screen === 'patient-auth') {
-    return (
-      <PatientAuthScreen
-        onBack={() => setScreen('welcome')}
-        onSignIn={() => setScreen('login')}
-        onSignUp={() => setScreen('signup')}
-      />
-    );
-  }
-
-  // ---------------------------------------------------------
-  // CAREGIVER AUTH
-  // ---------------------------------------------------------
-
-  if (screen === 'caregiver-auth') {
-    return (
-      <CaregiverAuthScreen
-        onBack={() => setScreen('welcome')}
-        onSignIn={() => setScreen('caregiver-login')}
-        onSignUp={() => setScreen('caregiver-signup')}
-      />
-    );
-  }
-
-  // ---------------------------------------------------------
-  // PATIENT LOGIN
-  // ---------------------------------------------------------
-
-  if (screen === 'login') {
+  if (screen === "login") {
     return (
       <LoginScreen
         onLogin={handlePatientLogin}
@@ -511,10 +669,10 @@ function AppContent() {
         }}
         onSignIn={() => {
           /*
-           * IMPORTANT:
+           * VERY IMPORTANT:
            *
-           * Do NOT go directly to caregiver-dashboard.
-           * The caregiver must actually authenticate first.
+           * Never go directly to the caregiver dashboard.
+           * The caregiver must authenticate first.
            */
           setScreen("caregiver-login");
         }}
@@ -554,10 +712,6 @@ function AppContent() {
           setScreen("caregiver-auth");
         }}
         onLogin={() => {
-          /*
-           * Going to the actual caregiver login screen,
-           * not the caregiver landing page.
-           */
           setScreen("caregiver-login");
         }}
         onSignup={handleCaregiverSignup}
@@ -572,198 +726,11 @@ function AppContent() {
   if (screen === "caregiver-dashboard") {
     return (
       <CaregiverDashboardScreen
-<<<<<<< Updated upstream
-        onBack={() => setScreen('caregiver-auth')}
-        onLogout={() => setScreen('caregiver-auth')}
-      />
-    );
-  }
-
-  // ---------------------------------------------------------
-  // MEDICAL HELP
-  // ---------------------------------------------------------
-
-  if (screen === 'medical-help') {
-    return (
-      <MedicalHelpScreen
-        onBack={() => setScreen('home')}
-      />
-    );
-  }
-
-  // ---------------------------------------------------------
-  // SCHEDULE
-  // ---------------------------------------------------------
-
-  if (screen === 'schedule') {
-    return (
-      <ScheduleScreen
-        userId={patient?.id}
-        onBack={() => setScreen('home')}
-        onHome={() => setScreen('home')}
-        onGames={() => setScreen('games')}
-        onSchedule={() => setScreen('schedule')}
-        onMemory={() => setScreen('memory')}
-        onProfile={() => setScreen('profile')}
-      />
-    );
-  }
-
-  // ---------------------------------------------------------
-  // CALL FAMILY
-  // ---------------------------------------------------------
-
-  if (screen === 'call-family') {
-    return (
-      <CallFamilyScreen
-        onBack={() => setScreen('home')}
-        onHome={() => setScreen('home')}
-        onGames={() => setScreen('games')}
-        onSchedule={() => setScreen('schedule')}
-        onMemory={() => setScreen('memory')}
-        onProfile={() => setScreen('profile')}
-      />
-    );
-  }
-
-  // ---------------------------------------------------------
-  // COGNITIVE SCORE
-  // ---------------------------------------------------------
-
-  if (screen === 'cognitive-score') {
-    return (
-      <CognitiveScoreScreen
-        userId={patient?.id}
-        onBack={() => setScreen('home')}
-      />
-    );
-  }
-
-  // ---------------------------------------------------------
-  // PROFILE
-  // ---------------------------------------------------------
-
-  if (screen === 'profile') {
-    return (
-      <ProfileScreen
-        onBack={() => setScreen('home')}
-        onHome={() => setScreen('home')}
-        onGames={() => setScreen('games')}
-        onSchedule={() => setScreen('schedule')}
-        onMemory={() => setScreen('memory')}
-        onProfile={() => setScreen('profile')}
-      />
-    );
-  }
-
-  // ---------------------------------------------------------
-  // GAMES
-  // ---------------------------------------------------------
-
-  if (screen === 'games') {
-    return (
-      <GamesScreen
-        onBack={() => setScreen('home')}
-        onHome={() => setScreen('home')}
-        onSchedule={() => setScreen('schedule')}
-        onMemory={() => setScreen('memory')}
-        onProfile={() => setScreen('profile')}
-        onVoiceAssistant={() => setScreen('voice-assistant')}
-        onOddOneOut={() => setScreen('odd-one-out')}
-        onGuessFood={() => setScreen('guess-food')}
-      />
-    );
-  }
-
-  // ---------------------------------------------------------
-  // GUESS FOOD
-  // ---------------------------------------------------------
-
-  if (screen === 'guess-food') {
-    return (
-      <GuessFoodScreen
-        userId={patient?.id}
-        onBack={() => setScreen('games')}
-        onNextGame={() => {
-          console.log('NEXT GAME PRESSED');
-=======
         onBack={() => {
           setScreen("welcome");
->>>>>>> Stashed changes
         }}
-      />
-    );
-  }
-
-  // ---------------------------------------------------------
-  // MEMORY
-  // ---------------------------------------------------------
-
-  if (screen === 'memory') {
-    return (
-      <MemoryScreen
-        userId={patient?.id}
-        onBack={() => setScreen('home')}
-        onHome={() => setScreen('home')}
-        onGames={() => setScreen('games')}
-        onSchedule={() => setScreen('schedule')}
-        onProfile={() => setScreen('profile')}
-        onVoiceAssistant={() => setScreen('voice-assistant')}
-      />
-    );
-  }
-
-  // ---------------------------------------------------------
-  // ODD ONE OUT
-  // ---------------------------------------------------------
-
-  if (screen === 'odd-one-out') {
-    return (
-      <OddOneOutScreen
-        userId={patient?.id}
-        onBack={() => setScreen('games')}
-        onNextGame={() => {
-          console.log('NEXT GAME PRESSED');
-        }}
-      />
-    );
-  }
-
-  // ---------------------------------------------------------
-  // PATIENT DASHBOARD
-  // ---------------------------------------------------------
-
-  if (screen === 'patient-dashboard') {
-    return (
-      <PatientDashboardScreen
-        onHome={() => setScreen('home')}
-        onGames={() => setScreen('games')}
-        onSchedule={() => setScreen('schedule')}
-        onMemory={() => setScreen('memory')}
-        onProfile={() => setScreen('profile')}
-      />
-    );
-  }
-
-  // ---------------------------------------------------------
-  // VOICE ASSISTANT
-  // ---------------------------------------------------------
-
-  if (screen === 'voice-assistant') {
-    return (
-      <VoiceAssistantScreen
-        onBack={() => setScreen('home')}
-        onMedicine={() => {
-          setScreen('schedule');
-        }}
-        onProfile={() => {
-          setScreen('profile');
-        }}
-        onFamily={() => {
-          setScreen('call-family');
-        }}
-        onGame={() => {
-          setScreen('games');
+        onHome={() => {
+          setScreen("caregiver-dashboard");
         }}
         onSchedule={() => {
           setScreen("caregiver-reminders");
