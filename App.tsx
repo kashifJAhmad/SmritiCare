@@ -31,6 +31,7 @@ import GamesScreen from "./src/screens/games/GamesScreen";
 import MedicalHelpScreen from "./src/screens/medical/MedicalHelpScreen";
 import CognitiveScoreScreen from "./src/screens/home/CognitiveScoreScreen";
 import CallFamilyScreen from "./src/screens/home/CallFamilyScreen";
+import VoiceAssistantScreen from "./src/screens/home/VoiceAssistantScreen";
 
 // ============================================================
 // CAREGIVER AUTHENTICATION
@@ -139,6 +140,7 @@ type Screen =
   | "medical-help"
   | "call-family"
   | "cognitive-score"
+  | "voice-assistant"
 
   // ----------------------------------------------------------
   // Caregiver authentication
@@ -786,6 +788,38 @@ function AppContent() {
         }}
         onCognitiveScore={() => {
           setScreen("cognitive-score");
+        }}
+        onVoiceAssistant={() => {
+          setScreen("voice-assistant");
+        }}
+      />
+    );
+  }
+
+  // ============================================================
+  // PATIENT VOICE ASSISTANT
+  // ============================================================
+
+  if (screen === "voice-assistant") {
+    return (
+      <VoiceAssistantScreen
+        onBack={() => {
+          setScreen("home");
+        }}
+        onProfile={() => {
+          setScreen("profile");
+        }}
+        onMedicine={() => {
+          setScreen("schedule");
+        }}
+        onFamily={() => {
+          setScreen("call-family");
+        }}
+        onGame={() => {
+          setScreen("games");
+        }}
+        onSchedule={() => {
+          setScreen("schedule");
         }}
       />
     );
