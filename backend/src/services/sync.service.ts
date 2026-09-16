@@ -7,7 +7,8 @@ export type SyncEntityType =
   | "COGNITIVE_SCORE"
   | "MEMORY"
   | "TASK"
-  | "PROFILE";
+  | "PROFILE"
+  | "ALERT";
 
 export type SyncItemInput = {
   id: string; // queue item ID / client operation ID
@@ -235,6 +236,73 @@ export async function processSyncPush(
           break;
         }
 
+        case "ALERT": {
+          if (item.operation === "DELETE") {
+            await prisma.alert.deleteMany({
+              where: {
+                id: item.entityId,
+                OR: [{ caregiverId: userId }, { patientId: userId }],
+              },
+            });
+            results.push({
+              id: item.id,
+              entityType: item.entityType,
+              entityId: item.entityId,
+              status: "SUCCESS",
+            });
+          } else {
+            const status = payload.status || "ACTIVE";
+            const updateData: Record<string, any> = {
+              status,
+            };
+            if (payload.title) updateData.title = payload.title;
+            if (payload.description !== undefined) updateData.description = payload.description;
+            if (payload.category) updateData.category = payload.category;
+            if (payload.typeLabel) updateData.typeLabel = payload.typeLabel;
+            if (payload.badge) updateData.badge = payload.badge;
+            if (payload.acknowledgedAt) {
+              updateData.acknowledgedAt = new Date(payload.acknowledgedAt);
+            } else if (status === "ACKNOWLEDGED") {
+              updateData.acknowledgedAt = new Date();
+            }
+            if (payload.resolvedAt) {
+              updateData.resolvedAt = new Date(payload.resolvedAt);
+            } else if (status === "RESOLVED") {
+              updateData.resolvedAt = new Date();
+            }
+
+            const alert = await prisma.alert.upsert({
+              where: { id: item.entityId },
+              update: updateData,
+              create: {
+                id: item.entityId,
+                patientId: payload.patientId || userId,
+                caregiverId: payload.caregiverId || userId,
+                category: payload.category || "general",
+                typeLabel: payload.typeLabel || "Alert",
+                title: payload.title || "Alert",
+                description: payload.description || "",
+                badge: payload.badge || "Alert",
+                status,
+                sourceType: payload.sourceType || "TASK",
+                sourceId: payload.sourceId ?? null,
+                acknowledgedAt: updateData.acknowledgedAt ?? null,
+                resolvedAt: updateData.resolvedAt ?? null,
+                createdAt: payload.createdAt ? new Date(payload.createdAt) : new Date(),
+              },
+            });
+
+            results.push({
+              id: item.id,
+              entityType: item.entityType,
+              entityId: item.entityId,
+              status: "SUCCESS",
+              serverId: alert.id,
+            });
+          }
+          break;
+        }
+
         default:
           results.push({
             id: item.id,
@@ -265,7 +333,7 @@ export async function processSyncPull(userId: string, sinceDate?: Date) {
   const filter = sinceDate ? { updatedAt: { gte: sinceDate } } : {};
   const filterCreatedAt = sinceDate ? { createdAt: { gte: sinceDate } } : {};
 
-  const [memories, tasks, gameResults, cognitiveScores, profile] = await Promise.all([
+  const [memories, tasks, gameResults, cognitiveScores, profile, alerts] = await Promise.all([
     prisma.memory.findMany({
       where: { userId, ...filter },
       orderBy: { updatedAt: "desc" },
@@ -309,6 +377,14 @@ export async function processSyncPull(userId: string, sinceDate?: Date) {
         updatedAt: true,
       },
     }),
+    prisma.alert.findMany({
+      where: {
+        OR: [{ caregiverId: userId }, { patientId: userId }],
+        ...filter,
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 50,
+    }),
   ]);
 
   return {
@@ -318,5 +394,6 @@ export async function processSyncPull(userId: string, sinceDate?: Date) {
     gameResults,
     cognitiveScores,
     profile,
+    alerts,
   };
 }

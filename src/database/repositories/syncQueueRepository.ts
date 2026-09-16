@@ -7,7 +7,8 @@ export type SyncEntityType =
   | 'COGNITIVE_SCORE'
   | 'MEMORY'
   | 'TASK'
-  | 'PROFILE';
+  | 'PROFILE'
+  | 'ALERT';
 
 export type SyncQueueItem = {
   id: string;
@@ -140,3 +141,17 @@ export async function getPendingCount(userId?: string): Promise<number> {
   const result = await db.getFirstAsync(query, ...params);
   return result?.count ? Number(result.count) : 0;
 }
+
+/**
+ * Resets any items stuck in 'PROCESSING' state back to 'PENDING'.
+ * Called on startup or before processing to recover from abrupt app termination.
+ */
+export async function resetStaleProcessingItems(): Promise<void> {
+  const db = await getDatabase();
+  const now = new Date().toISOString();
+  await db.runAsync(
+    `UPDATE sync_queue SET status = 'PENDING', updated_at = ? WHERE status = 'PROCESSING'`,
+    now
+  );
+}
+

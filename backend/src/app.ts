@@ -12,6 +12,7 @@ import profileImageRoutes from "./routes/profileImage.routes";
 import locationRoutes from "./routes/location.routes";
 import gameRoutes from "./routes/game.routes";
 import syncRoutes from "./routes/sync.routes";
+import alertRoutes from "./routes/alert.routes";
 
 const app = express();
 
@@ -66,5 +67,6 @@ app.use(
 
 app.use("/api/games", gameRoutes);
 app.use("/api/sync", syncRoutes);
+app.use("/api/alerts", alertRoutes);
 
 export default app;

@@ -109,6 +109,34 @@ CREATE TABLE IF NOT EXISTS local_user_profile (
 );
 
 -- ============================================================
+-- ALERTS
+-- ============================================================
+CREATE TABLE IF NOT EXISTS local_alerts (
+  id TEXT PRIMARY KEY NOT NULL,
+  patient_id TEXT NOT NULL,
+  caregiver_id TEXT NOT NULL,
+  category TEXT NOT NULL,
+  type_label TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  badge TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'ACTIVE',
+  source_type TEXT NOT NULL DEFAULT 'TASK',
+  source_id TEXT,
+  acknowledged_at TEXT,
+  resolved_at TEXT,
+  sync_status TEXT NOT NULL DEFAULT 'PENDING',
+  is_deleted INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_alerts_patient ON local_alerts(patient_id);
+CREATE INDEX IF NOT EXISTS idx_alerts_caregiver ON local_alerts(caregiver_id);
+CREATE INDEX IF NOT EXISTS idx_alerts_status ON local_alerts(status);
+CREATE INDEX IF NOT EXISTS idx_alerts_sync ON local_alerts(sync_status);
+
+-- ============================================================
 -- SYNCHRONIZATION QUEUE
 -- ============================================================
 CREATE TABLE IF NOT EXISTS sync_queue (

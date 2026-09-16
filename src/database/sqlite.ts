@@ -36,6 +36,7 @@ class PersistentDatabaseFallback implements IDatabase {
     'local_memories',
     'local_tasks',
     'local_user_profile',
+    'local_alerts',
     'sync_queue',
   ];
 
@@ -720,7 +721,22 @@ export async function initDatabase(): Promise<IDatabase> {
     return dbInstance;
   }
 
-  // Persistent AsyncStorage storage engine for Expo Go, Native, and Web
+  if (Platform.OS !== 'web') {
+    try {
+      const SQLite = await import('expo-sqlite');
+      if (SQLite && typeof SQLite.openDatabaseAsync === 'function') {
+        const nativeDb = await SQLite.openDatabaseAsync('smriticare.db');
+        await nativeDb.execAsync(CREATE_TABLES_SQL);
+        dbInstance = nativeDb as unknown as IDatabase;
+        isInitialized = true;
+        return dbInstance;
+      }
+    } catch (nativeErr) {
+      console.warn('Native SQLite unavailable, using persistent fallback:', nativeErr);
+    }
+  }
+
+  // Persistent AsyncStorage storage engine for Expo Go, Native fallback, and Web
   const fallback = new PersistentDatabaseFallback();
   await fallback.init();
 
