@@ -256,9 +256,11 @@ export default function MemoryMatchScreen({
 
   useEffect(() => {
     if (gameFinished) {
-      const finalScore = completedScore + currentScore;
-      const percentage = Math.round(
-        (finalScore / (LEVELS.length * 100)) * 100,
+      const finalScore = completedScore;
+      const maxScore = LEVELS.length * 100;
+      const percentage = Math.min(
+        100,
+        Math.max(0, Math.round((finalScore / maxScore) * 100)),
       );
       const targetUserId = userId || 'patient_local';
 
@@ -282,7 +284,7 @@ export default function MemoryMatchScreen({
 
       syncManager.triggerSync().catch(() => {});
     }
-  }, [gameFinished, completedScore, currentScore, userId]);
+  }, [gameFinished, completedScore, userId]);
 
   /* ====================================================
      CARD TAP HANDLER
@@ -465,9 +467,11 @@ export default function MemoryMatchScreen({
   ==================================================== */
 
   if (gameFinished) {
-    const finalScore = completedScore + currentScore;
-    const percentage = Math.round(
-      (finalScore / (LEVELS.length * 100)) * 100,
+    const finalScore = completedScore;
+    const maxScore = LEVELS.length * 100;
+    const percentage = Math.min(
+      100,
+      Math.max(0, Math.round((finalScore / maxScore) * 100)),
     );
 
     let resultTitle = 'Good Work!';

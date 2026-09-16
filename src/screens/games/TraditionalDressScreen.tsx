@@ -152,8 +152,9 @@ export default function TraditionalDressScreen({
 
   useEffect(() => {
     if (gameFinished) {
-      const finalScore = completedScore + currentScore;
-      const percentage = Math.round((finalScore / (LEVELS.length * 100)) * 100);
+      const finalScore = completedScore;
+      const maxScore = LEVELS.length * 100;
+      const percentage = Math.min(100, Math.max(0, Math.round((finalScore / maxScore) * 100)));
       const targetUserId = userId || 'patient_local';
 
       saveGameResultLocally({
@@ -172,7 +173,7 @@ export default function TraditionalDressScreen({
 
       syncManager.triggerSync().catch(() => {});
     }
-  }, [gameFinished, completedScore, currentScore, userId]);
+  }, [gameFinished, completedScore, userId]);
 
   const handleAnswer = (index: number) => {
     if (hasAnswered && isCorrect) return;
@@ -208,9 +209,9 @@ export default function TraditionalDressScreen({
   };
 
   if (gameFinished) {
-    const finalScore = completedScore + currentScore;
+    const finalScore = completedScore;
     const maxScore = LEVELS.length * 100;
-    const percentage = Math.round((finalScore / maxScore) * 100);
+    const percentage = Math.min(100, Math.max(0, Math.round((finalScore / maxScore) * 100)));
 
     return (
       <SafeAreaView style={styles.safeArea}>
