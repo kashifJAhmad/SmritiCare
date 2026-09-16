@@ -282,7 +282,7 @@ export default function VoiceAssistantScreen({
 
   useSpeechRecognitionEvent(
     "result",
-    (event) => {
+    (event: any) => {
       const result =
         event.results?.[0];
 
@@ -350,7 +350,7 @@ export default function VoiceAssistantScreen({
 
   useSpeechRecognitionEvent(
     "error",
-    (event) => {
+    (event: any) => {
       console.warn(
         "SmritiCare: speech recognition error:",
         event.error,
