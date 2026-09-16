@@ -35,7 +35,9 @@
       "expo-secure-store",
       "expo-audio",
       "expo-notifications",
-      "expo-location"
+      "expo-location",
+      "expo-speech-recognition",
+      "expo-sqlite"
     ],
     "extra": {
       "eas": {

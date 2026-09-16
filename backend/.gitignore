@@ -1,12 +1,11 @@
 # Dependencies
 node_modules/
 backend/node_modules/
-
-# Environment variables
 .env
+# Environment variables
 .env.*
 !.env.example
-
+.env.local
 # Build output
 dist/
 backend/dist/
