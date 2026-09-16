@@ -1,4 +1,5 @@
 import { prisma } from "../config/database";
+import { requireCaregiverPatientAccess } from "./caregiverAccess.service";
 
 type RepeatType =
   | "NONE"
@@ -167,64 +168,7 @@ async function verifyCaregiverPatientAccess(
   caregiverId: string,
   patientId: string,
 ): Promise<void> {
-  const caregiver = await prisma.user.findUnique({
-    where: {
-      id: caregiverId,
-    },
-    select: {
-      id: true,
-      role: true,
-    },
-  });
-
-  if (!caregiver) {
-    throw new Error("Caregiver not found");
-  }
-
-  if (caregiver.role !== "CAREGIVER") {
-    throw new Error(
-      "Only caregivers can manage patient tasks",
-    );
-  }
-
-  const patient = await prisma.user.findUnique({
-    where: {
-      id: patientId,
-    },
-    select: {
-      id: true,
-      role: true,
-    },
-  });
-
-  if (!patient) {
-    throw new Error("Patient not found");
-  }
-
-  if (patient.role !== "PATIENT") {
-    throw new Error(
-      "The selected user is not a patient",
-    );
-  }
-
-  const connection =
-    await prisma.caregiverPatient.findUnique({
-      where: {
-        caregiverId_patientId: {
-          caregiverId,
-          patientId,
-        },
-      },
-      select: {
-        id: true,
-      },
-    });
-
-  if (!connection) {
-    throw new Error(
-      "You are not connected to this patient",
-    );
-  }
+  await requireCaregiverPatientAccess(caregiverId, patientId);
 }
 
 /**

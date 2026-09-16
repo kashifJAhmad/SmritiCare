@@ -133,3 +133,19 @@ export async function getUserCognitiveScores(req: AuthenticatedRequest, res: Res
     });
   }
 }
+
+export async function getPatientGameResults(req: AuthenticatedRequest, res: Response) {
+  try {
+    if (!req.userId || !req.params.patientId || Array.isArray(req.params.patientId)) return res.status(401).json({ success: false, message: "Authentication and patient ID are required" });
+    const results = await gameService.getPatientGameResultsForCaregiver(req.userId, req.params.patientId, req.query.limit ? Number(req.query.limit) : 50);
+    return res.json({ success: true, results });
+  } catch (error) { return res.status(403).json({ success: false, message: error instanceof Error ? error.message : "Unable to load patient game results" }); }
+}
+
+export async function getPatientCognitiveScores(req: AuthenticatedRequest, res: Response) {
+  try {
+    if (!req.userId || !req.params.patientId || Array.isArray(req.params.patientId)) return res.status(401).json({ success: false, message: "Authentication and patient ID are required" });
+    const scores = await gameService.getPatientCognitiveScoresForCaregiver(req.userId, req.params.patientId, req.query.limit ? Number(req.query.limit) : 30);
+    return res.json({ success: true, scores });
+  } catch (error) { return res.status(403).json({ success: false, message: error instanceof Error ? error.message : "Unable to load patient cognitive scores" }); }
+}

@@ -4,6 +4,7 @@ import {
   createMemoryController,
   deleteMemoryController,
   getMemoriesController,
+  getPatientMemoriesController,
   getMemoryController,
   updateMemoryController,
 } from "../controllers/memory.controller";
@@ -11,6 +12,8 @@ import {
 const router = Router();
 
 router.use(authenticate);
+
+router.get("/patient/:patientId", getPatientMemoriesController);
 
 router.post("/", createMemoryController);
 router.get("/", getMemoriesController);

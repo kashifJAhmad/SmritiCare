@@ -1,5 +1,6 @@
 import { UserRole } from "@prisma/client";
 import { prisma } from "../config/database";
+import { requireCaregiverPatientAccess, requirePatient } from "./caregiverAccess.service";
 
 export type LocationData = {
   latitude: number;
@@ -43,6 +44,7 @@ export async function updatePatientLocation(
   patientId: string,
   data: LocationData
 ) {
+  await requirePatient(patientId);
   validateLocation(data);
 
   const patient = await prisma.user.findUnique({
@@ -91,6 +93,7 @@ export async function updatePatientLocation(
 export async function removePatientLocation(
   patientId: string
 ) {
+  await requirePatient(patientId);
   await prisma.patientLocation.deleteMany({
     where: {
       patientId,
@@ -106,6 +109,10 @@ export async function getPatientLocationForCaregiver(
   caregiverId: string,
   patientId: string
 ) {
+  const permittedPatient = await requireCaregiverPatientAccess(caregiverId, patientId);
+  if (!permittedPatient.gpsSharing) {
+    return { available: false, message: "GPS location sharing is disabled.", patient: { id: patientId, fullName: "Patient" }, location: null };
+  }
   const connection =
     await prisma.caregiverPatient.findFirst({
       where: {
@@ -184,4 +191,4 @@ export async function getPatientLocationForCaregiver(
     },
     location,
   };
-} 
+}

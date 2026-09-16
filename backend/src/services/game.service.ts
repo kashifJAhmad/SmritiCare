@@ -1,4 +1,5 @@
 import { prisma } from "../config/database";
+import { requireCaregiverPatientAccess } from "./caregiverAccess.service";
 
 export type SubmitGameResultInput = {
   id?: string;
@@ -187,4 +188,14 @@ export async function getUserCognitiveScores(userId: string, limit: number = 30)
     orderBy: { recordedAt: "desc" },
     take: limit,
   });
+}
+
+export async function getPatientGameResultsForCaregiver(caregiverId: string, patientId: string, limit = 50) {
+  await requireCaregiverPatientAccess(caregiverId, patientId);
+  return getUserGameResults(patientId, limit);
+}
+
+export async function getPatientCognitiveScoresForCaregiver(caregiverId: string, patientId: string, limit = 30) {
+  await requireCaregiverPatientAccess(caregiverId, patientId);
+  return getUserCognitiveScores(patientId, limit);
 }

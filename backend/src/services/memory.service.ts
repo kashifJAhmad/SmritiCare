@@ -1,4 +1,5 @@
 import { prisma } from "../config/database";
+import { requireCaregiverPatientAccess } from "./caregiverAccess.service";
 
 export type CreateMemoryInput = {
   title: string;
@@ -117,4 +118,9 @@ export async function deleteMemory(
   return {
     id: memoryId,
   };
+}
+
+export async function getPatientMemoriesForCaregiver(caregiverId: string, patientId: string) {
+  await requireCaregiverPatientAccess(caregiverId, patientId);
+  return getMemories(patientId);
 }

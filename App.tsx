@@ -65,6 +65,7 @@ import CaregiverRemindersScreen from "./src/screens/caregiver/CaregiverReminders
 // ============================================================
 
 import { getCurrentPatient } from "./src/services/api";
+import { getCurrentCaregiver } from "./src/services/auth";
 
 import {
   clearAuthSession,
@@ -250,6 +251,17 @@ function AppContent() {
     // ----------------------------------------------------------
 
     if (role === "caregiver") {
+      try {
+        await getCurrentCaregiver(token);
+      } catch (error) {
+        // A transient Render/network failure must not turn into a logout.
+        const message = error instanceof Error ? error.message : "";
+        if (/not a caregiver|invalid or expired|no authentication token/i.test(message)) {
+          await clearAuthSession();
+          setScreen("welcome");
+          return;
+        }
+      }
       setScreen("caregiver-dashboard");
       return;
     }

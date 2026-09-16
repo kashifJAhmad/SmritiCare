@@ -3,9 +3,18 @@ import {
   createMemory,
   deleteMemory,
   getMemories,
+  getPatientMemoriesForCaregiver,
   getMemoryById,
   updateMemory,
 } from "../services/memory.service";
+import { AuthenticatedRequest } from "../middleware/auth.middleware";
+
+export async function getPatientMemoriesController(req: AuthenticatedRequest, res: Response) {
+  try {
+    if (!req.userId || !req.params.patientId || Array.isArray(req.params.patientId)) return res.status(401).json({ success: false, message: "Authentication and patient ID are required." });
+    return res.json({ success: true, memories: await getPatientMemoriesForCaregiver(req.userId, req.params.patientId) });
+  } catch (error) { return res.status(403).json({ success: false, message: error instanceof Error ? error.message : "Unable to load patient memories." }); }
+}
 
 function getMemoryId(req: Request): string | null {
   const id = req.params.id;

@@ -13,6 +13,8 @@ import { markGameResultSynced, markCognitiveScoreSynced } from '../database/repo
 import { markMemorySynced, upsertServerMemories } from '../database/repositories/memoryRepository';
 import { markTaskSynced, upsertServerTasks } from '../database/repositories/taskRepository';
 import { saveLocalProfile } from '../database/repositories/profileRepository';
+import { upsertServerAlerts, markAlertSynced } from '../database/repositories/alertRepository';
+import { resetStaleProcessingItems } from '../database/repositories/syncQueueRepository';
 
 export type SyncState = 'SYNCED' | 'OFFLINE' | 'SYNCING' | 'PENDING';
 type SyncListener = (state: SyncState, pendingCount: number) => void;
@@ -29,6 +31,7 @@ class SyncManager {
   }
 
   private init() {
+    resetStaleProcessingItems().catch(() => {});
     networkMonitor.subscribe((isOnline) => {
       if (isOnline) {
         this.triggerSync();
@@ -216,6 +219,9 @@ class SyncManager {
         if (Array.isArray(data.tasks) && data.tasks.length > 0) {
           await upsertServerTasks(this.currentUserId, data.tasks);
         }
+        if (Array.isArray(data.alerts) && data.alerts.length > 0) {
+          await upsertServerAlerts(data.alerts);
+        }
 
         if (data.profile) {
           await saveLocalProfile({
@@ -261,6 +267,9 @@ class SyncManager {
         break;
       case 'TASK':
         await markTaskSynced(entityId);
+        break;
+      case 'ALERT':
+        await markAlertSynced(entityId);
         break;
     }
   }

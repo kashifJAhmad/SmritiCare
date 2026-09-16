@@ -1,5 +1,6 @@
 import { prisma } from "../config/database";
 import { AlertStatus, AlertSourceType } from "@prisma/client";
+import { requireCaregiverPatientAccess, requirePatient } from "./caregiverAccess.service";
 
 export type CreateAlertInput = {
   id?: string;
@@ -53,6 +54,23 @@ export async function getAlertsForUser(userId: string) {
  * Upsert an alert idempotently using client-provided id or unique composite key.
  */
 export async function upsertAlert(userId: string, input: CreateAlertInput) {
+  if (input.id) {
+    const existing = await prisma.alert.findUnique({ where: { id: input.id } });
+    if (existing && existing.caregiverId !== userId && existing.patientId !== userId) {
+      throw new Error("You are not authorized to update this alert.");
+    }
+  }
+  const actor = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  if (!actor) throw new Error("User not found");
+  if (actor.role === "CAREGIVER") {
+    if (input.caregiverId !== userId) throw new Error("Caregivers may only create their own alerts.");
+    await requireCaregiverPatientAccess(userId, input.patientId);
+  } else {
+    await requirePatient(userId);
+    if (input.patientId !== userId) throw new Error("Patients may only create alerts for themselves.");
+    const relationship = await prisma.caregiverPatient.findUnique({ where: { caregiverId_patientId: { caregiverId: input.caregiverId, patientId: userId } } });
+    if (!relationship) throw new Error("Alert caregiver is not connected to this patient.");
+  }
   // If unique constraint [caregiverId, sourceType, sourceId] is present, check existing
   const sourceType = input.sourceType || AlertSourceType.TASK;
   const status = input.status || AlertStatus.ACTIVE;
@@ -138,7 +156,6 @@ export async function acknowledgeAlert(userId: string, alertId: string) {
     throw new Error("Alert not found");
   }
 
-  // Authorization: must be caregiver or patient on this alert
   if (alert.caregiverId !== userId && alert.patientId !== userId) {
     throw new Error("You are not authorized to update this alert");
   }

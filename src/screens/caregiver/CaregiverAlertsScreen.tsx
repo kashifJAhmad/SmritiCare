@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -8,6 +8,8 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { API_BASE_URL } from "../../constants/api";
+import { getToken } from "../../services/authStorage";
 
 const COLORS = {
   background: "#FBF9F1",
@@ -75,35 +77,10 @@ type CaregiverAlertsScreenProps = {
   onProfile?: () => void;
 };
 
-const PLACEHOLDER_ALERTS: AlertItem[] = [
-  {
-    id: "placeholder-medication",
-    category: "medication",
-    label: "Medication",
-    title: "Medication alert will appear here",
-    description:
-      "When a connected patient's medication reminder needs attention, the alert details will be shown here.",
-    icon: "medication",
-  },
-  {
-    id: "placeholder-routine",
-    category: "routine",
-    label: "Routine",
-    title: "Routine alert will appear here",
-    description:
-      "Daily routine events such as missed reminders or follow-ups will appear in this section.",
-    icon: "event-note",
-  },
-  {
-    id: "placeholder-general",
-    category: "general",
-    label: "General",
-    title: "Patient activity alert will appear here",
-    description:
-      "Important patient activity and care-related notifications will appear here when the alert system is connected.",
-    icon: "notifications-active",
-  },
-];
+function toAlertItem(item: any): AlertItem {
+  const category: AlertCategory = item.sourceType === "TASK" ? "medication" : item.sourceType === "HYDRATION" ? "routine" : "general";
+  return { id: String(item.id), category, label: item.typeLabel || item.sourceType || "General", title: item.title || "Care alert", description: item.description || "", icon: category === "medication" ? "medication" : category === "routine" ? "event-note" : "notifications-active" };
+}
 
 const FILTERS = [
   {
@@ -138,6 +115,8 @@ export default function CaregiverAlertsScreen({
   const [selectedFilter, setSelectedFilter] =
     useState<FilterKey>("all");
 
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+
   const [acknowledged, setAcknowledged] =
     useState<string[]>([]);
 
@@ -158,8 +137,20 @@ export default function CaregiverAlertsScreen({
     }, 2600);
   };
 
+  const loadAlerts = useCallback(async () => {
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const response = await fetch(`${API_BASE_URL}/api/alerts`, { headers: { Authorization: `Bearer ${token}` } });
+      const result = await response.json();
+      if (response.ok && result.success) setAlerts((Array.isArray(result.alerts) ? result.alerts : []).filter((item: any) => item.status !== "RESOLVED").map(toAlertItem));
+    } finally { setRefreshing(false); }
+  }, []);
+
+  useEffect(() => { void loadAlerts(); }, [loadAlerts]);
+
   const visibleAlerts = useMemo(() => {
-    return PLACEHOLDER_ALERTS.filter((alert) => {
+    return alerts.filter((alert) => {
       if (acknowledged.includes(alert.id)) {
         return false;
       }
@@ -170,7 +161,7 @@ export default function CaregiverAlertsScreen({
 
       return alert.category === selectedFilter;
     });
-  }, [selectedFilter, acknowledged]);
+  }, [alerts, selectedFilter, acknowledged]);
 
   const handleRefresh = () => {
     if (refreshing) {
@@ -178,16 +169,14 @@ export default function CaregiverAlertsScreen({
     }
 
     setRefreshing(true);
-
-    setTimeout(() => {
-      setRefreshing(false);
-      showToast(
-        "Alerts will refresh from the care system."
-      );
-    }, 700);
+    void loadAlerts();
   };
 
-  const handleAcknowledge = (alertId: string) => {
+  const handleAcknowledge = async (alertId: string) => {
+    const token = await getToken();
+    if (!token) return;
+    const response = await fetch(`${API_BASE_URL}/api/alerts/${alertId}/acknowledge`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+    if (!response.ok) { showToast("Unable to acknowledge alert."); return; }
     setAcknowledged((previous) => [
       ...previous,
       alertId,
@@ -196,20 +185,25 @@ export default function CaregiverAlertsScreen({
     showToast("Alert acknowledged.");
   };
 
-  const handleAction = (alertId: string) => {
+  const handleAction = async (alertId: string) => {
     if (processingAlert) {
       return;
     }
 
     setProcessingAlert(alertId);
 
-    setTimeout(() => {
+    try {
+      const token = await getToken();
+      if (!token) throw new Error("Authentication required");
+      const response = await fetch(`${API_BASE_URL}/api/alerts/${alertId}/resolve`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      if (!response.ok) throw new Error("Unable to resolve alert");
+      setAlerts((current) => current.filter((alert) => alert.id !== alertId));
+      showToast("Alert resolved.");
+    } catch {
+      showToast("Unable to resolve alert.");
+    } finally {
       setProcessingAlert(null);
-
-      showToast(
-        "Patient action will be available when alerts are connected."
-      );
-    }, 800);
+    }
   };
 
   return (

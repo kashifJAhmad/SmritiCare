@@ -41,7 +41,7 @@ export async function enqueueSyncItem(data: {
 
   await db.runAsync(
     `INSERT INTO sync_queue (id, user_id, entity_type, entity_id, operation, payload, retry_count, last_error, status, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, 0, NULL, 'PENDING', ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, 0, NULL, 'PENDING', ?, ?)`,
     id,
     data.userId,
     data.entityType,

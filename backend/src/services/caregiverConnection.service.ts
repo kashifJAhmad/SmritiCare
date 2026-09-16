@@ -491,7 +491,18 @@ export async function getCaregiverPatients(
       },
     });
 
-  return connections;
+  // A connection remains visible even when access is revoked, but sensitive care
+  // fields are omitted. Detailed care data has its own authorization boundary.
+  return connections.map((connection) => ({
+    ...connection,
+    patient: connection.patient.caregiverAccess ? connection.patient : {
+      id: connection.patient.id,
+      fullName: connection.patient.fullName,
+      profileImageUrl: connection.patient.profileImageUrl,
+      caregiverAccess: false,
+      gpsSharing: connection.patient.gpsSharing,
+    },
+  }));
 }
 
 // ============================================================
