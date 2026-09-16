@@ -23,6 +23,16 @@ import ProfileScreen from "./src/screens/profile/ProfileScreen";
 import ScheduleScreen from "./src/screens/reminders/ScheduleScreen";
 import MemoryScreen from "./src/screens/memories/MemoryScreen";
 import GamesScreen from "./src/screens/games/GamesScreen";
+import GuessFoodScreen from "./src/screens/games/GuessFoodScreen";
+import TraditionalDressScreen from "./src/screens/games/TraditionalDressScreen";
+import FestivalMemoryScreen from "./src/screens/games/FestivalMemoryScreen";
+import BelongsTogetherScreen from "./src/screens/games/BelongsTogetherScreen";
+import SpotDifferenceScreen from "./src/screens/games/SpotDifferenceScreen";
+import OddOneOutScreen from "./src/screens/games/OddOneOutScreen";
+import ColorSequenceScreen from "./src/screens/games/ColorSequenceScreen";
+import SoundGamesScreen from "./src/screens/games/SoundGamesScreen";
+import WhatIsMissingScreen from "./src/screens/games/WhatIsMissingScreen";
+import MemoryMatchScreen from "./src/screens/games/MemoryMatchScreen";
 
 // ============================================================
 // PATIENT FEATURE SCREENS
@@ -157,7 +167,22 @@ type Screen =
   | "caregiver-dashboard"
   | "caregiver-profile"
   | "caregiver-alerts"
-  | "caregiver-reminders";
+  | "caregiver-reminders"
+
+  // ----------------------------------------------------------
+  // Game screens
+  // ----------------------------------------------------------
+
+  | "guess-food"
+  | "traditional-dress"
+  | "festival-memory"
+  | "belongs-together"
+  | "spot-difference"
+  | "odd-one-out"
+  | "color-sequence"
+  | "sound-games"
+  | "what-is-missing"
+  | "memory-match";
 
 // ============================================================
 // APP CONTENT
@@ -901,6 +926,180 @@ function AppContent() {
         }}
         onProfile={() => {
           setScreen("profile");
+        }}
+        onGuessFood={() => {
+          setScreen("guess-food");
+        }}
+        onTraditionalDress={() => {
+          setScreen("traditional-dress");
+        }}
+        onFestivalMemory={() => {
+          setScreen("festival-memory");
+        }}
+        onBelongsTogether={() => {
+          setScreen("belongs-together");
+        }}
+        onSpotDifference={() => {
+          setScreen("spot-difference");
+        }}
+        onOddOneOut={() => {
+          setScreen("odd-one-out");
+        }}
+        onColorSequence={() => {
+          setScreen("color-sequence");
+        }}
+        onSoundGames={() => {
+          setScreen("sound-games");
+        }}
+        onWhatIsMissing={() => {
+          setScreen("what-is-missing");
+        }}
+        onMemoryMatch={() => {
+          setScreen("memory-match");
+        }}
+      />
+    );
+  }
+
+  // ============================================================
+  // PATIENT GAME SCREENS
+  // ============================================================
+
+  if (screen === "guess-food") {
+    return (
+      <GuessFoodScreen
+        userId={patient?.id}
+        onBack={() => {
+          setScreen("games");
+        }}
+        onNextGame={() => {
+          setScreen("games");
+        }}
+      />
+    );
+  }
+
+  if (screen === "traditional-dress") {
+    return (
+      <TraditionalDressScreen
+        userId={patient?.id}
+        onBack={() => {
+          setScreen("games");
+        }}
+        onNextGame={() => {
+          setScreen("games");
+        }}
+      />
+    );
+  }
+
+  if (screen === "festival-memory") {
+    return (
+      <FestivalMemoryScreen
+        userId={patient?.id}
+        onBack={() => {
+          setScreen("games");
+        }}
+        onNextGame={() => {
+          setScreen("games");
+        }}
+      />
+    );
+  }
+
+  if (screen === "belongs-together") {
+    return (
+      <BelongsTogetherScreen
+        userId={patient?.id}
+        onBack={() => {
+          setScreen("games");
+        }}
+        onNextGame={() => {
+          setScreen("games");
+        }}
+      />
+    );
+  }
+
+  if (screen === "spot-difference") {
+    return (
+      <SpotDifferenceScreen
+        userId={patient?.id}
+        onBack={() => {
+          setScreen("games");
+        }}
+        onNextGame={() => {
+          setScreen("games");
+        }}
+      />
+    );
+  }
+
+  if (screen === "odd-one-out") {
+    return (
+      <OddOneOutScreen
+        userId={patient?.id}
+        onBack={() => {
+          setScreen("games");
+        }}
+        onNextGame={() => {
+          setScreen("games");
+        }}
+      />
+    );
+  }
+
+  if (screen === "color-sequence") {
+    return (
+      <ColorSequenceScreen
+        userId={patient?.id}
+        onBack={() => {
+          setScreen("games");
+        }}
+        onNextGame={() => {
+          setScreen("games");
+        }}
+      />
+    );
+  }
+
+  if (screen === "sound-games") {
+    return (
+      <SoundGamesScreen
+        userId={patient?.id}
+        onBack={() => {
+          setScreen("games");
+        }}
+        onNextGame={() => {
+          setScreen("games");
+        }}
+      />
+    );
+  }
+
+  if (screen === "what-is-missing") {
+    return (
+      <WhatIsMissingScreen
+        userId={patient?.id}
+        onBack={() => {
+          setScreen("games");
+        }}
+        onNextGame={() => {
+          setScreen("games");
+        }}
+      />
+    );
+  }
+
+  if (screen === "memory-match") {
+    return (
+      <MemoryMatchScreen
+        userId={patient?.id}
+        onBack={() => {
+          setScreen("games");
+        }}
+        onNextGame={() => {
+          setScreen("games");
         }}
       />
     );

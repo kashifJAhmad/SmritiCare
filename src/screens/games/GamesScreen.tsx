@@ -30,6 +30,7 @@ type GamesScreenProps = {
   onColorSequence?: () => void;
   onSoundGames?: () => void;
   onWhatIsMissing?: () => void;
+  onMemoryMatch?: () => void;
 };
 
 const COLORS = {
@@ -138,6 +139,7 @@ export default function GamesScreen({
   onColorSequence,
   onSoundGames,
   onWhatIsMissing,
+  onMemoryMatch,
 }: GamesScreenProps) {
   const { width } = useWindowDimensions();
 
@@ -237,6 +239,16 @@ export default function GamesScreen({
       iconColor: COLORS.onSecondaryContainer,
       bar: COLORS.secondary,
       onPress: onWhatIsMissing,
+    },
+
+    {
+      title: 'Memory Match',
+      description: 'Find matching pairs of cards.',
+      icon: 'grid-view',
+      bg: COLORS.primaryContainer,
+      iconColor: COLORS.onPrimaryContainer,
+      bar: COLORS.primary,
+      onPress: onMemoryMatch,
     },
   ];
 
