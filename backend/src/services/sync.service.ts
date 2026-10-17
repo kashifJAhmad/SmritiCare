@@ -1,5 +1,7 @@
 import { prisma } from "../config/database";
 import * as gameService from "./game.service";
+import { serializeMemoriesMedia } from "./storage.service";
+import { deleteMemoryWithMedia } from "./memoryDeletion.service";
 
 export type SyncOperation = "CREATE" | "UPDATE" | "DELETE";
 export type SyncEntityType =
@@ -107,9 +109,7 @@ export async function processSyncPush(
 
         case "MEMORY": {
           if (item.operation === "DELETE") {
-            await prisma.memory.deleteMany({
-              where: { id: item.entityId, userId },
-            });
+            await deleteMemoryWithMedia(userId, item.entityId, true);
             results.push({
               id: item.id,
               entityType: item.entityType,
@@ -117,28 +117,31 @@ export async function processSyncPush(
               status: "SUCCESS",
             });
           } else {
-            const memory = await prisma.memory.upsert({
-              where: { id: item.entityId },
-              update: {
-                title: payload.title,
-                description: payload.description ?? null,
-                category: payload.category ?? null,
-                imageUrl: payload.imageUrl ?? null,
-                audioUrl: payload.audioUrl ?? null,
-                type: payload.type || "text",
-              },
-              create: {
-                id: item.entityId,
-                userId,
-                title: payload.title || "Untitled Memory",
-                description: payload.description ?? null,
-                category: payload.category ?? null,
-                imageUrl: payload.imageUrl ?? null,
-                audioUrl: payload.audioUrl ?? null,
-                type: payload.type || "text",
-                createdAt: payload.createdAt ? new Date(payload.createdAt) : new Date(),
-              },
-            });
+            const existing = await prisma.memory.findFirst({ where: { id: item.entityId, userId } });
+            const memory = existing
+              ? await prisma.memory.update({
+                  where: { id: existing.id },
+                  data: {
+                    title: payload.title,
+                    description: payload.description ?? null,
+                    category: payload.category ?? null,
+                    // Media is changed only by the authenticated upload flow.
+                    type: payload.type || existing.type,
+                  },
+                })
+              : await prisma.memory.create({
+                  data: {
+                    id: item.entityId,
+                    userId,
+                    title: payload.title || "Untitled Memory",
+                    description: payload.description ?? null,
+                    category: payload.category ?? null,
+                    imageUrl: null,
+                    audioUrl: null,
+                    type: payload.type || "text",
+                    createdAt: payload.createdAt ? new Date(payload.createdAt) : new Date(),
+                  },
+                });
 
             results.push({
               id: item.id,
@@ -389,7 +392,7 @@ export async function processSyncPull(userId: string, sinceDate?: Date) {
 
   return {
     timestamp: new Date().toISOString(),
-    memories,
+    memories: await serializeMemoriesMedia(memories),
     tasks,
     gameResults,
     cognitiveScores,

@@ -8,11 +8,13 @@ import {
   updateMemory,
 } from "../services/memory.service";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
+import { serializeMemoriesMedia, serializeMemoryMedia } from "../services/storage.service";
 
 export async function getPatientMemoriesController(req: AuthenticatedRequest, res: Response) {
   try {
     if (!req.userId || !req.params.patientId || Array.isArray(req.params.patientId)) return res.status(401).json({ success: false, message: "Authentication and patient ID are required." });
-    return res.json({ success: true, memories: await getPatientMemoriesForCaregiver(req.userId, req.params.patientId) });
+    const memories = await getPatientMemoriesForCaregiver(req.userId, req.params.patientId);
+    return res.json({ success: true, memories: await serializeMemoriesMedia(memories) });
   } catch (error) { return res.status(403).json({ success: false, message: error instanceof Error ? error.message : "Unable to load patient memories." }); }
 }
 
@@ -36,7 +38,7 @@ export async function createMemoryController(
     res.status(201).json({
       success: true,
       message: "Memory saved successfully.",
-      memory,
+      memory: await serializeMemoryMedia(memory),
     });
   } catch (error) {
     res.status(400).json({
@@ -54,7 +56,7 @@ export async function getMemoriesController(
   res: Response
 ) {
   try {
-    const memories = await getMemories(req.userId!);
+    const memories = await serializeMemoriesMedia(await getMemories(req.userId!));
 
     res.json({
       success: true,
@@ -101,7 +103,7 @@ export async function getMemoryController(
 
     res.json({
       success: true,
-      memory,
+      memory: await serializeMemoryMedia(memory),
     });
   } catch (error) {
     res.status(500).json({
@@ -142,7 +144,7 @@ export async function updateMemoryController(
     res.json({
       success: true,
       message: "Memory updated successfully.",
-      memory,
+      memory: await serializeMemoryMedia(memory),
     });
   } catch (error) {
     const message =
@@ -150,9 +152,7 @@ export async function updateMemoryController(
         ? error.message
         : "Unable to update memory.";
 
-    res.status(
-      message === "Memory not found." ? 404 : 400
-    ).json({
+    res.status(message === "Memory not found." ? 404 : 400).json({
       success: false,
       message,
     });
@@ -186,9 +186,13 @@ export async function deleteMemoryController(
         ? error.message
         : "Unable to delete memory.";
 
-    res.status(
-      message === "Memory not found." ? 404 : 400
-    ).json({
+    const status = message === "Memory not found."
+      ? 404
+      : message.includes("cleanup is pending")
+        ? 503
+        : 400;
+
+    res.status(status).json({
       success: false,
       message,
     });

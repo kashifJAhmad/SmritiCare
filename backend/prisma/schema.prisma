@@ -118,6 +118,21 @@ model Memory {
   @@index([userId])
 }
 
+// Durable retry record for S3 cleanup after the owning Memory row is removed.
+model MemoryMediaDeletion {
+  id        String    @id @default(cuid())
+  userId    String
+  memoryId  String
+  objectKey String    @db.VarChar(512)
+  attempts  Int       @default(0)
+  lastError String?   @db.Text
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@unique([memoryId, objectKey])
+  @@index([userId, memoryId, deletedAt])
+}
+
 model Game {
   id          String       @id @default(cuid())
   name        String       @unique

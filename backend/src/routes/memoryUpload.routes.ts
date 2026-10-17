@@ -1,84 +1,40 @@
 import { Router } from "express";
 import multer from "multer";
-import path from "path";
-import fs from "fs";
 
 import { authenticate } from "../middleware/auth.middleware";
 import { uploadMemoryMediaController } from "../controllers/memoryUpload.controller";
 
 const router = Router();
-
-const uploadDirectory = path.join(
-  process.cwd(),
-  "uploads",
-  "memories"
-);
-
-if (!fs.existsSync(uploadDirectory)) {
-  fs.mkdirSync(uploadDirectory, {
-    recursive: true,
-  });
-}
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, uploadDirectory);
-  },
-
-  filename: (_req, file, cb) => {
-    const extension = path.extname(file.originalname);
-
-    const filename = `${Date.now()}-${Math.random()
-      .toString(36)
-      .substring(2, 10)}${extension || ".bin"}`;
-
-    cb(null, filename);
-  },
-});
+const allowedTypes = new Set([
+  "image/jpeg", "image/png", "image/webp", "audio/m4a", "audio/mp4",
+  "audio/aac", "audio/webm", "audio/mpeg", "audio/wav", "audio/x-m4a",
+]);
 
 const upload = multer({
-  storage,
-
-  limits: {
-    fileSize: 25 * 1024 * 1024,
-  },
-
-  fileFilter: (_req, file, cb) => {
-    const allowedImageTypes = [
-      "image/jpeg",
-      "image/png",
-      "image/webp",
-    ];
-
-    const allowedAudioTypes = [
-      "audio/m4a",
-      "audio/mp4",
-      "audio/aac",
-      "audio/webm",
-      "audio/mpeg",
-      "audio/wav",
-      "audio/x-m4a",
-    ];
-
-    const allowed =
-      allowedImageTypes.includes(file.mimetype) ||
-      allowedAudioTypes.includes(file.mimetype);
-
-    if (!allowed) {
-      cb(new Error("Unsupported file type."));
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, callback) => {
+    if (!allowedTypes.has(file.mimetype)) {
+      callback(new multer.MulterError("LIMIT_UNEXPECTED_FILE", "file"));
       return;
     }
-
-    cb(null, true);
+    callback(null, true);
   },
-});
+}).single("file");
 
 router.use(authenticate);
 
-router.post(
-  "/",
-  upload.single("file"),
-  uploadMemoryMediaController
-);
+router.post("/", (req, res, next) => {
+  upload(req, res, (error: unknown) => {
+    if (error) {
+      const message = error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE"
+        ? "File size must not exceed 25 MB."
+        : "Unsupported file type or upload field.";
+      res.status(400).json({ success: false, message });
+      return;
+    }
+    next();
+  });
+}, uploadMemoryMediaController);
 
 export default router;

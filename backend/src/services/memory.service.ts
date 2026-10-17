@@ -1,5 +1,6 @@
 import { prisma } from "../config/database";
 import { requireCaregiverPatientAccess } from "./caregiverAccess.service";
+import { deleteMemoryWithMedia } from "./memoryDeletion.service";
 
 export type CreateMemoryInput = {
   title: string;
@@ -103,21 +104,7 @@ export async function deleteMemory(
   userId: string,
   memoryId: string
 ) {
-  const existing = await getMemoryById(userId, memoryId);
-
-  if (!existing) {
-    throw new Error("Memory not found.");
-  }
-
-  await prisma.memory.delete({
-    where: {
-      id: memoryId,
-    },
-  });
-
-  return {
-    id: memoryId,
-  };
+  return deleteMemoryWithMedia(userId, memoryId);
 }
 
 export async function getPatientMemoriesForCaregiver(caregiverId: string, patientId: string) {
