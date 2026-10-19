@@ -1,4 +1,4 @@
-import { getToken } from "./authStorage";
+import { getAuthenticatedUserId, getToken } from "./authStorage";
 
 import { API_BASE_URL } from "../constants/api";
 
@@ -85,6 +85,22 @@ async function authenticatedRequest(
 import { getLocalProfile, saveLocalProfile, updateProfileLocally } from "../database/repositories/profileRepository";
 import { networkMonitor } from "./networkMonitor";
 import { syncManager } from "./syncManager";
+import { uploadProfileImageWithRecovery } from "./profileImageUploadRecovery";
+
+async function authenticatedRequestWithToken(
+  url: string,
+  token: string,
+  options: RequestInit = {},
+): Promise<Response> {
+  const headers = new Headers(options.headers);
+  headers.set("Authorization", `Bearer ${token}`);
+
+  if (options.body && !(options.body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  return fetch(url, { ...options, headers });
+}
 
 export async function getMyProfile(userId?: string): Promise<UserProfile> {
   // If offline or no network, load from local SQLite first
@@ -240,6 +256,7 @@ export async function updateMyProfile(
 
 export async function uploadProfileImage(
   uri: string,
+  profileUserId?: string | null,
 ): Promise<string> {
   const token = await getToken();
 
@@ -309,47 +326,28 @@ export async function uploadProfileImage(
     );
   }
 
-  const response = await fetch(
-    `${API_BASE_URL}/api/auth/profile-image`,
-    {
+  const expectedUserId = profileUserId || await getAuthenticatedUserId();
+
+  return uploadProfileImageWithRecovery(
+    () => fetch(`${API_BASE_URL}/api/auth/profile-image`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
       body: formData,
+    }),
+    async (sessionToken) => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10_000);
+      try {
+        return await authenticatedRequestWithToken(
+          `${API_BASE_URL}/api/auth/me`,
+          sessionToken,
+          { method: "GET", signal: controller.signal },
+        );
+      } finally {
+        clearTimeout(timeout);
+      }
     },
+    token,
+    expectedUserId,
   );
-
-  const text = await response.text();
-
-  let result: ApiResponse<{
-    profileImageUrl: string;
-  }>;
-
-  try {
-    result = JSON.parse(text);
-  } catch {
-    throw new Error(
-      `Server returned an invalid response (${response.status}).`,
-    );
-  }
-
-  if (!response.ok || !result.success) {
-    throw new Error(
-      result.message ||
-        "Failed to upload profile photo.",
-    );
-  }
-
-  const imageUrl =
-    result.data?.profileImageUrl ??
-    result.user?.profileImageUrl;
-
-  if (!imageUrl) {
-    throw new Error(
-      "Profile image URL was not returned by the server.",
-    );
-  }
-
-  return imageUrl;
 }

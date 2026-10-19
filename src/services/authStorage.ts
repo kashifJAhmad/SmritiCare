@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const TOKEN_KEY = "@smriticCare_auth_token";
 const ROLE_KEY = "@smriticCare_auth_role";
+const USER_ID_KEY = "@smriticCare_auth_user_id";
 
 export type AuthRole = "patient" | "caregiver";
 
@@ -14,7 +15,19 @@ export async function getToken(): Promise<string | null> {
 }
 
 export async function removeToken(): Promise<void> {
-  await AsyncStorage.removeItem(TOKEN_KEY);
+  await AsyncStorage.multiRemove([TOKEN_KEY, USER_ID_KEY]);
+}
+
+export async function saveAuthenticatedUserId(userId: string): Promise<void> {
+  await AsyncStorage.setItem(USER_ID_KEY, userId);
+}
+
+export async function getAuthenticatedUserId(): Promise<string | null> {
+  return AsyncStorage.getItem(USER_ID_KEY);
+}
+
+export async function removeAuthenticatedUserId(): Promise<void> {
+  await AsyncStorage.removeItem(USER_ID_KEY);
 }
 
 export async function saveAuthSession(
@@ -41,5 +54,6 @@ export async function clearAuthSession(): Promise<void> {
   await AsyncStorage.multiRemove([
     TOKEN_KEY,
     ROLE_KEY,
+    USER_ID_KEY,
   ]);
 }

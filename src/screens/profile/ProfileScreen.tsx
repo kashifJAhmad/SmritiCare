@@ -925,7 +925,7 @@ export default function ProfileScreen({
     try {
       setUploadingPhoto(true);
 
-      const imageUrl = await uploadProfileImage(uri);
+      const imageUrl = await uploadProfileImage(uri, profile?.id);
 
       const updated = await updateMyProfile({
         profileImageUrl: imageUrl,

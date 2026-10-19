@@ -1,125 +1,114 @@
 import { Request, Response } from "express";
 import multer from "multer";
-import path from "path";
-import fs from "fs";
 import { prisma } from "../config/database";
+import {
+  createProfileImageObjectKey,
+  deleteProfileImageObject,
+  resolveProfileImage,
+  uploadProfileImageObject,
+} from "../services/storage.service";
+import { PROFILE_IMAGE_MAX_BYTES, validateProfileImageContent } from "../services/profileImage.validation";
 
-const uploadDirectory = path.join(
-  process.cwd(),
-  "uploads",
-  "profiles",
-);
+const allowedTypes = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
+export const PROFILE_IMAGE_SAVED_SIGNING_FAILED = "PROFILE_IMAGE_SAVED_SIGNING_FAILED";
 
-if (!fs.existsSync(uploadDirectory)) {
-  fs.mkdirSync(uploadDirectory, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, uploadDirectory);
+export const uploadProfileImageMiddleware = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: PROFILE_IMAGE_MAX_BYTES, files: 1 },
+  fileFilter: (_req, file, callback) => {
+    if (!allowedTypes.has(file.mimetype.toLowerCase())) {
+      callback(new multer.MulterError("LIMIT_UNEXPECTED_FILE", "image"));
+      return;
+    }
+    callback(null, true);
   },
+}).single("image");
 
-  filename: (_req, file, cb) => {
-    const extension = path
-      .extname(file.originalname)
-      .toLowerCase();
-
-    const filename =
-      `profile-${Date.now()}-` +
-      `${Math.round(Math.random() * 1_000_000)}` +
-      extension;
-
-    cb(null, filename);
-  },
-});
-
-const fileFilter: multer.Options["fileFilter"] = (
-  _req,
-  file,
-  cb,
-) => {
-  const allowedTypes = [
-    "image/jpeg",
-    "image/jpg",
-    "image/png",
-    "image/webp",
-  ];
-
-  if (!allowedTypes.includes(file.mimetype)) {
-    cb(
-      new Error(
-        "Only JPG, JPEG, PNG, and WEBP images are allowed.",
-      ),
-    );
-    return;
-  }
-
-  cb(null, true);
+type ProfileImageUploadDependencies = {
+  createKey: typeof createProfileImageObjectKey;
+  upload: typeof uploadProfileImageObject;
+  remove: typeof deleteProfileImageObject;
+  persist: (userId: string, objectKey: string) => Promise<void>;
+  isReferenced: (userId: string, objectKey: string) => Promise<boolean>;
+  resolve: typeof resolveProfileImage;
 };
 
-export const uploadProfileImageMiddleware =
-  multer({
-    storage,
-    fileFilter,
-    limits: {
-      fileSize: 5 * 1024 * 1024,
-    },
-  }).single("image");
-
-export async function uploadProfileImage(
-  req: Request & { userId?: string },
-  res: Response,
-) {
-  try {
-    if (!req.userId) {
-      return res.status(401).json({
-        success: false,
-        message: "Authentication required",
-      });
+export function createProfileImageUploadHandler(dependencies: ProfileImageUploadDependencies) {
+  return async function uploadProfileImage(req: Request & { userId?: string }, res: Response) {
+    const userId = req.userId;
+    const file = req.file;
+    if (!userId) return res.status(401).json({ success: false, message: "Authentication required." });
+    if (!file || !file.buffer || file.size <= 0) {
+      return res.status(400).json({ success: false, message: "No profile image was uploaded." });
+    }
+    if (file.size > PROFILE_IMAGE_MAX_BYTES || file.buffer.length > PROFILE_IMAGE_MAX_BYTES) {
+      return res.status(400).json({ success: false, message: "Profile image must not exceed 5 MB." });
     }
 
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: "No profile image was uploaded.",
-      });
+    const contentType = validateProfileImageContent(file.mimetype, file.buffer);
+    if (!contentType) {
+      return res.status(400).json({ success: false, message: "The uploaded file is not a supported JPG, PNG, or WEBP image." });
     }
 
-    const baseUrl =
-      process.env.BACKEND_PUBLIC_URL ||
-      "http://localhost:5000";
+    let objectKey: string;
+    try {
+      objectKey = dependencies.createKey(userId, contentType);
+      await dependencies.upload(objectKey, file.buffer, contentType, userId);
+    } catch {
+      return res.status(500).json({ success: false, message: "Unable to upload profile image." });
+    }
 
-    const imageUrl =
-      `${baseUrl}/uploads/profiles/${req.file.filename}`;
+    try {
+      await dependencies.persist(userId, objectKey);
+    } catch {
+      let isReferenced: boolean;
+      try {
+        isReferenced = await dependencies.isReferenced(userId, objectKey);
+      } catch {
+        // Retain the object when commit state is unknown to avoid breaking a row that may reference it.
+        console.error("Profile image persistence outcome could not be verified");
+        return res.status(500).json({ success: false, message: "Unable to save profile image." });
+      }
+      if (isReferenced) {
+        console.error("Profile image remains referenced after persistence error");
+        return res.status(500).json({ success: false, message: "Unable to save profile image." });
+      }
+      try {
+        await dependencies.remove(objectKey, userId);
+      } catch {
+        // Keep the response safe while leaving an operational breadcrumb for orphan cleanup.
+        console.error("Profile image compensating cleanup failed");
+      }
+      return res.status(500).json({ success: false, message: "Unable to save profile image." });
+    }
 
-    await prisma.user.update({
-      where: {
-        id: req.userId,
-      },
-      data: {
-        profileImageUrl: imageUrl,
-      },
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: "Profile image uploaded successfully",
-      data: {
-        profileImageUrl: imageUrl,
-      },
-    });
-  } catch (error) {
-    console.error(
-      "Profile image upload error:",
-      error,
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        error instanceof Error
-          ? error.message
-          : "Unable to upload profile image",
-    });
-  }
+    try {
+      const profileImageUrl = await dependencies.resolve(objectKey, userId);
+      return res.status(200).json({
+        success: true,
+        message: "Profile image uploaded successfully",
+        data: { profileImageUrl },
+      });
+    } catch {
+      return res.status(500).json({
+        success: false,
+        code: PROFILE_IMAGE_SAVED_SIGNING_FAILED,
+        message: "Profile image was saved but could not be prepared for display.",
+      });
+    }
+  };
 }
+
+export const uploadProfileImage = createProfileImageUploadHandler({
+  createKey: createProfileImageObjectKey,
+  upload: uploadProfileImageObject,
+  remove: deleteProfileImageObject,
+  async persist(userId, objectKey) {
+    await prisma.user.update({ where: { id: userId }, data: { profileImageUrl: objectKey } });
+  },
+  async isReferenced(userId, objectKey) {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { profileImageUrl: true } });
+    return user?.profileImageUrl === objectKey;
+  },
+  resolve: resolveProfileImage,
+});

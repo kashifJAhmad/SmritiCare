@@ -8,7 +8,39 @@ import {
   getCaregiverPatients,
   getPatientCaregiver,
   removeConnection,
+  CaregiverConnectionAuthorizationError,
+  CaregiverConnectionNotFoundError,
+  CaregiverConnectionValidationError,
 } from "../services/caregiverConnection.service";
+import { ProfileImageSerializationError, resolveProfileImage } from "../services/storage.service";
+
+function caregiverErrorResponse(res: Response, error: unknown): Response {
+  if (error instanceof CaregiverConnectionValidationError) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+  if (error instanceof CaregiverConnectionAuthorizationError) {
+    return res.status(403).json({ success: false, message: error.message });
+  }
+  if (error instanceof CaregiverConnectionNotFoundError) {
+    return res.status(404).json({ success: false, message: error.message });
+  }
+  if (error instanceof ProfileImageSerializationError) {
+    return res.status(500).json({ success: false, message: "Unable to prepare profile image." });
+  }
+  return res.status(500).json({ success: false, message: "Unable to process caregiver request." });
+}
+
+async function serializeProfileRecord<T extends { id: string; profileImageUrl?: string | null }>(record: T): Promise<T> {
+  return { ...record, profileImageUrl: await resolveProfileImage(record.profileImageUrl, record.id) };
+}
+
+async function serializeConnectionProfileImages<T extends { patient?: any; caregiver?: any }>(connection: T): Promise<T> {
+  const [patient, caregiver] = await Promise.all([
+    connection.patient?.id ? serializeProfileRecord(connection.patient) : connection.patient,
+    connection.caregiver?.id ? serializeProfileRecord(connection.caregiver) : connection.caregiver,
+  ]);
+  return { ...connection, patient, caregiver };
+}
 
 // ============================================================
 // GET / CREATE PATIENT CODE
@@ -36,15 +68,7 @@ export async function getPatientCode(
       ...result,
     });
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Unable to get patient code";
-
-    return res.status(400).json({
-      success: false,
-      message,
-    });
+    return caregiverErrorResponse(res, error);
   }
 }
 
@@ -76,15 +100,7 @@ export async function createCaregiverInvite(
       invite,
     });
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Unable to create caregiver invite";
-
-    return res.status(400).json({
-      success: false,
-      message,
-    });
+    return caregiverErrorResponse(res, error);
   }
 }
 
@@ -109,7 +125,7 @@ export async function connectToCaregiver(
       });
     }
 
-    const { code } = req.body;
+    const code = req.body?.code;
 
     const connection = await connectPatient(
       userId,
@@ -118,18 +134,10 @@ export async function connectToCaregiver(
 
     return res.status(201).json({
       success: true,
-      connection,
+      connection: await serializeConnectionProfileImages(connection),
     });
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Unable to connect to caregiver";
-
-    return res.status(400).json({
-      success: false,
-      message,
-    });
+    return caregiverErrorResponse(res, error);
   }
 }
 
@@ -155,7 +163,7 @@ export async function connectToPatient(
       });
     }
 
-    const { patientCode } = req.body;
+    const patientCode = req.body?.patientCode;
 
     const connection =
       await connectCaregiverToPatient(
@@ -165,18 +173,10 @@ export async function connectToPatient(
 
     return res.status(201).json({
       success: true,
-      connection,
+      connection: await serializeConnectionProfileImages(connection),
     });
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Unable to connect to patient";
-
-    return res.status(400).json({
-      success: false,
-      message,
-    });
+    return caregiverErrorResponse(res, error);
   }
 }
 
@@ -204,18 +204,10 @@ export async function getPatients(
 
     return res.status(200).json({
       success: true,
-      patients,
+      patients: await Promise.all(patients.map(serializeConnectionProfileImages)),
     });
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Unable to retrieve patients";
-
-    return res.status(400).json({
-      success: false,
-      message,
-    });
+    return caregiverErrorResponse(res, error);
   }
 }
 
@@ -243,18 +235,12 @@ export async function getCaregiver(
 
     return res.status(200).json({
       success: true,
-      caregiver,
+      caregiver: caregiver?.caregiver
+        ? { ...caregiver, caregiver: await serializeProfileRecord(caregiver.caregiver) }
+        : caregiver,
     });
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Unable to retrieve caregiver";
-
-    return res.status(400).json({
-      success: false,
-      message,
-    });
+    return caregiverErrorResponse(res, error);
   }
 }
 
@@ -296,14 +282,6 @@ export async function deleteConnection(
       result,
     });
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Unable to remove connection";
-
-    return res.status(400).json({
-      success: false,
-      message,
-    });
+    return caregiverErrorResponse(res, error);
   }
 }

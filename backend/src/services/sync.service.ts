@@ -1,6 +1,6 @@
 import { prisma } from "../config/database";
 import * as gameService from "./game.service";
-import { serializeMemoriesMedia } from "./storage.service";
+import { normalizeProfileImageReference, serializeMemoriesMedia, serializeProfileImageUser } from "./storage.service";
 import { deleteMemoryWithMedia } from "./memoryDeletion.service";
 
 export type SyncOperation = "CREATE" | "UPDATE" | "DELETE";
@@ -223,6 +223,9 @@ export async function processSyncPush(
           if (payload.caregiverName !== undefined) updateData.caregiverName = payload.caregiverName;
           if (payload.caregiverAccess !== undefined) updateData.caregiverAccess = payload.caregiverAccess;
           if (payload.gpsSharing !== undefined) updateData.gpsSharing = payload.gpsSharing;
+          if (payload.profileImageUrl !== undefined) {
+            updateData.profileImageUrl = normalizeProfileImageReference(payload.profileImageUrl, userId);
+          }
 
           const updatedUser = await prisma.user.update({
             where: { id: userId },
@@ -396,7 +399,7 @@ export async function processSyncPull(userId: string, sinceDate?: Date) {
     tasks,
     gameResults,
     cognitiveScores,
-    profile,
+    profile: profile ? await serializeProfileImageUser(profile) : null,
     alerts,
   };
 }

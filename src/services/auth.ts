@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_BASE_URL } from "../constants/api";
+import { removeAuthenticatedUserId, saveAuthenticatedUserId } from "./authStorage";
 
 export type UserRole = "PATIENT" | "CAREGIVER";
 
@@ -83,6 +84,7 @@ export async function getToken() {
 
 export async function clearToken() {
     await AsyncStorage.removeItem(TOKEN_KEY);
+    await removeAuthenticatedUserId();
 }
 
 export async function loginUser(
@@ -109,6 +111,7 @@ export async function loginUser(
     }
 
     await saveToken(data.token);
+    await saveAuthenticatedUserId(data.user.id);
 
     return data;
 }
@@ -143,6 +146,7 @@ export async function signupUser(
     }
 
     await saveToken(data.token);
+    await saveAuthenticatedUserId(data.user.id);
 
     return data;
 }

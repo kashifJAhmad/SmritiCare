@@ -2,6 +2,34 @@ import { prisma } from "../config/database";
 
 type UserRole = "PATIENT" | "CAREGIVER";
 
+export class CaregiverConnectionValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CaregiverConnectionValidationError";
+  }
+}
+
+export class CaregiverConnectionAuthorizationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CaregiverConnectionAuthorizationError";
+  }
+}
+
+export class CaregiverConnectionNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CaregiverConnectionNotFoundError";
+  }
+}
+
+function normalizeRequiredCode(value: unknown, message: string): string {
+  if (typeof value !== "string") throw new CaregiverConnectionValidationError(message);
+  const normalized = value.trim().toUpperCase();
+  if (!normalized) throw new CaregiverConnectionValidationError(message);
+  return normalized;
+}
+
 function generateInviteCode(): string {
   const characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -40,10 +68,21 @@ async function getUserRole(userId: string): Promise<UserRole> {
   });
 
   if (!user) {
-    throw new Error("User not found");
+    throw new CaregiverConnectionNotFoundError("User not found");
   }
 
   return user.role as UserRole;
+}
+
+function visiblePatientProfile<T extends { caregiverAccess: boolean; id: string; fullName: string; profileImageUrl: string | null; gpsSharing: boolean }>(patient: T) {
+  if (patient.caregiverAccess) return patient;
+  return {
+    id: patient.id,
+    fullName: patient.fullName,
+    profileImageUrl: patient.profileImageUrl,
+    caregiverAccess: false,
+    gpsSharing: patient.gpsSharing,
+  };
 }
 
 // ============================================================
@@ -56,7 +95,7 @@ export async function getOrCreatePatientCode(
   const role = await getUserRole(patientId);
 
   if (role !== "PATIENT") {
-    throw new Error(
+    throw new CaregiverConnectionAuthorizationError(
       "Only patients can have a patient code",
     );
   }
@@ -72,7 +111,7 @@ export async function getOrCreatePatientCode(
   });
 
   if (!existingPatient) {
-    throw new Error("Patient not found");
+    throw new CaregiverConnectionNotFoundError("Patient not found");
   }
 
   if (existingPatient.patientCode) {
@@ -135,7 +174,7 @@ export async function createInvite(caregiverId: string) {
   const role = await getUserRole(caregiverId);
 
   if (role !== "CAREGIVER") {
-    throw new Error(
+    throw new CaregiverConnectionAuthorizationError(
       "Only caregivers can create patient invitations",
     );
   }
@@ -190,23 +229,17 @@ export async function createInvite(caregiverId: string) {
 
 export async function connectPatient(
   patientId: string,
-  code: string,
+  code: unknown,
 ) {
   const role = await getUserRole(patientId);
 
   if (role !== "PATIENT") {
-    throw new Error(
+    throw new CaregiverConnectionAuthorizationError(
       "Only patients can use caregiver invitations",
     );
   }
 
-  const normalizedCode = code.trim().toUpperCase();
-
-  if (!normalizedCode) {
-    throw new Error(
-      "Caregiver invite code is required",
-    );
-  }
+  const normalizedCode = normalizeRequiredCode(code, "Caregiver invite code is required");
 
   const invite = await prisma.caregiverInvite.findUnique({
     where: {
@@ -226,13 +259,13 @@ export async function connectPatient(
   });
 
   if (!invite) {
-    throw new Error(
+    throw new CaregiverConnectionValidationError(
       "Invalid caregiver invite code",
     );
   }
 
   if (invite.used) {
-    throw new Error(
+    throw new CaregiverConnectionValidationError(
       "This caregiver invite code has already been used",
     );
   }
@@ -241,13 +274,13 @@ export async function connectPatient(
     invite.expiresAt &&
     invite.expiresAt.getTime() < Date.now()
   ) {
-    throw new Error(
+    throw new CaregiverConnectionValidationError(
       "This caregiver invite code has expired",
     );
   }
 
   if (invite.caregiver.role !== "CAREGIVER") {
-    throw new Error(
+    throw new CaregiverConnectionValidationError(
       "Invalid caregiver account",
     );
   }
@@ -263,7 +296,7 @@ export async function connectPatient(
     });
 
   if (existingConnection) {
-    throw new Error(
+    throw new CaregiverConnectionValidationError(
       "You are already connected to this caregiver",
     );
   }
@@ -320,25 +353,17 @@ export async function connectPatient(
 
 export async function connectCaregiverToPatient(
   caregiverId: string,
-  patientCode: string,
+  patientCode: unknown,
 ) {
   const role = await getUserRole(caregiverId);
 
   if (role !== "CAREGIVER") {
-    throw new Error(
+    throw new CaregiverConnectionAuthorizationError(
       "Only caregivers can connect patients",
     );
   }
 
-  const normalizedCode = patientCode
-    .trim()
-    .toUpperCase();
-
-  if (!normalizedCode) {
-    throw new Error(
-      "Patient code is required",
-    );
-  }
+  const normalizedCode = normalizeRequiredCode(patientCode, "Patient code is required");
 
   const patient = await prisma.user.findUnique({
     where: {
@@ -367,19 +392,19 @@ export async function connectCaregiverToPatient(
   });
 
   if (!patient) {
-    throw new Error(
+    throw new CaregiverConnectionValidationError(
       "Invalid patient code",
     );
   }
 
   if (patient.role !== "PATIENT") {
-    throw new Error(
+    throw new CaregiverConnectionValidationError(
       "This code does not belong to a patient",
     );
   }
 
   if (patient.id === caregiverId) {
-    throw new Error(
+    throw new CaregiverConnectionValidationError(
       "You cannot connect to yourself",
     );
   }
@@ -395,7 +420,7 @@ export async function connectCaregiverToPatient(
     });
 
   if (existingConnection) {
-    throw new Error(
+    throw new CaregiverConnectionValidationError(
       "This patient is already connected to you",
     );
   }
@@ -440,7 +465,7 @@ export async function connectCaregiverToPatient(
       },
     });
 
-  return connection;
+  return { ...connection, patient: visiblePatientProfile(connection.patient) };
 }
 
 // ============================================================
@@ -453,7 +478,7 @@ export async function getCaregiverPatients(
   const role = await getUserRole(caregiverId);
 
   if (role !== "CAREGIVER") {
-    throw new Error(
+    throw new CaregiverConnectionAuthorizationError(
       "Only caregivers can view connected patients",
     );
   }
@@ -495,13 +520,7 @@ export async function getCaregiverPatients(
   // fields are omitted. Detailed care data has its own authorization boundary.
   return connections.map((connection) => ({
     ...connection,
-    patient: connection.patient.caregiverAccess ? connection.patient : {
-      id: connection.patient.id,
-      fullName: connection.patient.fullName,
-      profileImageUrl: connection.patient.profileImageUrl,
-      caregiverAccess: false,
-      gpsSharing: connection.patient.gpsSharing,
-    },
+    patient: visiblePatientProfile(connection.patient),
   }));
 }
 
@@ -515,7 +534,7 @@ export async function getPatientCaregiver(
   const role = await getUserRole(patientId);
 
   if (role !== "PATIENT") {
-    throw new Error(
+    throw new CaregiverConnectionAuthorizationError(
       "Only patients can view their caregiver",
     );
   }
@@ -560,7 +579,7 @@ export async function removeConnection(
     });
 
   if (!connection) {
-    throw new Error(
+    throw new CaregiverConnectionNotFoundError(
       "Caregiver connection not found",
     );
   }
@@ -569,7 +588,7 @@ export async function removeConnection(
     connection.caregiverId !== userId &&
     connection.patientId !== userId
   ) {
-    throw new Error(
+    throw new CaregiverConnectionAuthorizationError(
       "You are not authorized to remove this connection",
     );
   }

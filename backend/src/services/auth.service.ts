@@ -1,7 +1,29 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { UserRole } from "@prisma/client";
+import { Prisma, UserRole } from "@prisma/client";
 import { prisma } from "../config/database";
+import { normalizeProfileImageReference } from "./storage.service";
+
+export class AuthValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AuthValidationError";
+  }
+}
+
+export class AuthenticationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AuthenticationError";
+  }
+}
+
+export class AuthUserNotFoundError extends Error {
+  constructor() {
+    super("User not found");
+    this.name = "AuthUserNotFoundError";
+  }
+}
 
 type SignupData = {
   fullName: string;
@@ -113,26 +135,26 @@ function normalizeRole(role?: UserRole): UserRole {
 }
 
 export async function signup(data: SignupData) {
-  const fullName = data.fullName.trim();
-  const email = data.email.trim().toLowerCase();
-  const password = data.password;
-  const language = data.language?.trim() || "English";
-  const role = normalizeRole(data.role);
+  const fullName = typeof data?.fullName === "string" ? data.fullName.trim() : "";
+  const email = typeof data?.email === "string" ? data.email.trim().toLowerCase() : "";
+  const password = typeof data?.password === "string" ? data.password : "";
+  const language = typeof data?.language === "string" ? data.language.trim() || "English" : "English";
+  const role = normalizeRole(data?.role);
 
   if (!fullName) {
-    throw new Error("Full name is required");
+    throw new AuthValidationError("Full name is required");
   }
 
   if (!email) {
-    throw new Error("Email is required");
+    throw new AuthValidationError("Email is required");
   }
 
   if (!password) {
-    throw new Error("Password is required");
+    throw new AuthValidationError("Password is required");
   }
 
   if (password.length < 6) {
-    throw new Error("Password must be at least 6 characters");
+    throw new AuthValidationError("Password must be at least 6 characters");
   }
 
   const existingUser = await prisma.user.findUnique({
@@ -142,7 +164,7 @@ export async function signup(data: SignupData) {
   });
 
   if (existingUser) {
-    throw new Error("An account with this email already exists");
+    throw new AuthValidationError("An account with this email already exists");
   }
 
   const hashedPassword = await bcrypt.hash(password, 12);
@@ -167,15 +189,16 @@ export async function signup(data: SignupData) {
 }
 
 export async function login(data: LoginData) {
-  const email = data.email.trim().toLowerCase();
-  const requestedRole = normalizeRole(data.role);
+  const email = typeof data?.email === "string" ? data.email.trim().toLowerCase() : "";
+  const password = typeof data?.password === "string" ? data.password : "";
+  const requestedRole = normalizeRole(data?.role);
 
   if (!email) {
-    throw new Error("Email is required");
+    throw new AuthValidationError("Email is required");
   }
 
-  if (!data.password) {
-    throw new Error("Password is required");
+  if (!password) {
+    throw new AuthValidationError("Password is required");
   }
 
   const user = await prisma.user.findUnique({
@@ -185,24 +208,24 @@ export async function login(data: LoginData) {
   });
 
   if (!user) {
-    throw new Error("Invalid email or password");
+    throw new AuthenticationError("Invalid email or password");
   }
 
   const passwordMatches = await bcrypt.compare(
-    data.password,
+    password,
     user.password,
   );
 
   if (!passwordMatches) {
-    throw new Error("Invalid email or password");
+    throw new AuthenticationError("Invalid email or password");
   }
 
   if (user.role !== requestedRole) {
     if (requestedRole === UserRole.CAREGIVER) {
-      throw new Error("This account is not registered as a caregiver");
+      throw new AuthenticationError("This account is not registered as a caregiver");
     }
 
-    throw new Error("This account is not registered as a patient");
+    throw new AuthenticationError("This account is not registered as a patient");
   }
 
   const token = createToken(user.id, user.role);
@@ -221,7 +244,7 @@ export async function getCurrentUser(userId: string) {
   });
 
   if (!user) {
-    throw new Error("User not found");
+    throw new AuthUserNotFoundError();
   }
 
   return sanitizeUser(user);
@@ -234,10 +257,10 @@ export async function updateCurrentUser(
   const updateData: Record<string, unknown> = {};
 
   if (data.fullName !== undefined) {
-    const fullName = data.fullName.trim();
+    const fullName = typeof data.fullName === "string" ? data.fullName.trim() : "";
 
     if (!fullName) {
-      throw new Error("Full name cannot be empty");
+      throw new AuthValidationError("Full name cannot be empty");
     }
 
     updateData.fullName = fullName;
@@ -278,7 +301,15 @@ export async function updateCurrentUser(
   }
 
   if (data.profileImageUrl !== undefined) {
-    updateData.profileImageUrl = data.profileImageUrl;
+    let normalizedProfileImage: string | null;
+    try {
+      normalizedProfileImage = normalizeProfileImageReference(data.profileImageUrl, userId);
+    } catch {
+      throw new AuthValidationError("Invalid profile image reference.");
+    }
+    if (data.profileImageUrl === null || normalizedProfileImage !== null) {
+      updateData.profileImageUrl = normalizedProfileImage;
+    }
   }
 
   if (data.language !== undefined) {
@@ -301,12 +332,20 @@ export async function updateCurrentUser(
     updateData.textSize = data.textSize;
   }
 
-  const user = await prisma.user.update({
-    where: {
-      id: userId,
-    },
-    data: updateData,
-  });
+  let user;
+  try {
+    user = await prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data: updateData,
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+      throw new AuthUserNotFoundError();
+    }
+    throw error;
+  }
 
   return sanitizeUser(user);
 }

@@ -656,7 +656,7 @@ export default function CaregiverProfileScreen({
       setUploadingPhoto(true);
 
       const imageUrl =
-        await uploadProfileImage(uri);
+        await uploadProfileImage(uri, profile?.id);
 
       const updated =
         await updateMyProfile({

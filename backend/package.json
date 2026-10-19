@@ -7,7 +7,7 @@
     "dev": "npm run build && node --watch dist/server.js",
     "build": "tsc",
     "start": "node dist/server.js",
-    "test": "npm run build && node tests/storage.service.test.cjs && node tests/memoryDeletion.service.test.cjs"
+    "test": "npm run build && node tests/storage.service.test.cjs && node tests/memoryDeletion.service.test.cjs && node tests/profileImage.service.test.cjs"
   },
   "keywords": [],
   "author": "",
