@@ -1,1 +1,1 @@
-export const API_BASE_URL = "https://smriticare-3q3c.onrender.com";
+export const API_BASE_URL = "http://43.204.221.160:5000";
