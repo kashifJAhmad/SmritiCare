@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+
 import "dotenv/config";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "@prisma/client";
@@ -9,15 +12,17 @@ const adapter = new PrismaMariaDb({
   password: process.env.DATABASE_PASSWORD,
   database: process.env.DATABASE_NAME || "smriticcare",
 
-  // Aiven requires TLS. The Aiven certificate is not in the
-  // local/Render Node.js trusted CA store, so explicitly allow
-  // the encrypted connection without certificate verification.
+    // Verify the Aiven database server using its CA certificate.
   ssl:
-  process.env.DATABASE_SSL === "true"
-    ? {
-        rejectUnauthorized: false,
-      }
-    : undefined,
+    process.env.DATABASE_SSL === "true"
+      ? {
+          ca: fs.readFileSync(
+            path.resolve(process.cwd(), "certs", "ca.pem"),
+            "utf8"
+          ),
+          rejectUnauthorized: true,
+        }
+      : undefined,
 
   connectionLimit: 5,
   acquireTimeout: 30000,
